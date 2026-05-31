@@ -4,6 +4,7 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import ws from 'ws';
 
 @Injectable()
 export class SupabaseService implements OnModuleInit {
@@ -21,6 +22,9 @@ export class SupabaseService implements OnModuleInit {
       auth: {
         autoRefreshToken: false,
         persistSession: false,
+      },
+      realtime: {
+        transport: ws,
       },
     });
   }
@@ -51,6 +55,10 @@ export class SupabaseService implements OnModuleInit {
           Authorization: `Bearer ${accessToken}`,
         },
       },
+      realtime: {
+        transport: ws,
+      },
     });
   }
 }
+
