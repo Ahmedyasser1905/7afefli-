@@ -2,7 +2,7 @@
 // Map with Google Maps-style rotation (MapLibre GL) + Leaflet fallback
 // Optimised: stable memoisation prevents unnecessary WebView reloads
 
-import React, { useMemo, useRef, useCallback, useState } from 'react';
+import React, { useMemo, useRef, useCallback, useState, useEffect } from 'react';
 import { View, StyleSheet, ActivityIndicator, TouchableOpacity, Text } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { colors } from '../../theme';
