@@ -10,6 +10,11 @@
     },
     "preview": {
       "node": "20.x",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://7afefli-production.up.railway.app",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://phfwutugsyiutqgippqg.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBoZnd1dHVnc3lpdXRxZ2lwcHFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5OTk1ODYsImV4cCI6MjA5NTU3NTU4Nn0.BjThpoDrhxIg-isCS4tE178jUsXorQZos8G1gFUZb6U"
+      },
       "distribution": "internal",
       "android": {
         "buildType": "apk"
