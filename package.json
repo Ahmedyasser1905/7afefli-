@@ -5,5 +5,8 @@
     "apps/*",
     "packages/*",
     "services/*"
-  ]
+  ],
+  "devDependencies": {
+    "expo": "~56.0.8"
+  }
 }

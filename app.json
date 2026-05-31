@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "adcbeb95-3c15-48ec-bae6-6f4a44190cf6"
+      }
+    },
+    "android": {
+      "package": "com.evolutions172.barberdzmonorepo"
+    }
+  }
+}
