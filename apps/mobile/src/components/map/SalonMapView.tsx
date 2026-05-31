@@ -1,0 +1,375 @@
+// apps/mobile/src/components/map/SalonMapView.tsx
+// Map with Google Maps-style rotation (MapLibre GL) + Leaflet fallback
+// Optimised: stable memoisation prevents unnecessary WebView reloads
+
+import React, { useMemo, useRef, useCallback, useState } from 'react';
+import { View, StyleSheet, ActivityIndicator, TouchableOpacity, Text } from 'react-native';
+import { WebView } from 'react-native-webview';
+import { colors } from '../../theme';
+import Ionicons from '@react-native-vector-icons/ionicons';
+import type { Salon } from '@barberdz/shared/types';
+
+interface SalonMapViewProps {
+  salons: Salon[];
+  userLocation: { latitude: number; longitude: number } | null;
+  onSalonPress?: (salonId: string) => void;
+  height?: number;
+  style?: any;
+}
+
+export function SalonMapView({
+  salons,
+  userLocation,
+  onSalonPress,
+  height = 250,
+  style,
+}: SalonMapViewProps) {
+  const webViewRef = useRef<WebView>(null);
+  const [mapReady, setMapReady] = useState(false);
+  const center = userLocation ?? { latitude: 36.7538, longitude: 3.0588 };
+
+  const zoomIn = useCallback(() => {
+    webViewRef.current?.injectJavaScript('if(window.map)map.zoomIn();true;');
+  }, []);
+
+  const zoomOut = useCallback(() => {
+    webViewRef.current?.injectJavaScript('if(window.map)map.zoomOut();true;');
+  }, []);
+
+  const resetView = useCallback(() => {
+    webViewRef.current?.injectJavaScript(
+      `if(window.map){try{map.easeTo({center:[${center.longitude},${center.latitude}],zoom:12,bearing:0,pitch:0,duration:400})}catch(e){map.setView([${center.latitude},${center.longitude}],12)}}true;`
+    );
+  }, [center]);
+
+  // ── Stable key: only changes when the actual data changes ──
+  const salonsFingerprint = useMemo(() => {
+    return salons
+      .filter((s) => s.latitude && s.longitude && s.latitude !== 0 && s.longitude !== 0)
+      .map((s) => `${s.id}:${s.latitude}:${s.longitude}:${s.name}:${s.average_rating}`)
+      .join('|');
+  }, [salons]);
+
+  const userKey = userLocation ? `${userLocation.latitude}:${userLocation.longitude}` : 'none';
+
+  const mapHtml = useMemo(() => {
+    const salonsData = salons
+      .filter((s) => s.latitude && s.longitude && s.latitude !== 0 && s.longitude !== 0)
+      .map((s) => ({
+        id: s.id,
+        name: s.name.replace(/\\/g, '').replace(/'/g, "\\'").replace(/"/g, '\\"'),
+        rating: s.average_rating?.toFixed(1) || '5.0',
+        wilaya: s.wilaya || '',
+        lng: s.longitude,
+        lat: s.latitude,
+      }));
+
+    const userLng = userLocation?.longitude ?? center.longitude;
+    const userLat = userLocation?.latitude ?? center.latitude;
+    const hasUser = !!userLocation;
+    const salonsJson = JSON.stringify(salonsData);
+
+    return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#1a1a2e}
+#map{width:100%;height:100%}
+#status{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#888;font-family:sans-serif;font-size:13px;text-align:center}
+.marker{width:32px;height:32px;background:#E8A020;border-radius:50%;border:2.5px solid #0F0F0F;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(232,160,32,0.6);cursor:pointer;transition:transform 0.15s}
+.marker:active{transform:scale(1.1)}
+.marker svg{width:16px;height:16px}
+.user-dot{width:14px;height:14px;background:#4A90D9;border-radius:50%;border:2.5px solid #fff;box-shadow:0 0 0 4px rgba(74,144,217,0.2)}
+.maplibregl-ctrl-attrib{display:none!important}
+.maplibregl-popup-content{border-radius:14px;padding:14px;font-family:sans-serif;background:#1a1a2e;color:#eee;border:1px solid rgba(255,255,255,0.08);box-shadow:0 4px 20px rgba(0,0,0,0.5)}
+.maplibregl-popup-tip{border-top-color:#1a1a2e}
+.maplibregl-popup-close-button{color:#666;font-size:20px;padding:4px 8px}
+.p-name{font-size:14px;font-weight:700;color:#fff;margin-bottom:3px}
+.p-info{font-size:12px;color:#aaa;margin-bottom:8px}
+.p-actions{display:flex;gap:8px;flex-wrap:wrap}
+.p-btn{display:inline-flex;align-items:center;padding:6px 12px;border-radius:20px;font-size:11px;font-weight:600;text-decoration:none;border:none;cursor:pointer}
+.p-view{background:#E8A020;color:#111}
+.p-dir{background:#4A90D9;color:#fff}
+/* Leaflet fallback styles */
+.leaflet-tile-pane{filter:brightness(0.7) contrast(1.2) saturate(0.3) hue-rotate(180deg) invert(1)}
+.leaflet-control-attribution,.leaflet-control-zoom{display:none!important}
+.leaflet-popup-content-wrapper{border-radius:14px;background:#1a1a2e;border:1px solid rgba(255,255,255,0.08);box-shadow:0 4px 20px rgba(0,0,0,0.5)}
+.leaflet-popup-content{margin:12px 14px;font-family:sans-serif;color:#eee}
+.leaflet-popup-tip{border-top-color:#1a1a2e}
+.leaflet-popup-close-button{color:#666;font-size:18px}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="status">Chargement...</div>
+<script>
+var DATA=${salonsJson};
+var HAS_USER=${hasUser};
+var ULNG=${userLng};
+var ULAT=${userLat};
+var CLNG=${center.longitude};
+var CLAT=${center.latitude};
+var routeLayer=null;
+
+var scissorsSvg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23111"><path d="M9.64 7.64c.23-.5.36-1.05.36-1.64 0-2.21-1.79-4-4-4S2 3.79 2 6s1.79 4 4 4c.59 0 1.14-.13 1.64-.36L10 12l-2.36 2.36C7.14 14.13 6.59 14 6 14c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4c0-.59-.13-1.14-.36-1.64L12 14l7 7h3v-1L9.64 7.64zM6 8c-1.1 0-2-.89-2-2s.9-2 2-2 2 .89 2 2-.9 2-2 2zm0 12c-1.1 0-2-.89-2-2s.9-2 2-2 2 .89 2 2-.9 2-2 2zm6-7.5c-.28 0-.5-.22-.5-.5s.22-.5.5-.5.5.22.5.5-.22.5-.5.5zM19 3l-6 6 2 2 7-7V3h-3z"/></svg>';
+
+function drawRouteOSRM(lng,lat){
+  var url='https://router.project-osrm.org/route/v1/driving/'+ULNG+','+ULAT+';'+lng+','+lat+'?overview=full&geometries=geojson';
+  return fetch(url).then(function(r){return r.json()}).then(function(d){
+    return d.routes&&d.routes[0]?d.routes[0].geometry.coordinates:[[ULNG,ULAT],[lng,lat]];
+  }).catch(function(){return[[ULNG,ULAT],[lng,lat]]});
+}
+
+function loadScript(url,cb,fb){
+  var s=document.createElement('script');
+  s.src=url;s.onload=cb;s.onerror=fb;
+  document.head.appendChild(s);
+}
+function loadCSS(url){
+  var l=document.createElement('link');l.rel='stylesheet';l.href=url;
+  document.head.appendChild(l);
+}
+
+// Check WebGL support
+function hasWebGL(){
+  try{var c=document.createElement('canvas');return!!(c.getContext('webgl')||c.getContext('experimental-webgl'))}catch(e){return false}
+}
+
+if(hasWebGL()){
+  // === MAPLIBRE GL (rotation support) ===
+  loadCSS('https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css');
+  loadScript('https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js', initMapLibre, initLeaflet);
+} else {
+  initLeaflet();
+}
+
+function initMapLibre(){
+  document.getElementById('status').style.display='none';
+  var map=window.map=new maplibregl.Map({
+    container:'map',
+    style:{version:8,sources:{'osm':{type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256,maxzoom:19}},layers:[{id:'osm',type:'raster',source:'osm',paint:{'raster-brightness-max':0.55,'raster-contrast':0.2,'raster-saturation':-0.5}}]},
+    center:[CLNG,CLAT],
+    zoom:12,
+    dragRotate:true,
+    touchZoomRotate:true,
+    touchPitch:true,
+    attributionControl:false
+  });
+
+  map.on('load',function(){
+    // User dot
+    if(HAS_USER){
+      var uel=document.createElement('div');uel.className='user-dot';
+      new maplibregl.Marker({element:uel}).setLngLat([ULNG,ULAT]).addTo(map);
+    }
+    // Salon markers
+    DATA.forEach(function(s){
+      var el=document.createElement('div');el.className='marker';el.innerHTML=scissorsSvg;
+      el.onclick=function(e){
+        e.stopPropagation();
+        var dirBtn=HAS_USER?'<button class="p-btn p-dir" onclick="mglRoute('+s.lng+','+s.lat+')">Itin\\u00e9raire</button>':'';
+        new maplibregl.Popup({offset:18,closeButton:true,maxWidth:'240px'})
+          .setLngLat([s.lng,s.lat])
+          .setHTML('<div class="p-name">'+s.name+'</div><div class="p-info">\\u2B50 '+s.rating+' \\u00B7 '+s.wilaya+'</div><div class="p-actions"><button class="p-btn p-view" onclick="window.ReactNativeWebView.postMessage(\\''+s.id+'\\')">Voir salon</button>'+dirBtn+'</div>')
+          .addTo(map);
+      };
+      new maplibregl.Marker({element:el}).setLngLat([s.lng,s.lat]).addTo(map);
+    });
+    // Fit bounds
+    if(HAS_USER){
+      var b=new maplibregl.LngLatBounds([ULNG,ULAT],[ULNG,ULAT]);
+      var added = false;
+      DATA.forEach(function(s){
+         if (Math.abs(s.lng - ULNG) + Math.abs(s.lat - ULAT) < 0.2) {
+           b.extend([s.lng,s.lat]);
+           added = true;
+         }
+      });
+      if (added) {
+         map.fitBounds(b,{padding:50,maxZoom:14});
+      } else {
+         map.setCenter([ULNG, ULAT]);
+         map.setZoom(13);
+      }
+    } else if(DATA.length>0){
+      var b=new maplibregl.LngLatBounds([DATA[0].lng,DATA[0].lat],[DATA[0].lng,DATA[0].lat]);
+      DATA.forEach(function(s){b.extend([s.lng,s.lat])});
+      map.fitBounds(b,{padding:50,maxZoom:14});
+    }
+    window.ReactNativeWebView.postMessage('MAP_READY');
+  });
+
+  // Route drawing for MapLibre
+  window.mglRoute=function(lng,lat){
+    if(!HAS_USER)return;
+    try{map.removeLayer('route-bg');map.removeLayer('route');map.removeSource('route-src')}catch(e){}
+    drawRouteOSRM(lng,lat).then(function(coords){
+      map.addSource('route-src',{type:'geojson',data:{type:'Feature',properties:{},geometry:{type:'LineString',coordinates:coords}}});
+      map.addLayer({id:'route-bg',type:'line',source:'route-src',paint:{'line-color':'#000','line-width':8,'line-opacity':0.3},layout:{'line-cap':'round','line-join':'round'}});
+      map.addLayer({id:'route',type:'line',source:'route-src',paint:{'line-color':'#E8A020','line-width':5,'line-opacity':0.9},layout:{'line-cap':'round','line-join':'round'}});
+      var rb=new maplibregl.LngLatBounds(coords[0],coords[0]);
+      coords.forEach(function(c){rb.extend(c)});
+      map.fitBounds(rb,{padding:60,maxZoom:15});
+    });
+  };
+}
+
+function initLeaflet(){
+  // Fallback to Leaflet (no rotation)
+  loadCSS('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
+  loadScript('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',function(){
+    document.getElementById('status').style.display='none';
+    var map=window.map=L.map('map',{center:[CLAT,CLNG],zoom:12,zoomControl:false,attributionControl:false});
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+
+    var icon=L.divIcon({html:'<div class="marker">'+scissorsSvg+'</div>',className:'',iconSize:[32,32],iconAnchor:[16,16],popupAnchor:[0,-18]});
+
+    if(HAS_USER){
+      L.marker([ULAT,ULNG],{icon:L.divIcon({html:'<div class="user-dot"></div>',className:'',iconSize:[14,14],iconAnchor:[7,7]}),zIndexOffset:1000}).addTo(map);
+    }
+
+    DATA.forEach(function(s){
+      var dirBtn=HAS_USER?'<button class="p-btn p-dir" onclick="lfRoute('+s.lng+','+s.lat+')">Itin\\u00e9raire</button>':'';
+      var popup='<div class="p-name">'+s.name+'</div><div class="p-info">\\u2B50 '+s.rating+' \\u00B7 '+s.wilaya+'</div><div class="p-actions"><button class="p-btn p-view" onclick="window.ReactNativeWebView.postMessage(\\''+s.id+'\\')">Voir salon</button>'+dirBtn+'</div>';
+      L.marker([s.lat,s.lng],{icon:icon}).addTo(map).bindPopup(popup,{maxWidth:240});
+    });
+
+    if(HAS_USER){
+      var pts = [[ULAT, ULNG]];
+      var added = false;
+      DATA.forEach(function(s){
+         if (Math.abs(s.lng - ULNG) + Math.abs(s.lat - ULAT) < 0.2) {
+           pts.push([s.lat, s.lng]);
+           added = true;
+         }
+      });
+      if (added) {
+         map.fitBounds(pts,{padding:[40,40],maxZoom:14});
+      } else {
+         map.setView([ULAT, ULNG], 13);
+      }
+    } else if(DATA.length>0){
+      var pts=DATA.map(function(s){return[s.lat,s.lng]});
+      map.fitBounds(pts,{padding:[40,40],maxZoom:14});
+    }
+
+    window.lfRoute=function(lng,lat){
+      if(routeLayer){map.removeLayer(routeLayer)}
+      drawRouteOSRM(lng,lat).then(function(coords){
+        routeLayer=L.polyline(coords.map(function(c){return[c[1],c[0]]}),{color:'#E8A020',weight:5,opacity:0.85}).addTo(map);
+        map.fitBounds(routeLayer.getBounds(),{padding:[50,50]});
+      });
+    };
+
+    setTimeout(function(){map.invalidateSize()},300);
+    window.ReactNativeWebView.postMessage('MAP_READY');
+  },function(){
+    document.getElementById('status').innerHTML='Erreur de chargement';
+  });
+}
+</script>
+</body>
+</html>`;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [salonsFingerprint, userKey]);
+
+  // Prevent WebView from re-mounting when mapHtml hasn't changed
+  const handleMessage = useCallback(
+    (event: any) => {
+      const data = event.nativeEvent.data;
+      if (data === 'MAP_READY') {
+        setMapReady(true);
+        return;
+      }
+      if (data && onSalonPress) {
+        onSalonPress(data);
+      }
+    },
+    [onSalonPress],
+  );
+
+  return (
+    <View style={[styles.container, { height }, style]}>
+      <WebView
+        ref={webViewRef}
+        originWhitelist={['*']}
+        source={{ html: mapHtml }}
+        style={styles.webview}
+        javaScriptEnabled={true}
+        domStorageEnabled={true}
+        mixedContentMode="always"
+        cacheEnabled={true}
+        cacheMode="LOAD_CACHE_ELSE_NETWORK"
+        onMessage={handleMessage}
+      />
+
+      {!mapReady && (
+        <View style={styles.loading}>
+          <ActivityIndicator color={colors.amber} size="small" />
+          <Text style={styles.loadingText}>Chargement...</Text>
+        </View>
+      )}
+
+      <View style={styles.controls}>
+        <TouchableOpacity style={styles.controlButton} onPress={zoomIn} activeOpacity={0.7}>
+          <Ionicons name="add" size={20} color={colors.textPrimary} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.controlButton} onPress={zoomOut} activeOpacity={0.7}>
+          <Ionicons name="remove" size={20} color={colors.textPrimary} />
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.controlButton, styles.recenterButton]} onPress={resetView} activeOpacity={0.7}>
+          <Ionicons name="compass-outline" size={18} color={colors.amber} />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    width: '100%',
+    overflow: 'hidden',
+    backgroundColor: '#1a1a2e',
+    position: 'relative',
+  },
+  webview: {
+    flex: 1,
+    backgroundColor: '#1a1a2e',
+  },
+  loading: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: '#1a1a2e',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  loadingText: {
+    fontFamily: 'DMSans_400Regular',
+    fontSize: 12,
+    color: '#666',
+  },
+  controls: {
+    position: 'absolute',
+    right: 10,
+    bottom: 10,
+    gap: 4,
+  },
+  controlButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: 'rgba(26,26,46,0.9)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  recenterButton: {
+    marginTop: 4,
+    borderColor: 'rgba(232,160,32,0.3)',
+  },
+});

@@ -1,0 +1,189 @@
+// apps/mobile/src/components/client/LeaveReviewModal.tsx
+import React, { useState } from 'react';
+import {
+  Modal,
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  TextInput,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
+import { supabase } from '../../lib/supabase';
+import { useAuthStore } from '../../store/authStore';
+import { colors, radius, spacing } from '../../theme';
+import Ionicons from "@react-native-vector-icons/ionicons";
+
+interface LeaveReviewModalProps {
+  visible: boolean;
+  onClose: () => void;
+  reservation: any;
+  onSuccess: () => void;
+}
+
+export function LeaveReviewModal({ visible, onClose, reservation, onSuccess }: LeaveReviewModalProps) {
+  const user = useAuthStore((s) => s.user);
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!reservation) return;
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.from('reviews').insert({
+        reservation_id: reservation.id,
+        client_id: user?.id,
+        salon_id: reservation.salons.id,
+        rating,
+        comment: comment.trim() || null,
+      });
+
+      if (error) {
+        // If table doesn't exist yet, we catch it
+        if (error.code === '42P01') {
+          throw new Error("La table 'reviews' n'existe pas dans la base de données. Veuillez exécuter le script SQL.");
+        }
+        // Handle duplicate review error
+        if (error.code === '23505') {
+          Alert.alert('Info', 'Vous avez déjà laissé un avis pour ce rendez-vous.');
+          onSuccess();
+          onClose();
+          return;
+        }
+        throw error;
+      }
+
+      Alert.alert('Merci !', 'Votre avis a été enregistré.');
+      onSuccess();
+      onClose();
+    } catch (err: any) {
+      Alert.alert('Erreur', err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!reservation) return null;
+
+  return (
+    <Modal visible={visible} transparent animationType="slide">
+      <View style={styles.overlay}>
+        <View style={styles.content}>
+          <Text style={styles.title}>Laisser un avis</Text>
+          <Text style={styles.subtitle}>Comment s'est passé votre rendez-vous chez {reservation.salons.name} ?</Text>
+          
+          <View style={styles.starsContainer}>
+            {[1, 2, 3, 4, 5].map((star) => (
+              <TouchableOpacity key={star} onPress={() => setRating(star)}>
+                <Ionicons
+                  name={star <= rating ? "star" : "star-outline"}
+                  size={40}
+                  color={colors.amber}
+                  style={{ marginHorizontal: 4 }}
+                />
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <Text style={styles.label}>Commentaire (Optionnel)</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Écrivez votre avis ici..."
+            placeholderTextColor={colors.textMuted}
+            multiline
+            value={comment}
+            onChangeText={setComment}
+          />
+
+          <View style={styles.buttons}>
+            <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
+              <Text style={styles.cancelBtnText}>Annuler</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit} disabled={loading}>
+              {loading ? <ActivityIndicator color={colors.ink} /> : <Text style={styles.submitBtnText}>Envoyer</Text>}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const styles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'flex-end',
+  },
+  content: {
+    backgroundColor: colors.ink,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    padding: spacing.xl,
+  },
+  title: {
+    fontFamily: 'Syne_700Bold',
+    fontSize: 22,
+    color: colors.textPrimary,
+  },
+  subtitle: {
+    fontFamily: 'DMSans_400Regular',
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 8,
+    marginBottom: spacing.xl,
+  },
+  starsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginBottom: spacing.xl,
+  },
+  label: {
+    fontFamily: 'DMSans_500Medium',
+    fontSize: 14,
+    color: colors.textPrimary,
+    marginBottom: 8,
+  },
+  input: {
+    backgroundColor: colors.carbon,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    color: colors.textPrimary,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    fontFamily: 'DMSans_400Regular',
+    height: 100,
+    textAlignVertical: 'top',
+  },
+  buttons: {
+    flexDirection: 'row',
+    marginTop: spacing.xl,
+    gap: spacing.md,
+  },
+  cancelBtn: {
+    flex: 1,
+    padding: spacing.md,
+    alignItems: 'center',
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.amber,
+  },
+  cancelBtnText: {
+    color: colors.amber,
+    fontFamily: 'Syne_700Bold',
+  },
+  submitBtn: {
+    flex: 1,
+    padding: spacing.md,
+    alignItems: 'center',
+    borderRadius: radius.md,
+    backgroundColor: colors.amber,
+  },
+  submitBtnText: {
+    color: colors.ink,
+    fontFamily: 'Syne_700Bold',
+  },
+});

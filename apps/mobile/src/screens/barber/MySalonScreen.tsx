@@ -1,0 +1,736 @@
+// apps/mobile/src/screens/barber/MySalonScreen.tsx
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  Image,
+  Alert,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '../../lib/supabase';
+import { useAuthStore } from '../../store/authStore';
+import { colors, spacing, radius, typography } from '../../theme';
+import Ionicons from "@react-native-vector-icons/ionicons";
+import * as ImagePicker from 'expo-image-picker';
+import { ServiceModal } from '../../components/barber/ServiceModal';
+import { AddStaffModal } from '../../components/barber/AddStaffModal';
+import { EditSalonModal } from '../../components/barber/EditSalonModal';
+import { EditSalonLocationModal } from '../../components/barber/EditSalonLocationModal';
+import { formatDZD } from '@barberdz/shared/utils/formatters';
+import { decode } from 'base64-arraybuffer';
+
+export function MySalonScreen() {
+  const user = useAuthStore((s) => s.user);
+  const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState<'services' | 'portfolio' | 'reviews' | 'staff'>('services');
+  const [isServiceModalVisible, setIsServiceModalVisible] = useState(false);
+  const [isStaffModalVisible, setIsStaffModalVisible] = useState(false);
+  const [isEditSalonVisible, setIsEditSalonVisible] = useState(false);
+  const [isEditLocationVisible, setIsEditLocationVisible] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  // Fetch salon
+  const { data: salon, isLoading: isSalonLoading } = useQuery({
+    queryKey: ['my-salon', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('salons')
+        .select('*')
+        .eq('owner_id', user?.id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
+
+  // Fetch services
+  const { data: services = [], isLoading: isServicesLoading, refetch: refetchServices } = useQuery({
+    queryKey: ['salon-services', salon?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('services')
+        .select('*')
+        .eq('salon_id', salon?.id)
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!salon,
+  });
+
+  // Fetch portfolio
+  const { data: photos = [], refetch: refetchPortfolio } = useQuery({
+    queryKey: ['salon-portfolio', salon?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('portfolio_photos')
+        .select('*')
+        .eq('salon_id', salon?.id)
+        .order('created_at', { ascending: false });
+      
+      // Handle table not found
+      if (error) {
+        if (error.code === '42P01') return [];
+        throw error;
+      }
+      
+      return (data ?? []).map((photo: any) => ({
+        ...photo,
+        url: supabase.storage
+          .from('portfolio')
+          .getPublicUrl(photo.storage_path).data.publicUrl,
+      }));
+    },
+    enabled: !!salon,
+  });
+
+  // Fetch reviews
+  const { data: reviews = [] } = useQuery({
+    queryKey: ['salon-reviews', salon?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('reviews')
+        .select('*, profiles:client_id(full_name, avatar_url)')
+        .eq('salon_id', salon?.id)
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        if (error.code === '42P01') return [];
+        throw error;
+      }
+      return data;
+    },
+    enabled: !!salon,
+  });
+
+  // Fetch staff
+  const { data: staff = [], refetch: refetchStaff } = useQuery({
+    queryKey: ['salon-staff', salon?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('salon_staff')
+        .select('*, profiles:profile_id(full_name, avatar_url, phone_number)')
+        .eq('salon_id', salon?.id);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!salon,
+  });
+
+  const removeStaff = async (staffId: string, name: string) => {
+    Alert.alert('Retirer', `Voulez-vous retirer ${name} de l'équipe ?`, [
+      { text: 'Annuler', style: 'cancel' },
+      {
+        text: 'Retirer',
+        style: 'destructive',
+        onPress: async () => {
+          const { error } = await supabase.from('salon_staff').delete().eq('id', staffId);
+          if (!error) refetchStaff();
+        },
+      },
+    ]);
+  };
+
+  const pickImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [4, 5],
+        quality: 0.8,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets[0].base64) {
+        await uploadPortfolioPhoto(result.assets[0].base64);
+      }
+    } catch (error) {
+      console.log('Error picking image:', error);
+    }
+  };
+
+  const uploadPortfolioPhoto = async (base64Str: string) => {
+    if (!salon) return;
+    setUploading(true);
+
+    try {
+      const fileName = `${salon.id}/${Date.now()}.jpg`;
+      
+      // Upload to storage
+      const { error: uploadError } = await supabase.storage
+        .from('portfolio')
+        .upload(fileName, decode(base64Str), {
+          contentType: 'image/jpeg',
+        });
+
+      if (uploadError) {
+        if (uploadError.message.includes('bucket')) {
+          throw new Error("Le bucket 'portfolio' n'existe pas. Veuillez l'ajouter dans Supabase.");
+        }
+        throw uploadError;
+      }
+
+      // Insert record
+      const { error: dbError } = await supabase.from('portfolio_photos').insert({
+        salon_id: salon.id,
+        uploader_id: user?.id,
+        storage_path: fileName,
+      });
+
+      if (dbError) {
+        if (dbError.code === '42P01') {
+          throw new Error("La table 'portfolio_photos' n'existe pas. Veuillez exécuter le script SQL.");
+        }
+        throw dbError;
+      }
+
+      Alert.alert('Succès', 'Photo ajoutée au portfolio');
+      refetchPortfolio();
+    } catch (err: any) {
+      Alert.alert('Erreur', err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const deletePhoto = async (photoId: string, storagePath: string) => {
+    Alert.alert('Supprimer', 'Voulez-vous supprimer cette photo ?', [
+      { text: 'Annuler', style: 'cancel' },
+      {
+        text: 'Supprimer',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            // Delete from storage
+            await supabase.storage.from('portfolio').remove([storagePath]);
+            // Delete record from DB
+            await supabase.from('portfolio_photos').delete().eq('id', photoId);
+            refetchPortfolio();
+          } catch (err: any) {
+            Alert.alert('Erreur', err.message);
+          }
+        },
+      },
+    ]);
+  };
+
+  const pickStaffImage = async (staffId: string) => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1], // Square for avatars
+        quality: 0.5,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets[0].base64) {
+        await uploadStaffAvatar(staffId, result.assets[0].base64);
+      }
+    } catch (error) {
+      console.log('Error picking image:', error);
+    }
+  };
+
+  const uploadStaffAvatar = async (staffId: string, base64Str: string) => {
+    if (!salon) return;
+    setUploading(true);
+
+    try {
+      const fileName = `staff/${salon.id}/${staffId}-${Date.now()}.jpg`;
+      
+      // Upload to storage portfolio bucket
+      const { error: uploadError } = await supabase.storage
+        .from('portfolio')
+        .upload(fileName, decode(base64Str), {
+          contentType: 'image/jpeg',
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrlData } = supabase.storage
+        .from('portfolio')
+        .getPublicUrl(fileName);
+
+      const avatarUrl = publicUrlData.publicUrl;
+
+      // Update staff record
+      const { error: dbError } = await supabase.from('salon_staff')
+        .update({ avatar_url: avatarUrl })
+        .eq('id', staffId);
+
+      if (dbError) throw dbError;
+
+      refetchStaff();
+    } catch (err: any) {
+      Alert.alert('Erreur', err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const deleteService = async (id: string) => {
+    Alert.alert('Supprimer', 'Voulez-vous supprimer ce service ?', [
+      { text: 'Annuler', style: 'cancel' },
+      {
+        text: 'Supprimer',
+        style: 'destructive',
+        onPress: async () => {
+          const { error } = await supabase.from('services').delete().eq('id', id);
+          if (!error) refetchServices();
+        }
+      }
+    ]);
+  };
+
+  if (isSalonLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator color={colors.amber} size="large" />
+      </View>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          {salon?.image_url ? (
+            <Image source={{ uri: salon.image_url }} style={styles.headerImage} />
+          ) : (
+            <View style={styles.headerImagePlaceholder}>
+              <Ionicons name="business" size={20} color={colors.textMuted} />
+            </View>
+          )}
+          <View>
+            <Text style={styles.headerTitle}>{salon?.name || 'Mon Salon'}</Text>
+            <Text style={styles.headerSubtitle}>{salon?.wilaya} • {salon?.open_time?.substring(0,5)} - {salon?.close_time?.substring(0,5)}</Text>
+          </View>
+        </View>
+        <View style={styles.headerActions}>
+          <TouchableOpacity style={styles.headerIconBtn} onPress={() => setIsEditLocationVisible(true)} activeOpacity={0.7}>
+            <Ionicons name="location" size={18} color={colors.amber} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.headerIconBtn} onPress={() => setIsEditSalonVisible(true)} activeOpacity={0.7}>
+            <Ionicons name="settings" size={18} color={colors.amber} />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.tabContainer}>
+        {(['services', 'staff', 'portfolio', 'reviews'] as const).map((tab) => (
+          <TouchableOpacity
+            key={tab}
+            style={[styles.tabButton, activeTab === tab && styles.tabButtonActive]}
+            onPress={() => setActiveTab(tab)}
+          >
+            <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
+              {tab === 'services' ? 'Services' : tab === 'staff' ? 'Barbiers' : tab === 'portfolio' ? 'Portfolio' : 'Avis'}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {activeTab === 'services' && (
+          <View style={styles.section}>
+            <TouchableOpacity style={styles.addBtn} onPress={() => setIsServiceModalVisible(true)}>
+              <Ionicons name="add" size={20} color={colors.ink} />
+              <Text style={styles.addBtnText}>Ajouter un service</Text>
+            </TouchableOpacity>
+
+            {isServicesLoading ? (
+              <ActivityIndicator color={colors.amber} style={{ marginTop: 20 }} />
+            ) : services.length === 0 ? (
+              <Text style={styles.emptyText}>Aucun service configuré.</Text>
+            ) : (
+              services.map((service: any) => (
+                <View key={service.id} style={styles.serviceCard}>
+                  <View style={styles.serviceInfo}>
+                    <Text style={styles.serviceName}>{service.service_name}</Text>
+                    <Text style={styles.serviceDetail}>{service.duration_minutes} min • {formatDZD(service.price)}</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => deleteService(service.id)} style={styles.deleteBtn}>
+                    <Ionicons name="trash-outline" size={20} color={colors.error} />
+                  </TouchableOpacity>
+                </View>
+              ))
+            )}
+          </View>
+        )}
+
+        {activeTab === 'portfolio' && (
+          <View style={styles.section}>
+            <TouchableOpacity style={styles.addBtn} onPress={pickImage} disabled={uploading}>
+              {uploading ? (
+                <ActivityIndicator color={colors.ink} size="small" />
+              ) : (
+                <>
+                  <Ionicons name="camera" size={20} color={colors.ink} />
+                  <Text style={styles.addBtnText}>Ajouter une photo</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            {photos.length === 0 ? (
+              <Text style={styles.emptyText}>Votre portfolio est vide.</Text>
+            ) : (
+              <View style={styles.grid}>
+                {photos.map((photo: any) => (
+                  <View key={photo.id} style={styles.gridImageContainer}>
+                    <Image source={{ uri: photo.url }} style={styles.gridImage} resizeMode="cover" />
+                    <TouchableOpacity
+                      style={styles.photoDeleteBtn}
+                      onPress={() => deletePhoto(photo.id, photo.storage_path)}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="trash" size={16} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+
+        {activeTab === 'staff' && (
+          <View style={styles.section}>
+            <TouchableOpacity style={styles.addBtn} onPress={() => setIsStaffModalVisible(true)}>
+              <Ionicons name="person-add" size={20} color={colors.ink} />
+              <Text style={styles.addBtnText}>Ajouter un barbier</Text>
+            </TouchableOpacity>
+
+            {staff.length === 0 ? (
+              <Text style={styles.emptyText}>Aucun barbier dans votre équipe.</Text>
+            ) : (
+              staff.map((member: any) => {
+                const avatarUrl = member.avatar_url || member.profiles?.avatar_url;
+                return (
+                  <View key={member.id} style={styles.staffCard}>
+                    <TouchableOpacity onPress={() => pickStaffImage(member.id)} activeOpacity={0.7} style={{ position: 'relative' }}>
+                      <View style={styles.staffAvatar}>
+                        {avatarUrl ? (
+                          <Image source={{ uri: avatarUrl }} style={{ width: 44, height: 44, borderRadius: 22 }} />
+                        ) : (
+                          <Ionicons name="person" size={24} color={colors.amber} />
+                        )}
+                      </View>
+                      <View style={{ position: 'absolute', bottom: -4, right: -4, backgroundColor: colors.carbon, borderRadius: 12, padding: 2 }}>
+                        <Ionicons name="camera" size={14} color={colors.textSecondary} />
+                      </View>
+                    </TouchableOpacity>
+                    <View style={styles.staffInfo}>
+                      <Text style={styles.staffName}>{member.custom_name || member.profiles?.full_name || 'Barbier'}</Text>
+                      <Text style={styles.staffPhone}>{member.profiles?.phone_number || 'Pas de compte'}</Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => removeStaff(member.id, member.custom_name || member.profiles?.full_name || 'ce barbier')}
+                      style={styles.deleteBtn}
+                    >
+                      <Ionicons name="close-circle" size={22} color={colors.error} />
+                    </TouchableOpacity>
+                  </View>
+                );
+              })
+            )}
+          </View>
+        )}
+
+        {activeTab === 'reviews' && (
+          <View style={styles.section}>
+            {reviews.length === 0 ? (
+              <Text style={styles.emptyText}>Aucun avis pour l'instant.</Text>
+            ) : (
+              reviews.map((review: any) => (
+                <View key={review.id} style={styles.reviewCard}>
+                  <View style={styles.reviewHeader}>
+                    <Text style={styles.reviewName}>{review.profiles?.full_name || 'Client anonyme'}</Text>
+                    <View style={styles.stars}>
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <Ionicons
+                          key={i}
+                          name="star"
+                          size={12}
+                          color={i < review.rating ? colors.amber : colors.steel}
+                        />
+                      ))}
+                    </View>
+                  </View>
+                  {review.comment && <Text style={styles.reviewComment}>{review.comment}</Text>}
+                </View>
+              ))
+            )}
+          </View>
+        )}
+      </ScrollView>
+
+      {salon && (
+        <>
+          <ServiceModal
+            visible={isServiceModalVisible}
+            onClose={() => setIsServiceModalVisible(false)}
+            salonId={salon.id}
+            onSuccess={refetchServices}
+          />
+          <AddStaffModal
+            visible={isStaffModalVisible}
+            onClose={() => setIsStaffModalVisible(false)}
+            salonId={salon.id}
+            onSuccess={() => {
+              queryClient.invalidateQueries({ queryKey: ['salon-staff', salon.id] });
+              refetchStaff();
+            }}
+          />
+          <EditSalonModal
+            visible={isEditSalonVisible}
+            onClose={() => setIsEditSalonVisible(false)}
+            salon={salon}
+            onSaved={() => {
+              queryClient.invalidateQueries({ queryKey: ['barber-salon'] });
+            }}
+          />
+          <EditSalonLocationModal
+            visible={isEditLocationVisible}
+            onClose={() => setIsEditLocationVisible(false)}
+            salon={salon}
+            onSaved={() => {
+              queryClient.invalidateQueries({ queryKey: ['barber-salon'] });
+            }}
+          />
+        </>
+      )}
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.ink,
+  },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: colors.ink,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  headerTitle: {
+    fontFamily: 'Syne_700Bold',
+    fontSize: 22,
+    color: colors.textPrimary,
+  },
+  headerSubtitle: {
+    fontFamily: 'DMSans_400Regular',
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 4,
+  },
+  headerImage: {
+    width: 48,
+    height: 48,
+    borderRadius: radius.md,
+  },
+  headerImagePlaceholder: {
+    width: 48,
+    height: 48,
+    borderRadius: radius.md,
+    backgroundColor: colors.graphite,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  headerIconBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(232,160,32,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+    marginHorizontal: spacing.lg,
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabButtonActive: {
+    borderBottomColor: colors.amber,
+  },
+  tabText: {
+    fontFamily: 'DMSans_500Medium',
+    color: colors.textSecondary,
+    fontSize: 14,
+  },
+  tabTextActive: {
+    color: colors.amber,
+    fontFamily: 'DMSans_700Bold',
+  },
+  content: {
+    flex: 1,
+    padding: spacing.lg,
+  },
+  section: {
+    paddingBottom: spacing.xxl,
+  },
+  emptyText: {
+    fontFamily: 'DMSans_400Regular',
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginTop: spacing.xl,
+  },
+  addBtn: {
+    flexDirection: 'row',
+    backgroundColor: colors.amber,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+    gap: spacing.sm,
+  },
+  addBtnText: {
+    fontFamily: 'Syne_700Bold',
+    color: colors.ink,
+    fontSize: 15,
+  },
+  serviceCard: {
+    backgroundColor: colors.carbon,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    marginBottom: spacing.sm,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  serviceInfo: {
+    flex: 1,
+  },
+  serviceName: {
+    fontFamily: 'Syne_700Bold',
+    color: colors.textPrimary,
+    fontSize: 16,
+    marginBottom: 4,
+  },
+  serviceDetail: {
+    fontFamily: 'DMSans_400Regular',
+    color: colors.textSecondary,
+    fontSize: 13,
+  },
+  deleteBtn: {
+    padding: spacing.sm,
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  gridImageContainer: {
+    width: '31%',
+    aspectRatio: 1,
+    borderRadius: radius.sm,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  gridImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: radius.sm,
+    backgroundColor: colors.graphite,
+  },
+  photoDeleteBtn: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+  },
+  reviewCard: {
+    backgroundColor: colors.carbon,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    marginBottom: spacing.sm,
+  },
+  reviewHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  reviewName: {
+    fontFamily: 'Syne_700Bold',
+    color: colors.textPrimary,
+    fontSize: 15,
+  },
+  stars: {
+    flexDirection: 'row',
+  },
+  reviewComment: {
+    fontFamily: 'DMSans_400Regular',
+    color: colors.textSecondary,
+    fontSize: 14,
+  },
+  staffCard: {
+    backgroundColor: colors.carbon,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    marginBottom: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+    gap: spacing.md,
+  },
+  staffAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(232,160,32,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  staffInfo: {
+    flex: 1,
+  },
+  staffName: {
+    fontFamily: 'Syne_700Bold',
+    color: colors.textPrimary,
+    fontSize: 15,
+    marginBottom: 2,
+  },
+  staffPhone: {
+    fontFamily: 'DMSans_400Regular',
+    color: colors.textSecondary,
+    fontSize: 13,
+  },
+});

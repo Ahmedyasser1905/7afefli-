@@ -1,0 +1,355 @@
+// apps/mobile/src/screens/barber/SalonSetupScreen.tsx
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { supabase } from '../../lib/supabase';
+import { useAuthStore } from '../../store/authStore';
+import { colors, typography, spacing, radius } from '../../theme';
+import Ionicons from "@react-native-vector-icons/ionicons";
+import { WebView } from 'react-native-webview';
+
+export function SalonSetupScreen({ onComplete }: { onComplete: () => void }) {
+  const user = useAuthStore((s) => s.user);
+  const [loading, setLoading] = useState(false);
+  const [step, setStep] = useState(1);
+
+  const [form, setForm] = useState({
+    name: '',
+    wilaya: 'Alger',
+    address: '',
+    open_time: '09:00',
+    close_time: '20:00',
+    latitude: 36.7538,
+    longitude: 3.0588,
+  });
+
+  const handleCreateSalon = async () => {
+    if (!form.name || !form.address) {
+      Alert.alert('Erreur', 'Veuillez remplir tous les champs');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.from('salons').insert({
+        owner_id: user?.id,
+        name: form.name,
+        wilaya: form.wilaya,
+        address: form.address,
+        open_time: form.open_time,
+        close_time: form.close_time,
+        latitude: form.latitude,
+        longitude: form.longitude,
+        working_days: [1, 2, 3, 4, 5, 6], // Default Mon-Sat
+        is_approved: true, // Auto-approve for now
+        subscription_status: 'Trial',
+      });
+
+      if (error) throw error;
+      
+      Alert.alert('Succès', 'Votre salon a été créé avec succès !', [
+        { text: 'Continuer', onPress: onComplete }
+      ]);
+    } catch (err: any) {
+      Alert.alert('Erreur', err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const mapHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+      <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+      <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+      <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+      <style>
+        body { margin: 0; padding: 0; background: #1a1a2e; }
+        #map { width: 100vw; height: 100vh; }
+        .leaflet-tile-pane { filter: brightness(0.7) contrast(1.2) saturate(0.3) hue-rotate(180deg) invert(1); }
+        .leaflet-control-attribution, .leaflet-control-zoom { display: none !important; }
+        .marker {
+          width: 32px; height: 32px; background: #E8A020; border-radius: 50%;
+          border: 2.5px solid #0F0F0F; display: flex; align-items: center; justify-content: center;
+          box-shadow: 0 2px 10px rgba(232,160,32,0.6);
+        }
+        /* Custom Geocoder styles for dark theme */
+        .leaflet-control-geocoder { background: #1A1A1A !important; border: 1px solid rgba(255,255,255,0.1) !important; border-radius: 8px !important; margin-top: 20px !important; margin-right: 20px !important; }
+        .leaflet-control-geocoder-icon { background-color: transparent !important; filter: invert(1); }
+        .leaflet-control-geocoder-form input { background: transparent; color: #fff; }
+        .leaflet-control-geocoder-form input:focus { outline: none; }
+        .leaflet-control-geocoder-alternatives { background: #1A1A1A !important; color: #fff; border-top: 1px solid rgba(255,255,255,0.1); }
+        .leaflet-control-geocoder-alternatives li:hover { background: #333 !important; }
+      </style>
+    </head>
+    <body>
+      <div id="map"></div>
+      <script>
+        var map = L.map('map', { center: [${form.latitude}, ${form.longitude}], zoom: 12, zoomControl: false });
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        
+        var icon = L.divIcon({
+          html: '<div class="marker"><svg viewBox="0 0 24 24" fill="#111" width="16" height="16"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg></div>',
+          className: '', iconSize: [32, 32], iconAnchor: [16, 32]
+        });
+        
+        var marker = L.marker([${form.latitude}, ${form.longitude}], { icon: icon, draggable: true }).addTo(map);
+        
+        // Add Geocoder (Search Box)
+        var geocoder = L.Control.geocoder({
+          defaultMarkGeocode: false,
+          placeholder: "Rechercher une adresse...",
+          position: "topright"
+        }).on('markgeocode', function(e) {
+          var latlng = e.geocode.center;
+          map.setView(latlng, 15);
+          marker.setLatLng(latlng);
+          window.ReactNativeWebView.postMessage(JSON.stringify({ lat: latlng.lat, lng: latlng.lng }));
+        }).addTo(map);
+
+        marker.on('dragend', function(e) {
+          var pos = marker.getLatLng();
+          window.ReactNativeWebView.postMessage(JSON.stringify({ lat: pos.lat, lng: pos.lng }));
+        });
+
+        map.on('click', function(e) {
+          marker.setLatLng(e.latlng);
+          window.ReactNativeWebView.postMessage(JSON.stringify({ lat: e.latlng.lat, lng: e.latlng.lng }));
+        });
+      </script>
+    </body>
+    </html>
+  `;
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={() => supabase.auth.signOut()} activeOpacity={0.7}>
+          <Ionicons name="arrow-back" size={24} color={colors.amber} />
+        </TouchableOpacity>
+        <View style={styles.titleContainer}>
+          <Text style={styles.headerTitle}>Configuration du Salon</Text>
+          <Text style={styles.headerSubtitle}>
+            {step === 1 ? 'Informations générales' : 'Emplacement sur la carte'}
+          </Text>
+        </View>
+      </View>
+
+      {step === 1 ? (
+        <ScrollView style={styles.form} keyboardShouldPersistTaps="handled">
+          <Text style={styles.label}>Nom du salon</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Ex: Barber Shop VIP"
+            placeholderTextColor={colors.textMuted}
+            value={form.name}
+            onChangeText={(t) => setForm({ ...form, name: t })}
+          />
+
+          <Text style={styles.label}>Wilaya</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Ex: Alger"
+            placeholderTextColor={colors.textMuted}
+            value={form.wilaya}
+            onChangeText={(t) => setForm({ ...form, wilaya: t })}
+          />
+
+          <Text style={styles.label}>Adresse complète</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Ex: 12 Rue Didouche Mourad"
+            placeholderTextColor={colors.textMuted}
+            value={form.address}
+            onChangeText={(t) => setForm({ ...form, address: t })}
+          />
+
+          <View style={styles.row}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.label}>Heure d'ouverture</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="09:00"
+                placeholderTextColor={colors.textMuted}
+                value={form.open_time}
+                onChangeText={(t) => setForm({ ...form, open_time: t })}
+              />
+            </View>
+            <View style={{ width: spacing.md }} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.label}>Heure de fermeture</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="20:00"
+                placeholderTextColor={colors.textMuted}
+                value={form.close_time}
+                onChangeText={(t) => setForm({ ...form, close_time: t })}
+              />
+            </View>
+          </View>
+        </ScrollView>
+      ) : (
+        <View style={styles.mapContainer}>
+          <Text style={styles.mapHint}>Déplacez le marqueur ou cliquez sur la carte pour définir votre position exacte.</Text>
+          <View style={styles.mapWrapper}>
+            <WebView
+              source={{ html: mapHtml }}
+              style={styles.map}
+              onMessage={(event) => {
+                try {
+                  const data = JSON.parse(event.nativeEvent.data);
+                  setForm({ ...form, latitude: data.lat, longitude: data.lng });
+                } catch (e) {}
+              }}
+            />
+          </View>
+        </View>
+      )}
+
+      <View style={styles.footer}>
+        {step === 2 && (
+          <TouchableOpacity 
+            style={[styles.button, styles.buttonOutline]} 
+            onPress={() => setStep(1)}
+          >
+            <Text style={styles.buttonOutlineText}>Retour</Text>
+          </TouchableOpacity>
+        )}
+        
+        <TouchableOpacity 
+          style={styles.button} 
+          onPress={() => step === 1 ? setStep(2) : handleCreateSalon()}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color={colors.ink} />
+          ) : (
+            <Text style={styles.buttonText}>{step === 1 ? 'Suivant' : 'Terminer'}</Text>
+          )}
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.ink,
+  },
+  header: {
+    padding: spacing.xl,
+    paddingBottom: spacing.lg,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.full,
+    backgroundColor: colors.carbon,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+    marginBottom: spacing.md,
+  },
+  titleContainer: {
+    marginTop: spacing.xs,
+  },
+  headerTitle: {
+    fontFamily: 'Syne_700Bold',
+    fontSize: 28,
+    color: colors.textPrimary,
+  },
+  headerSubtitle: {
+    fontFamily: 'DMSans_400Regular',
+    fontSize: 16,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
+  },
+  form: {
+    flex: 1,
+    paddingHorizontal: spacing.xl,
+  },
+  row: {
+    flexDirection: 'row',
+  },
+  label: {
+    fontFamily: 'DMSans_500Medium',
+    fontSize: 14,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
+    marginTop: spacing.md,
+  },
+  input: {
+    backgroundColor: colors.carbon,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: radius.md,
+    height: 52,
+    paddingHorizontal: spacing.md,
+    color: colors.textPrimary,
+    fontFamily: 'DMSans_400Regular',
+    fontSize: 15,
+  },
+  mapContainer: {
+    flex: 1,
+    paddingHorizontal: spacing.xl,
+  },
+  mapHint: {
+    fontFamily: 'DMSans_400Regular',
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: spacing.md,
+  },
+  mapWrapper: {
+    flex: 1,
+    borderRadius: radius.lg,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  map: {
+    flex: 1,
+    backgroundColor: '#1a1a2e',
+  },
+  footer: {
+    padding: spacing.xl,
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  button: {
+    flex: 1,
+    backgroundColor: colors.amber,
+    height: 54,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonText: {
+    fontFamily: 'Syne_700Bold',
+    fontSize: 16,
+    color: colors.ink,
+  },
+  buttonOutline: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: colors.amber,
+  },
+  buttonOutlineText: {
+    fontFamily: 'Syne_700Bold',
+    fontSize: 16,
+    color: colors.amber,
+  },
+});

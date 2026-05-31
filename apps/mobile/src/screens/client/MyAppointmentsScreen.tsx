@@ -1,0 +1,541 @@
+// apps/mobile/src/screens/client/MyAppointmentsScreen.tsx
+// Client's appointments list — Separated into Upcoming and Past
+
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  ActivityIndicator,
+  Image,
+  Alert,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '../../lib/supabase';
+import { useAuthStore } from '../../store/authStore';
+import { colors, spacing, radius, shadows } from '../../theme';
+import Ionicons from "@react-native-vector-icons/ionicons";
+import { formatDZD } from '@barberdz/shared/utils/formatters';
+import { LeaveReviewModal } from '../../components/client/LeaveReviewModal';
+
+const DEFAULT_SALON_IMAGE = 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=300&q=80';
+
+export function MyAppointmentsScreen() {
+  const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
+  const user = useAuthStore((s) => s.user);
+  const queryClient = useQueryClient();
+  const [reviewReservation, setReviewReservation] = useState<any>(null);
+
+  // Fetch client reservations
+  const { data: reservations = [], isLoading, refetch } = useQuery({
+    queryKey: ['my-reservations', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      
+      // Mark past reservations as completed automatically
+      await supabase.rpc('auto_complete_reservations');
+      
+      const { data, error } = await supabase
+        .from('reservations')
+        .select(`
+          id,
+          appointment_date,
+          start_time,
+          end_time,
+          status,
+          created_at,
+          notes,
+          salons:salon_id (id, name, address, wilaya, image_url),
+          services:service_id (id, service_name, price, duration_minutes),
+          salon_staff:staff_id (custom_name, profiles:profile_id(full_name)),
+          reviews (id)
+        `)
+        .eq('client_id', user.id)
+        .order('appointment_date', { ascending: false })
+        .order('start_time', { ascending: false });
+
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!user,
+  });
+
+  // Cancel reservation mutation
+  const cancelMutation = useMutation({
+    mutationFn: async (reservationId: string) => {
+      const { error } = await supabase
+        .from('reservations')
+        .update({ status: 'Cancelled' })
+        .eq('id', reservationId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my-reservations'] });
+      Alert.alert('Succès', 'Votre rendez-vous a été annulé.');
+    },
+    onError: (err: any) => {
+      Alert.alert('Erreur', err.message || 'Impossible d\'annuler le rendez-vous');
+    },
+  });
+
+  const handleCancelPress = (id: string, name: string) => {
+    Alert.alert(
+      'Annuler le rendez-vous',
+      `Êtes-vous sûr de vouloir annuler votre rendez-vous chez ${name} ?`,
+      [
+        { text: 'Retour', style: 'cancel' },
+        {
+          text: 'Annuler le RDV',
+          style: 'destructive',
+          onPress: () => cancelMutation.mutate(id),
+        },
+      ]
+    );
+  };
+
+  // Filter reservations based on active tab
+  const filteredReservations = React.useMemo(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    
+    return reservations.filter((r: any) => {
+      const isUpcoming = r.status !== 'Cancelled' && r.status !== 'Completed' && r.appointment_date >= todayStr;
+      
+      if (activeTab === 'upcoming') {
+        return isUpcoming;
+      } else {
+        return !isUpcoming;
+      }
+    });
+  }, [reservations, activeTab]);
+
+  const renderItem = ({ item }: { item: any }) => {
+    const salon = item.salons;
+    const service = item.services;
+
+    const isPending = item.status === 'Pending';
+    const isConfirmed = item.status === 'Confirmed';
+    const isCancelled = item.status === 'Cancelled';
+    const isUpcoming = activeTab === 'upcoming';
+
+    const displayCover = salon?.image_url || DEFAULT_SALON_IMAGE;
+
+    return (
+      <View style={[styles.appointmentCard, isCancelled && styles.cardCancelled]}>
+        {/* Status badges */}
+        <View style={styles.cardHeaderRow}>
+          <View style={styles.salonInfoBlock}>
+            <Image source={{ uri: displayCover }} style={styles.salonThumb} />
+            <View style={styles.salonTextCol}>
+              <Text style={styles.salonName} numberOfLines={1}>
+                {salon?.name || 'Salon 7afefli'}
+              </Text>
+              <Text style={styles.salonAddress} numberOfLines={1}>
+                {salon?.address || `${salon?.wilaya}, Algérie`}
+              </Text>
+            </View>
+          </View>
+
+          <View style={[
+            styles.statusBadge,
+            isConfirmed && styles.statusConfirmed,
+            isPending && styles.statusPending,
+            isCancelled && styles.statusCancelled,
+          ]}>
+            <Text style={[
+              styles.statusText,
+              isConfirmed && styles.statusConfirmedText,
+              isPending && styles.statusPendingText,
+              isCancelled && styles.statusCancelledText,
+            ]}>
+              {item.status}
+            </Text>
+          </View>
+        </View>
+
+        {/* Date and Time info block */}
+        <View style={styles.detailsBlock}>
+          <View style={styles.detailsRow}>
+            <Ionicons name="calendar-outline" size={16} color={colors.amber} />
+            <Text style={styles.detailsDateText}>
+              {item.appointment_date} à {item.start_time}
+            </Text>
+          </View>
+          
+          <View style={styles.detailsRow}>
+            <Ionicons name="cut-outline" size={16} color={colors.textSecondary} />
+            <Text style={styles.detailsServiceText}>
+              {service?.service_name || 'Coupe homme'} • {service?.duration_minutes || 30} min
+            </Text>
+          </View>
+
+          <View style={styles.detailsRow}>
+            <Ionicons name="person-outline" size={16} color={colors.textSecondary} />
+            <Text style={styles.detailsServiceText}>
+              Coiffeur : {item.salon_staff ? (item.salon_staff.custom_name || item.salon_staff.profiles?.full_name) : 'N\'importe quel coiffeur'}
+            </Text>
+          </View>
+
+          <View style={styles.priceRow}>
+            <Text style={styles.priceLabel}>Prix payé :</Text>
+            <Text style={styles.priceValue}>{service ? formatDZD(service.price) : '0 DZD'}</Text>
+          </View>
+          
+          {item.notes && (
+            <View style={[styles.detailsRow, { marginTop: 4, alignItems: 'flex-start' }]}>
+              <Ionicons name="call-outline" size={16} color={colors.textSecondary} />
+              <Text style={[styles.detailsServiceText, { flex: 1 }]}>
+                {item.notes}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Action buttons */}
+        <View style={styles.actionRow}>
+          {isUpcoming && !isCancelled && (
+            <TouchableOpacity
+              style={styles.cancelBtn}
+              onPress={() => handleCancelPress(item.id, salon?.name || 'le salon')}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.cancelBtnText}>Annuler</Text>
+            </TouchableOpacity>
+          )}
+          {!isUpcoming && item.status === 'Completed' && (!item.reviews || item.reviews.length === 0 || Object.keys(item.reviews).length === 0) && (
+            <TouchableOpacity
+              style={styles.reviewBtn}
+              onPress={() => setReviewReservation(item)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="star" size={16} color={colors.ink} style={{ marginRight: 6 }} />
+              <Text style={styles.reviewBtnText}>Évaluer</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    );
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      {/* Top bar */}
+      <View style={styles.headerBar}>
+        <Text style={styles.headerLogo}>7afefli</Text>
+        <Text style={styles.headerPageTitle}>Mes Rendez-vous</Text>
+        <View style={{ width: 32 }} />
+      </View>
+
+      <View style={styles.content}>
+        <View style={styles.titleSection}>
+          <Text style={styles.pageTitle}>Mes Réservations</Text>
+          <Text style={styles.pageSubtitle}>Gérez vos rendez-vous de coiffure</Text>
+        </View>
+
+        {/* Tab Switcher */}
+        <View style={styles.tabContainer}>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'upcoming' && styles.activeTab]}
+            onPress={() => setActiveTab('upcoming')}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.tabText, activeTab === 'upcoming' && styles.activeTabText]}>
+              À venir
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'past' && styles.activeTab]}
+            onPress={() => setActiveTab('past')}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.tabText, activeTab === 'past' && styles.activeTabText]}>
+              Passés / Annulés
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* List */}
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator color={colors.amber} size="large" />
+          </View>
+        ) : (
+          <FlatList
+            data={filteredReservations}
+            keyExtractor={(item) => item.id}
+            renderItem={renderItem}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            onRefresh={refetch}
+            refreshing={isLoading}
+            ListEmptyComponent={
+              <View style={styles.emptyState}>
+                <Ionicons name="calendar" size={48} color={colors.textMuted} />
+                <Text style={styles.emptyTitle}>Aucun rendez-vous</Text>
+                <Text style={styles.emptySubtitle}>
+                  Vous n'avez pas de rendez-vous dans cette section.
+                </Text>
+              </View>
+            }
+          />
+        )}
+      </View>
+      <LeaveReviewModal
+        visible={!!reviewReservation}
+        onClose={() => setReviewReservation(null)}
+        reservation={reviewReservation}
+        onSuccess={() => refetch()}
+      />
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.ink,
+  },
+  headerBar: {
+    height: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  headerLogo: {
+    fontFamily: 'Syne_700Bold',
+    fontSize: 18,
+    color: colors.amber,
+  },
+  headerPageTitle: {
+    fontFamily: 'DMSans_700Bold',
+    fontSize: 14,
+    color: colors.textPrimary,
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+  },
+  titleSection: {
+    marginBottom: spacing.lg,
+  },
+  pageTitle: {
+    fontFamily: 'Syne_700Bold',
+    fontSize: 26,
+    color: colors.textPrimary,
+    marginBottom: 4,
+  },
+  pageSubtitle: {
+    fontFamily: 'DMSans_400Regular',
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: colors.carbon,
+    borderRadius: radius.md,
+    padding: 4,
+    marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: radius.sm,
+  },
+  activeTab: {
+    backgroundColor: colors.graphite,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  tabText: {
+    fontFamily: 'DMSans_500Medium',
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  activeTabText: {
+    color: colors.amber,
+    fontFamily: 'DMSans_700Bold',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  listContent: {
+    paddingBottom: spacing.xxl,
+  },
+  appointmentCard: {
+    backgroundColor: colors.carbon,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+    marginBottom: spacing.md,
+  },
+  cardCancelled: {
+    opacity: 0.65,
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  salonInfoBlock: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: spacing.md,
+  },
+  salonThumb: {
+    width: 48,
+    height: 48,
+    borderRadius: radius.md,
+    backgroundColor: colors.graphite,
+  },
+  salonTextCol: {
+    flex: 1,
+  },
+  salonName: {
+    fontFamily: 'Syne_600SemiBold',
+    fontSize: 16,
+    color: colors.textPrimary,
+    marginBottom: 2,
+  },
+  salonAddress: {
+    fontFamily: 'DMSans_400Regular',
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  statusBadge: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: 3,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+  },
+  statusConfirmed: {
+    backgroundColor: 'rgba(46, 204, 113, 0.1)',
+    borderColor: 'rgba(46, 204, 113, 0.2)',
+  },
+  statusPending: {
+    backgroundColor: 'rgba(52, 152, 219, 0.1)',
+    borderColor: 'rgba(52, 152, 219, 0.2)',
+  },
+  statusCancelled: {
+    backgroundColor: 'rgba(231, 76, 60, 0.1)',
+    borderColor: 'rgba(231, 76, 60, 0.2)',
+  },
+  statusText: {
+    fontFamily: 'DMSans_700Bold',
+    fontSize: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  statusConfirmedText: {
+    color: colors.success,
+  },
+  statusPendingText: {
+    color: colors.pending,
+  },
+  statusCancelledText: {
+    color: colors.error,
+  },
+  detailsBlock: {
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.03)',
+    gap: 8,
+  },
+  detailsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  detailsDateText: {
+    fontFamily: 'DMSans_700Bold',
+    fontSize: 13,
+    color: colors.textPrimary,
+  },
+  detailsServiceText: {
+    fontFamily: 'DMSans_400Regular',
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  priceLabel: {
+    fontFamily: 'DMSans_400Regular',
+    fontSize: 12,
+    color: colors.textMuted,
+  },
+  priceValue: {
+    fontFamily: 'Syne_700Bold',
+    fontSize: 14,
+    color: colors.amber,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: spacing.md,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.03)',
+  },
+  cancelBtn: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.error,
+  },
+  cancelBtnText: {
+    fontFamily: 'DMSans_500Medium',
+    fontSize: 13,
+    color: colors.error,
+  },
+  reviewBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.sm,
+    backgroundColor: colors.amber,
+  },
+  reviewBtnText: {
+    fontFamily: 'DMSans_700Bold',
+    fontSize: 13,
+    color: colors.ink,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xxl,
+  },
+  emptyTitle: {
+    fontFamily: 'Syne_600SemiBold',
+    fontSize: 16,
+    color: colors.textPrimary,
+    marginTop: spacing.md,
+  },
+  emptySubtitle: {
+    fontFamily: 'DMSans_400Regular',
+    fontSize: 13,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: spacing.xs,
+    paddingHorizontal: spacing.xl,
+  },
+});

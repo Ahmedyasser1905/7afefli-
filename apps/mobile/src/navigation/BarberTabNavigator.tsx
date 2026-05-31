@@ -1,0 +1,118 @@
+// apps/mobile/src/navigation/BarberTabNavigator.tsx
+// Navigation structure for Barber application space
+
+import React from 'react';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Text, View, StyleSheet } from 'react-native';
+import { DashboardScreen } from '../screens/barber/DashboardScreen';
+import { CalendarScreen } from '../screens/barber/CalendarScreen';
+import { SettingsScreen } from '../screens/client/SettingsScreen';
+import { ClientsScreen } from '../screens/barber/ClientsScreen';
+import { colors, typography } from '../theme';
+import Ionicons from "@react-native-vector-icons/ionicons";
+
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '../lib/supabase';
+import { useAuthStore } from '../store/authStore';
+import { ActivityIndicator } from 'react-native';
+import { SalonSetupScreen } from '../screens/barber/SalonSetupScreen';
+import { MySalonScreen } from '../screens/barber/MySalonScreen';
+
+const Tab = createBottomTabNavigator();
+
+export function BarberTabNavigator() {
+  const user = useAuthStore((s) => s.user);
+
+  const { data: salon, isLoading, refetch } = useQuery({
+    queryKey: ['my-salon', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('salons')
+        .select('*')
+        .eq('owner_id', user?.id)
+        .single();
+        
+      if (error && error.code !== 'PGRST116') {
+        throw error;
+      }
+      return data || null;
+    },
+    enabled: !!user,
+  });
+
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.ink, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator color={colors.amber} size="large" />
+      </View>
+    );
+  }
+
+  if (!salon) {
+    return <SalonSetupScreen onComplete={refetch} />;
+  }
+
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }: any) => ({
+        headerShown: false,
+        tabBarStyle: {
+          backgroundColor: colors.carbon,
+          borderTopColor: 'rgba(255, 255, 255, 0.05)',
+          borderTopWidth: 1,
+          height: 80,
+          paddingBottom: 15,
+          paddingTop: 10,
+        },
+        tabBarActiveTintColor: colors.amber,
+        tabBarInactiveTintColor: colors.textMuted,
+        tabBarLabelStyle: {
+          fontFamily: 'DMSans_500Medium',
+          fontSize: 11,
+          marginTop: 2,
+        },
+        tabBarIcon: ({ focused, color }: any) => {
+          let iconName: any = 'grid';
+          if (route.name === 'Dashboard') {
+            iconName = focused ? 'grid' : 'grid-outline';
+          } else if (route.name === 'Calendar') {
+            iconName = focused ? 'calendar' : 'calendar-outline';
+          } else if (route.name === 'Clients') {
+            iconName = focused ? 'people' : 'people-outline';
+          } else if (route.name === 'Mon Salon') {
+            iconName = focused ? 'storefront' : 'storefront-outline';
+          } else if (route.name === 'Settings') {
+            iconName = focused ? 'settings' : 'settings-outline';
+          }
+          return <Ionicons name={iconName} size={22} color={color} />;
+        },
+      })}
+    >
+      <Tab.Screen
+        name="Dashboard"
+        component={DashboardScreen}
+        options={{ tabBarLabel: 'Accueil' }}
+      />
+      <Tab.Screen
+        name="Calendar"
+        component={CalendarScreen}
+        options={{ tabBarLabel: 'Calendrier' }}
+      />
+      <Tab.Screen
+        name="Clients"
+        component={ClientsScreen}
+        options={{ tabBarLabel: 'Clients' }}
+      />
+      <Tab.Screen
+        name="Mon Salon"
+        component={MySalonScreen}
+        options={{ tabBarLabel: 'Mon Salon' }}
+      />
+      <Tab.Screen
+        name="Settings"
+        component={SettingsScreen}
+        options={{ tabBarLabel: 'Paramètres' }}
+      />
+    </Tab.Navigator>
+  );
+}

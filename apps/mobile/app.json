@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "7afefli",
+    "slug": "hafefli",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.ahmedyasser.hafefli",
+      "adaptiveIcon": {
+        "backgroundColor": "#0D0D0F",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-font",
+      "expo-secure-store",
+      "expo-notifications",
+      "expo-splash-screen"
+    ],
+    "splash": {
+      "backgroundColor": "#0D0D0F"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "adcbeb95-3c15-48ec-bae6-6f4a44190cf6"
+      }
+    }
+  }
+}
