@@ -9,7 +9,7 @@
       "distribution": "internal"
     },
     "preview": {
-      "node": "20.x",
+      "node": "20",
       "env": {
         "EXPO_PUBLIC_API_URL": "https://7afefli-production.up.railway.app",
         "EXPO_PUBLIC_SUPABASE_URL": "https://phfwutugsyiutqgippqg.supabase.co",
