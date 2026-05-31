@@ -55,19 +55,27 @@ export function ExploreScreen() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Get user location
+  // Get user location continuously
   useEffect(() => {
+    let locationSubscription: Location.LocationSubscription | null = null;
+
     (async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status === 'granted') {
-          const loc = await Location.getCurrentPositionAsync({
-            accuracy: Location.Accuracy.Balanced,
-          });
-          setLocation({
-            latitude: loc.coords.latitude,
-            longitude: loc.coords.longitude,
-          });
+          locationSubscription = await Location.watchPositionAsync(
+            {
+              accuracy: Location.Accuracy.Balanced,
+              distanceInterval: 5,
+              timeInterval: 5000,
+            },
+            (loc) => {
+              setLocation({
+                latitude: loc.coords.latitude,
+                longitude: loc.coords.longitude,
+              });
+            }
+          );
         } else {
           // Algiers fallback
           setLocation({ latitude: 36.7538, longitude: 3.0588 });
@@ -78,6 +86,12 @@ export function ExploreScreen() {
         setLocation({ latitude: 36.7538, longitude: 3.0588 });
       }
     })();
+
+    return () => {
+      if (locationSubscription) {
+        locationSubscription.remove();
+      }
+    };
   }, []);
 
   // Fetch ALL approved salons (explore mode — not just nearby)

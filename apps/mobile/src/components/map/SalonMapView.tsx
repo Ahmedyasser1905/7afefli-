@@ -50,8 +50,6 @@ export function SalonMapView({
       .join('|');
   }, [salons]);
 
-  const userKey = userLocation ? `${userLocation.latitude}:${userLocation.longitude}` : 'none';
-
   const mapHtml = useMemo(() => {
     const salonsData = salons
       .filter((s) => s.latitude && s.longitude && s.latitude !== 0 && s.longitude !== 0)
@@ -113,6 +111,7 @@ var ULAT=${userLat};
 var CLNG=${center.longitude};
 var CLAT=${center.latitude};
 var routeLayer=null;
+var userMarker=null;
 
 var scissorsSvg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23111"><path d="M9.64 7.64c.23-.5.36-1.05.36-1.64 0-2.21-1.79-4-4-4S2 3.79 2 6s1.79 4 4 4c.59 0 1.14-.13 1.64-.36L10 12l-2.36 2.36C7.14 14.13 6.59 14 6 14c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4c0-.59-.13-1.14-.36-1.64L12 14l7 7h3v-1L9.64 7.64zM6 8c-1.1 0-2-.89-2-2s.9-2 2-2 2 .89 2 2-.9 2-2 2zm0 12c-1.1 0-2-.89-2-2s.9-2 2-2 2 .89 2 2-.9 2-2 2zm6-7.5c-.28 0-.5-.22-.5-.5s.22-.5.5-.5.5.22.5.5-.22.5-.5.5zM19 3l-6 6 2 2 7-7V3h-3z"/></svg>';
 
@@ -163,8 +162,21 @@ function initMapLibre(){
     // User dot
     if(HAS_USER){
       var uel=document.createElement('div');uel.className='user-dot';
-      new maplibregl.Marker({element:uel}).setLngLat([ULNG,ULAT]).addTo(map);
+      userMarker=new maplibregl.Marker({element:uel}).setLngLat([ULNG,ULAT]).addTo(map);
     }
+    
+    window.updateUserLocation = function(lng, lat) {
+      ULNG = lng;
+      ULAT = lat;
+      HAS_USER = true;
+      if (userMarker) {
+        userMarker.setLngLat([lng, lat]);
+      } else {
+        var uel=document.createElement('div');uel.className='user-dot';
+        userMarker=new maplibregl.Marker({element:uel}).setLngLat([lng, lat]).addTo(map);
+      }
+    };
+
     // Salon markers
     DATA.forEach(function(s){
       var el=document.createElement('div');el.className='marker';el.innerHTML=scissorsSvg;
@@ -228,8 +240,19 @@ function initLeaflet(){
     var icon=L.divIcon({html:'<div class="marker">'+scissorsSvg+'</div>',className:'',iconSize:[32,32],iconAnchor:[16,16],popupAnchor:[0,-18]});
 
     if(HAS_USER){
-      L.marker([ULAT,ULNG],{icon:L.divIcon({html:'<div class="user-dot"></div>',className:'',iconSize:[14,14],iconAnchor:[7,7]}),zIndexOffset:1000}).addTo(map);
+      userMarker=L.marker([ULAT,ULNG],{icon:L.divIcon({html:'<div class="user-dot"></div>',className:'',iconSize:[14,14],iconAnchor:[7,7]}),zIndexOffset:1000}).addTo(map);
     }
+    
+    window.updateUserLocation = function(lng, lat) {
+      ULNG = lng;
+      ULAT = lat;
+      HAS_USER = true;
+      if (userMarker) {
+        userMarker.setLatLng([lat, lng]);
+      } else {
+        userMarker=L.marker([lat,lng],{icon:L.divIcon({html:'<div class="user-dot"></div>',className:'',iconSize:[14,14],iconAnchor:[7,7]}),zIndexOffset:1000}).addTo(map);
+      }
+    };
 
     DATA.forEach(function(s){
       var dirBtn=HAS_USER?'<button class="p-btn p-dir" onclick="lfRoute('+s.lng+','+s.lat+')">Itin\\u00e9raire</button>':'';
@@ -274,8 +297,16 @@ function initLeaflet(){
 </body>
 </html>`;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [salonsFingerprint, userKey]);
+  }, [salonsFingerprint]);
 
+  // Dynamically update user location in the map without reloading the WebView HTML
+  useEffect(() => {
+    if (mapReady && userLocation && webViewRef.current) {
+      webViewRef.current.injectJavaScript(
+        `if(window.updateUserLocation){window.updateUserLocation(${userLocation.longitude}, ${userLocation.latitude});}true;`
+      );
+    }
+  }, [userLocation, mapReady]);
   // Prevent WebView from re-mounting when mapHtml hasn't changed
   const handleMessage = useCallback(
     (event: any) => {

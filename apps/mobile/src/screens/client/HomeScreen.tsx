@@ -43,8 +43,10 @@ export function HomeScreen() {
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set(['nearby']));
   const [searchQuery, setSearchQuery] = useState('');
 
-  // 1. Request location permissions
+  // 1. Request location permissions and track location continuously
   useEffect(() => {
+    let locationSubscription: Location.LocationSubscription | null = null;
+
     (async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
@@ -54,20 +56,27 @@ export function HomeScreen() {
           setLocation({ latitude: 36.7538, longitude: 3.0588 });
           return;
         }
-        const loc = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
         
-        // Fallback for testing: if location is outside Algeria (roughly), force Algiers
-        if (loc.coords.latitude < 15 || loc.coords.latitude > 38 || loc.coords.longitude < -9 || loc.coords.longitude > 12) {
-          setLocation({ latitude: 36.7538, longitude: 3.0588 });
-          setLocationError('Localisation hors Algérie, position de test (Alger) utilisée');
-        } else {
-          setLocation({
-            latitude: loc.coords.latitude,
-            longitude: loc.coords.longitude,
-          });
-        }
+        locationSubscription = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.Balanced,
+            distanceInterval: 5, // update every 5 meters
+            timeInterval: 5000,  // or every 5 seconds
+          },
+          (loc) => {
+            // Fallback for testing: if location is outside Algeria (roughly), force Algiers
+            if (loc.coords.latitude < 15 || loc.coords.latitude > 38 || loc.coords.longitude < -9 || loc.coords.longitude > 12) {
+              setLocation({ latitude: 36.7538, longitude: 3.0588 });
+              setLocationError('Localisation hors Algérie, position de test (Alger) utilisée');
+            } else {
+              setLocation({
+                latitude: loc.coords.latitude,
+                longitude: loc.coords.longitude,
+              });
+              setLocationError(null);
+            }
+          }
+        );
       } catch (err: any) {
         console.warn('Location error:', err.message);
         setLocationError('Localisation indisponible');
@@ -75,6 +84,12 @@ export function HomeScreen() {
         setLocation({ latitude: 36.7538, longitude: 3.0588 });
       }
     })();
+
+    return () => {
+      if (locationSubscription) {
+        locationSubscription.remove();
+      }
+    };
   }, []);
 
   // 2. Fetch salons from backend (nearby — requires location)
