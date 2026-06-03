@@ -82,7 +82,20 @@ export class SlotsService {
       .in('status', ['Pending', 'Confirmed']);
 
     if (barberId) {
-      query = query.eq('barber_id', barberId);
+      // Find the staff row to check if barberId is a staff.id or profile_id
+      const { data: staff } = await this.supabase.adminClient
+        .from('salon_staff')
+        .select('id, profile_id')
+        .or(`id.eq.${barberId},profile_id.eq.${barberId}`)
+        .maybeSingle();
+
+      if (staff) {
+        // Query reservations where staff_id is staff.id or barber_id is staff.profile_id
+        query = query.or(`staff_id.eq.${staff.id}${staff.profile_id ? `,barber_id.eq.${staff.profile_id}` : ''}`);
+      } else {
+        // Fallback: check both anyway
+        query = query.or(`staff_id.eq.${barberId},barber_id.eq.${barberId}`);
+      }
     }
 
     const { data: bookedSlots } = await query;

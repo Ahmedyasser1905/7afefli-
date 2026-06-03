@@ -77,7 +77,18 @@ export function useAvailableSlots({
             .in('status', ['Pending', 'Confirmed']);
 
           if (staffId) {
-            query = query.eq('barber_id', staffId);
+            // Find the staff row to check if staffId is a staff.id or profile_id
+            const { data: staff } = await supabase
+              .from('salon_staff')
+              .select('id, profile_id')
+              .or(`id.eq.${staffId},profile_id.eq.${staffId}`)
+              .maybeSingle();
+
+            if (staff) {
+              query = query.or(`staff_id.eq.${staff.id}${staff.profile_id ? `,barber_id.eq.${staff.profile_id}` : ''}`);
+            } else {
+              query = query.or(`staff_id.eq.${staffId},barber_id.eq.${staffId}`);
+            }
           }
 
           const { data: bookedReservations, error } = await query;

@@ -14,7 +14,9 @@ const mockSupabaseAdminClient = {
   select: jest.fn().mockReturnThis(),
   eq: jest.fn().mockReturnThis(),
   in: jest.fn().mockReturnThis(),
+  or: jest.fn().mockReturnThis(),
   single: jest.fn(),
+  maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
   then: jest.fn(),
 };
 

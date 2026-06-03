@@ -48,6 +48,40 @@ export class ReservationsService {
     // 2. Calculate end_time from start_time + duration
     const endTime = addMinutesToTime(dto.startTime, service.duration_minutes);
 
+    // Resolve staffId (salon_staff.id) and profileId (profiles.id) from dto.barberId
+    let staffId: string | null = null;
+    let profileId: string | null = null;
+
+    if (dto.barberId) {
+      // 1. Try to find staff by staff.id
+      const { data: staffById } = await this.supabase.adminClient
+        .from('salon_staff')
+        .select('id, profile_id')
+        .eq('id', dto.barberId)
+        .eq('salon_id', dto.salonId)
+        .maybeSingle();
+
+      if (staffById) {
+        staffId = staffById.id;
+        profileId = staffById.profile_id;
+      } else {
+        // 2. Fallback: try to find staff by profile_id
+        const { data: staffByProfile } = await this.supabase.adminClient
+          .from('salon_staff')
+          .select('id, profile_id')
+          .eq('profile_id', dto.barberId)
+          .eq('salon_id', dto.salonId)
+          .maybeSingle();
+
+        if (staffByProfile) {
+          staffId = staffByProfile.id;
+          profileId = staffByProfile.profile_id;
+        } else {
+          throw new BadRequestException('Barber/Staff not found for this salon');
+        }
+      }
+    }
+
     // 3. Call the safe RPC to prevent double-booking with Advisory Locks
     const { data, error } = await this.supabase.adminClient.rpc(
       'create_reservation_safe',
@@ -55,12 +89,13 @@ export class ReservationsService {
         p_client_id: clientId,
         p_salon_id: dto.salonId,
         p_service_id: dto.serviceId,
-        p_barber_id: dto.barberId ?? null,
+        p_barber_id: profileId,
         p_appointment_date: dto.appointmentDate,
         p_start_time: dto.startTime,
         p_end_time: endTime,
         p_notes: dto.notes ?? null,
         p_client_phone: dto.clientPhone ?? null,
+        p_staff_id: staffId,
       }
     );
 
@@ -109,6 +144,16 @@ export class ReservationsService {
     startTime: string,
     endTime: string,
   ) {
+    // Resolve staff_id from profile_id
+    const { data: staff } = await this.supabase.adminClient
+      .from('salon_staff')
+      .select('id')
+      .eq('salon_id', salonId)
+      .eq('profile_id', barberId)
+      .maybeSingle();
+
+    const staffId = staff?.id || null;
+
     const { data, error } = await this.supabase.adminClient.rpc(
       'create_reservation_safe',
       {
@@ -121,6 +166,7 @@ export class ReservationsService {
         p_end_time: endTime,
         p_notes: 'CRÉNEAU BLOQUÉ',
         p_client_phone: null,
+        p_staff_id: staffId,
       }
     );
 

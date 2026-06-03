@@ -20,9 +20,11 @@ const buildMockQuery = () => ({
   eq: jest.fn().mockReturnThis(),
   in: jest.fn().mockReturnThis(),
   single: jest.fn(),
+  maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
   update: jest.fn().mockReturnThis(),
   insert: jest.fn().mockReturnThis(),
   order: jest.fn().mockReturnThis(),
+  or: jest.fn().mockReturnThis(),
 });
 
 let mockQuery = buildMockQuery();
