@@ -153,7 +153,7 @@ describe('ReservationsService', () => {
       );
 
       expect(mockCacheManager.del).toHaveBeenCalledWith(
-        'slots:salon1:svc1:2025-01-01:any',
+        'slots_v2:salon1:svc1:2025-01-01:any',
       );
     });
   });
@@ -250,14 +250,17 @@ describe('ReservationsService', () => {
   // ─────────────────────────────────────────────────────────────────────────
   describe('blockTime', () => {
     it('should insert a blocked reservation record', async () => {
-      mockQuery.single.mockResolvedValueOnce({ data: { id: 'block1', status: 'Confirmed' }, error: null });
+      mockSupabaseAdminClient.rpc.mockResolvedValueOnce({
+        data: { id: 'block1' },
+        error: null,
+      });
 
       const res = await service.blockTime('salon1', 'barber1', '2025-01-01', '14:00', '15:00');
       expect(res).toBeDefined();
     });
 
     it('should throw ConflictException if slot already booked', async () => {
-      mockQuery.single.mockResolvedValueOnce({
+      mockSupabaseAdminClient.rpc.mockResolvedValueOnce({
         data: null,
         error: { message: 'slot already booked', code: 'P0001' },
       });

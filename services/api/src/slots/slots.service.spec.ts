@@ -49,7 +49,7 @@ describe('SlotsService', () => {
       mockCacheManager.get.mockResolvedValueOnce([{ startTime: '10:00', endTime: '10:30', isAvailable: true }]);
       const slots = await service.getAvailableSlots('salon1', 'service1', '2025-01-01');
       expect(slots.length).toBe(1);
-      expect(mockCacheManager.get).toHaveBeenCalledWith('slots:salon1:service1:2025-01-01:any');
+      expect(mockCacheManager.get).toHaveBeenCalledWith('slots_v2:salon1:service1:2025-01-01:any');
     });
 
     it('should calculate available slots when not cached', async () => {

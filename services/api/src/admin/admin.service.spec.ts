@@ -90,7 +90,7 @@ describe('AdminService', () => {
     it('should export csv', async () => {
       mockQueryBuilder.then.mockImplementationOnce((resolve: any) => resolve({ data: [{ created_at: '2026', action: 'A', actor_id: '1', resource: 'R', ip_address: 'IP' }], error: null }));
       const res = await service.exportAuditLogsCsv();
-      expect(res).toContain('2026,A,1,R,IP');
+      expect(res).toContain('"2026","A","1","R","IP"');
     });
   });
 

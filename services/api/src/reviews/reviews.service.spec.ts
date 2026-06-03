@@ -6,6 +6,7 @@ const mockQueryBuilder = {
   select: jest.fn().mockReturnThis(),
   eq: jest.fn().mockReturnThis(),
   single: jest.fn().mockReturnThis(),
+  maybeSingle: jest.fn().mockReturnThis(),
   insert: jest.fn().mockReturnThis(),
   order: jest.fn().mockReturnThis(),
   range: jest.fn().mockReturnThis(),
