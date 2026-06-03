@@ -54,21 +54,39 @@ export function useAvailableSlots({
         console.log('[useAvailableSlots] API failed, falling back to client-side generation:', err);
       }
 
+      // Check if the requested date is in the past
+      const now = new Date();
+      const currentDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+      if (date) {
+        if (date < currentDateStr) {
+          console.log('[useAvailableSlots] Date is in the past');
+          return [];
+        }
+      }
+
+      if (apiSucceeded && data.length > 0) {
+        // Filter out past slots from the successful API response (stale production backend resilience)
+        data = data.map(slot => {
+          let isAvailable = slot.isAvailable;
+          if (isAvailable && date === currentDateStr && slot.startTime <= currentTimeStr) {
+            isAvailable = false;
+          }
+          return {
+            ...slot,
+            isAvailable,
+          };
+        });
+        return data;
+      }
+
       // Fallback: if API failed OR returned no slots (but salon open/close times are set, indicating it should have slots)
       if (!apiSucceeded || data.length === 0) {
         console.log('[useAvailableSlots] Generating slots locally for:', { openTime, closeTime, durationMin });
         
-        // Check if the requested date is in the past
-        const now = new Date();
-        const currentDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-        const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-
         // 1. Check if the salon is open on this day of the week
         if (date) {
-          if (date < currentDateStr) {
-            console.log('[useAvailableSlots] Date is in the past (local check)');
-            return [];
-          }
           const requestedDay = new Date(date).getDay(); // 0=Sun, 6=Sat
           if (workingDays && !workingDays.includes(requestedDay)) {
             console.log('[useAvailableSlots] Salon is closed on this day (local check)');
