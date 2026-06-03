@@ -16,6 +16,7 @@ interface SlotPickerProps {
   openTime: string;
   closeTime: string;
   durationMin: number;
+  workingDays?: number[];
   onConfirm: (slot: { startTime: string; endTime: string }) => void;
   onSlotSelect?: (slot: { startTime: string; endTime: string } | null) => void;
 }
@@ -30,6 +31,7 @@ export function SlotPicker({
   openTime,
   closeTime,
   durationMin,
+  workingDays,
   onConfirm,
   onSlotSelect,
 }: SlotPickerProps) {
@@ -45,6 +47,7 @@ export function SlotPicker({
     openTime,
     closeTime,
     durationMin,
+    workingDays,
   });
 
   const {

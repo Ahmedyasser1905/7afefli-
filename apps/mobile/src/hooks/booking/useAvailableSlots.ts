@@ -3,6 +3,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../lib/apiClient';
+import { supabase } from '../../lib/supabase';
 import { generateTimeSlots, isSlotBooked } from '@barberdz/shared/utils/timeSlots';
 import type { TimeSlot } from '@barberdz/shared/types';
 
@@ -14,6 +15,7 @@ interface UseSlotsParams {
   openTime: string;       // "09:00"
   closeTime: string;      // "21:00"
   durationMin: number;    // e.g., 30
+  workingDays?: number[]; // optional list of active working days (0=Sun, 6=Sat)
 }
 
 export function useAvailableSlots({
@@ -24,6 +26,7 @@ export function useAvailableSlots({
   openTime,
   closeTime,
   durationMin,
+  workingDays,
 }: UseSlotsParams) {
   return useQuery<TimeSlot[]>({
     // Key includes all parameters → cache is per (salon, service, date, staff)
@@ -39,16 +42,66 @@ export function useAvailableSlots({
         queryParams.append('barberId', staffId);
       }
       
+      let data: TimeSlot[] = [];
+      let apiSucceeded = false;
       try {
         const url = `/slots?${queryParams.toString()}`;
         console.log('[useAvailableSlots] Fetching:', url);
-        const data = await apiClient.get<TimeSlot[]>(url);
+        data = await apiClient.get<TimeSlot[]>(url);
         console.log('[useAvailableSlots] Response length:', data.length);
-        return data;
+        apiSucceeded = true;
       } catch (err) {
-        console.error('[useAvailableSlots] Error fetching slots:', err);
-        throw err;
+        console.warn('[useAvailableSlots] API failed, falling back to client-side generation:', err);
       }
+
+      // Fallback: if API failed OR returned no slots (but salon open/close times are set, indicating it should have slots)
+      if (!apiSucceeded || data.length === 0) {
+        console.log('[useAvailableSlots] Generating slots locally for:', { openTime, closeTime, durationMin });
+        
+        // 1. Check if the salon is open on this day of the week
+        if (date) {
+          const requestedDay = new Date(date).getDay(); // 0=Sun, 6=Sat
+          if (workingDays && !workingDays.includes(requestedDay)) {
+            console.log('[useAvailableSlots] Salon is closed on this day (local check)');
+            return [];
+          }
+        }
+
+        try {
+          // 2. Fetch booked reservations from Supabase directly
+          let query = supabase
+            .from('reservations')
+            .select('start_time, end_time')
+            .eq('salon_id', salonId!)
+            .eq('appointment_date', date!)
+            .in('status', ['Pending', 'Confirmed']);
+
+          if (staffId) {
+            query = query.eq('barber_id', staffId);
+          }
+
+          const { data: bookedReservations, error } = await query;
+          if (error) throw error;
+
+          // 3. Generate slots using the shared logic (handles midnight correctly)
+          const rawSlots = generateTimeSlots(openTime, closeTime, durationMin);
+          
+          // 4. Mark booked slots as unavailable
+          const localSlots = rawSlots.map((slot) => ({
+            ...slot,
+            isAvailable: !isSlotBooked(slot, bookedReservations || []),
+          })) as TimeSlot[];
+
+          console.log('[useAvailableSlots] Local generation count:', localSlots.length);
+          return localSlots;
+        } catch (dbErr) {
+          console.error('[useAvailableSlots] Local generation failed:', dbErr);
+          if (apiSucceeded) return data; // If API succeeded but returned empty, return it instead of crashing
+          throw dbErr;
+        }
+      }
+
+      return data;
     },
 
     // Only run if all required params are present

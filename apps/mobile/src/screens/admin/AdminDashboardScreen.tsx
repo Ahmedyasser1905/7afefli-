@@ -30,27 +30,70 @@ export function AdminDashboardScreen() {
   const [selectedUser, setSelectedUser] = useState<Record<string, unknown>>(null);
 
   // Fetch all salons
-  const { data: salons = [], isLoading: salonsLoading, refetch: refetchSalons } = useQuery({
+  const { data: salons = [], isLoading: salonsLoading, refetch: refetchSalons } = useQuery<any[]>({
     queryKey: ['admin-salons'],
     queryFn: async () => {
-      return apiClient.get('/admin/salons');
+      try {
+        return await apiClient.get<any[]>('/admin/salons');
+      } catch (err) {
+        console.warn('[Admin] Failed to fetch salons via API, falling back to Supabase:', err);
+        const { data, error } = await supabase
+          .from('salons')
+          .select('*, profiles:owner_id(full_name, phone_number)')
+          .order('created_at', { ascending: false });
+        if (error) throw error;
+        return data || [];
+      }
     },
     staleTime: 60 * 1000,
   });
 
   // Fetch all users
-  const { data: users = [], isLoading: usersLoading, refetch: refetchUsers } = useQuery({
+  const { data: users = [], isLoading: usersLoading, refetch: refetchUsers } = useQuery<any[]>({
     queryKey: ['admin-users'],
     queryFn: async () => {
-      return apiClient.get('/admin/users');
+      try {
+        return await apiClient.get<any[]>('/admin/users');
+      } catch (err) {
+        console.warn('[Admin] Failed to fetch users via API, falling back to Supabase:', err);
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, full_name, phone_number, role, avatar_url, wilaya, is_phone_verified, created_at, updated_at')
+          .order('created_at', { ascending: false });
+        if (error) throw error;
+        return data || [];
+      }
     },
     staleTime: 60 * 1000,
   });
 
   // Stats
-  const { data: statsData } = useQuery({
+  const { data: statsData } = useQuery<any>({
     queryKey: ['admin-stats'],
-    queryFn: async () => apiClient.get('/admin/stats'),
+    queryFn: async () => {
+      try {
+        return await apiClient.get<any>('/admin/stats');
+      } catch (err) {
+        console.warn('[Admin] Failed to fetch stats via API, calculating locally:', err);
+        const [
+          { count: totalSalons },
+          { count: activeSalons },
+          { count: pendingSalons },
+          { count: totalUsers },
+        ] = await Promise.all([
+          supabase.from('salons').select('*', { count: 'exact', head: true }),
+          supabase.from('salons').select('*', { count: 'exact', head: true }).eq('is_approved', true),
+          supabase.from('salons').select('*', { count: 'exact', head: true }).eq('is_approved', false),
+          supabase.from('profiles').select('*', { count: 'exact', head: true }),
+        ]);
+        return {
+          totalSalons: totalSalons || 0,
+          activeSalons: activeSalons || 0,
+          pendingSalons: pendingSalons || 0,
+          totalUsers: totalUsers || 0,
+        };
+      }
+    },
     staleTime: 60 * 1000,
   });
 

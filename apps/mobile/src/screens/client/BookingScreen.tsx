@@ -325,6 +325,7 @@ export function BookingScreen() {
               openTime={salon.open_time.substring(0, 5)}
               closeTime={salon.close_time.substring(0, 5)}
               durationMin={selectedService.duration_minutes}
+              workingDays={salon.working_days}
               onConfirm={handleSlotConfirm}
               onSlotSelect={setPendingSlot}
             />

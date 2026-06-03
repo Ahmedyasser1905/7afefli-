@@ -52,8 +52,24 @@ export function SalonDetailScreen() {
   const { data: photos = [] } = useQuery<PortfolioPhoto[]>({
     queryKey: ['salon-portfolio', salonId],
     queryFn: async () => {
-      const data = await apiClient.get<PortfolioPhoto[]>(`/salons/${salonId}/portfolio`);
-      return data;
+      try {
+        return await apiClient.get<PortfolioPhoto[]>(`/salons/${salonId}/portfolio`);
+      } catch (err) {
+        console.warn('Failed to fetch portfolio via API, trying direct Supabase query:', err);
+        const { data, error } = await supabase
+          .from('portfolio_photos')
+          .select('*')
+          .eq('salon_id', salonId)
+          .order('created_at', { ascending: false });
+        if (error) throw error;
+        
+        return (data || []).map((photo: Record<string, unknown>) => ({
+          ...photo,
+          url: supabase.storage
+            .from('portfolio')
+            .getPublicUrl(photo.storage_path as string).data.publicUrl,
+        })) as unknown as PortfolioPhoto[];
+      }
     },
     staleTime: 3 * 60 * 1000,
   });
