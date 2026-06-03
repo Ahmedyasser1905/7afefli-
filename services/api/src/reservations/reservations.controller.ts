@@ -7,6 +7,7 @@ import {
   Patch,
   Param,
   Body,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ReservationsService } from './reservations.service';
@@ -72,11 +73,14 @@ export class ReservationsController {
    * Get all reservations for a salon (barber/owner view).
    */
   @Get('salon/:salonId')
+  @UseGuards(RolesGuard)
+  @Roles('Coiffeur', 'Admin')
   findBySalon(
     @Param('salonId') salonId: string,
+    @Query('date') date: string | undefined,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.reservationsService.findBySalon(salonId, user.id);
+    return this.reservationsService.findBySalon(salonId, user.id, date);
   }
 
   /**
@@ -84,6 +88,8 @@ export class ReservationsController {
    * Update reservation status (confirm, cancel, complete).
    */
   @Patch(':id/status')
+  @UseGuards(RolesGuard)
+  @Roles('Client', 'Coiffeur', 'Admin')
   updateStatus(
     @Param('id') id: string,
     @Body() dto: UpdateReservationStatusDto,

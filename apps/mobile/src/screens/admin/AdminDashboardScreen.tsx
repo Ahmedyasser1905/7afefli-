@@ -48,12 +48,16 @@ export function AdminDashboardScreen() {
   });
 
   // Stats
-  const totalSalons = salons.length;
-  const approvedSalons = salons.filter((s: Record<string, unknown>) => s.is_approved).length;
-  const pendingSalons = salons.filter((s: Record<string, unknown>) => !s.is_approved).length;
-  const totalUsers = users.length;
-  const totalBarbers = users.filter((u: Record<string, unknown>) => u.role === 'Coiffeur').length;
-  const totalClients = users.filter((u: Record<string, unknown>) => u.role === 'Client').length;
+  const { data: statsData } = useQuery({
+    queryKey: ['admin-stats'],
+    queryFn: async () => apiClient.get('/admin/stats'),
+    staleTime: 60 * 1000,
+  });
+
+  const totalSalons = statsData?.totalSalons ?? salons.length;
+  const approvedSalons = statsData?.activeSalons ?? salons.filter((s: Record<string, unknown>) => s.is_approved).length;
+  const pendingSalons = statsData?.pendingSalons ?? salons.filter((s: Record<string, unknown>) => !s.is_approved).length;
+  const totalUsers = statsData?.totalUsers ?? users.length;
 
   // Toggle salon approval
   const toggleApproval = useMutation({

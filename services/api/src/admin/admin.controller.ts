@@ -13,6 +13,7 @@ import { AdminService } from './admin.service';
 import { SupabaseAuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 
 @Controller('admin')
 @UseGuards(SupabaseAuthGuard, RolesGuard)
@@ -60,9 +61,9 @@ export class AdminController {
   @Patch('users/:id/role')
   changeUserRole(
     @Param('id') id: string,
-    @Body('role') role: string,
+    @Body() dto: UpdateUserRoleDto,
   ) {
-    return this.adminService.changeUserRole(id, role);
+    return this.adminService.changeUserRole(id, dto.role);
   }
 
   /**

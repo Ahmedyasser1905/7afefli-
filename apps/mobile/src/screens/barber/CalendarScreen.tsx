@@ -70,9 +70,8 @@ export function CalendarScreen() {
     queryKey: ['barber-reservations', salonId, selectedDate],
     queryFn: async () => {
       if (!salonId) return [];
-      const data = await apiClient.get<Reservation[]>(`/reservations/salon/${salonId}`);
+      const data = await apiClient.get<Reservation[]>(`/reservations/salon/${salonId}?date=${selectedDate}`);
       return data.filter(r => 
-        r.appointment_date === selectedDate && 
         ['Pending', 'Confirmed', 'Completed'].includes(r.status)
       );
     },
@@ -83,8 +82,10 @@ export function CalendarScreen() {
   useRealtimeBookings({ salonId });
 
   const openHour = salon?.open_time ? parseInt(salon.open_time.split(':')[0]) : 8;
-  const closeHour = salon?.close_time ? parseInt(salon.close_time.split(':')[0]) : 22;
-  const TOTAL_HOURS = closeHour - openHour;
+  // If close_time is '00:00:00' (midnight), treat it as 24 so the timeline shows correctly
+  const rawCloseHour = salon?.close_time ? parseInt(salon.close_time.split(':')[0]) : 22;
+  const closeHour = rawCloseHour === 0 ? 24 : rawCloseHour;
+  const TOTAL_HOURS = Math.max(closeHour - openHour, 1); // Always at least 1 hour
 
   // Hour labels (e.g. 08:00, 09:00, ..., 22:00)
   const hourLabels = useMemo(() => {

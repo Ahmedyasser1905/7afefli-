@@ -12,6 +12,8 @@ import {
   Body,
   UseGuards,
   ConflictException,
+  InternalServerErrorException,
+  NotFoundException,
   Logger,
   HttpCode,
   HttpStatus,
@@ -21,6 +23,7 @@ import { SupabaseService } from '../supabase/supabase.service';
 import { SupabaseAuthGuard, AuthenticatedUser } from './auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { VerifyProfileDto } from './dto/verify-profile.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -83,12 +86,28 @@ export class AuthController {
       .from('profiles')
       .select('id, phone_number, full_name, role, avatar_url, wilaya, is_phone_verified, created_at, updated_at')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
 
     if (error) {
       this.logger.error(`Profile fetch failed for user ${user.id}: ${error.message}`);
-      throw new Error(`Fetch failed: ${error.message}`);
+      throw new InternalServerErrorException('Failed to fetch profile');
     }
+
+    // Profile row may not exist yet (new sign-up) — return a safe default
+    if (!data) {
+      return {
+        id: user.id,
+        phone_number: user.phone ?? null,
+        full_name: null,
+        role: 'Client',
+        avatar_url: null,
+        wilaya: null,
+        is_phone_verified: false,
+        created_at: null,
+        updated_at: null,
+      };
+    }
+
     return data;
   }
 
@@ -98,7 +117,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Update the authenticated user profile' })
   async updateProfile(
     @CurrentUser() user: AuthenticatedUser,
-    @Body() dto: { full_name?: string; phone_number?: string; avatar_url?: string; wilaya?: string },
+    @Body() dto: UpdateProfileDto,
   ) {
     // Explicitly whitelist allowed update fields — role cannot be updated here
     const allowedUpdate: Record<string, unknown> = {};
@@ -113,12 +132,13 @@ export class AuthController {
       .update(allowedUpdate)
       .eq('id', user.id)
       .select('id, phone_number, full_name, role, avatar_url, wilaya, is_phone_verified, updated_at')
-      .single();
+      .maybeSingle();
 
     if (error) {
       this.logger.error(`Profile update failed for user ${user.id}: ${error.message}`);
-      throw new Error(`Update failed: ${error.message}`);
+      throw new InternalServerErrorException('Failed to update profile');
     }
+    if (!data) throw new NotFoundException('Profile not found');
     return data;
   }
 

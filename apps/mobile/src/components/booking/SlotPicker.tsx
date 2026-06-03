@@ -192,7 +192,32 @@ export function SlotPicker({
         </View>
       )}
 
+      {/* Empty state — no slots at all */}
+      {!isLoading && slots.length === 0 && (
+        <View style={styles.emptySlots}>
+          <Ionicons name="calendar-outline" size={40} color={colors.textMuted} />
+          <Text style={styles.emptySlotsTitle}>Aucun créneau disponible</Text>
+          <Text style={styles.emptySlotsSubtitle}>
+            Ce salon est fermé ce jour ou tous les créneaux sont réservés.{'\n'}
+            Essayez une autre date.
+          </Text>
+        </View>
+      )}
+
+      {/* All-booked state — slots exist but none available */}
+      {!isLoading && slots.length > 0 && slots.every(s => !s.isAvailable) && (
+        <View style={styles.emptySlots}>
+          <Ionicons name="time-outline" size={40} color={colors.textMuted} />
+          <Text style={styles.emptySlotsTitle}>Tous les créneaux sont pris</Text>
+          <Text style={styles.emptySlotsSubtitle}>
+            Il ne reste plus de place pour ce jour.{'\n'}
+            Choisissez une autre date.
+          </Text>
+        </View>
+      )}
+
       {/* Booking Legend */}
+
       <View style={styles.legendContainer}>
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: colors.amber }]} />
@@ -390,5 +415,26 @@ const styles = StyleSheet.create({
     fontFamily: 'Syne_600SemiBold',
     fontSize: 13,
     color: colors.ink,
+  },
+  emptySlots: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xxl,
+    paddingHorizontal: spacing.xl,
+  },
+  emptySlotsTitle: {
+    fontFamily: 'Syne_600SemiBold',
+    fontSize: 16,
+    color: colors.textPrimary,
+    marginTop: spacing.md,
+    textAlign: 'center',
+  },
+  emptySlotsSubtitle: {
+    fontFamily: 'DMSans_400Regular',
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });

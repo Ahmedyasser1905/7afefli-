@@ -19,7 +19,10 @@ export class ChargilyService {
   }
 
   verifySignature(signature: string, payload: string): boolean {
-    if (!this.secretKey) return true;
+    if (!this.secretKey) {
+      console.error('CRITICAL: CHARGILY_SECRET_KEY is not set. Rejecting webhook.');
+      return false;
+    }
     const computedSignature = crypto
       .createHmac('sha256', this.secretKey)
       .update(payload)

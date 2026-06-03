@@ -111,11 +111,10 @@ export class SalonsService {
       .from('salons')
       .select('*')
       .eq('owner_id', ownerId)
-      .single();
+      .maybeSingle();
 
-    if (error || !data) {
-      throw new NotFoundException(`Salon for owner ${ownerId} not found`);
-    }
+    if (error) throw new NotFoundException(`Error fetching salon for owner ${ownerId}`);
+    if (!data) throw new NotFoundException(`Salon for owner ${ownerId} not found`);
     return data;
   }
 
@@ -282,6 +281,13 @@ export class SalonsService {
   }
 
   async removePortfolioPhoto(salonId: string, photoId: string, userId: string) {
+    const { data: salon } = await this.supabase.adminClient
+      .from('salons')
+      .select('owner_id')
+      .eq('id', salonId)
+      .single();
+    if (!salon || salon.owner_id !== userId) throw new ForbiddenException();
+
     const { error } = await this.supabase.adminClient
       .from('portfolio_photos')
       .delete()

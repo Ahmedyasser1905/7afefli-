@@ -134,7 +134,18 @@ export class AdminService {
     if (!data || data.length === 0) return 'created_at,action,actor_id,resource,ip_address';
 
     const header = 'created_at,action,actor_id,resource,ip_address\n';
-    const rows = data.map(log => `${log.created_at},${log.action},${log.actor_id || ''},${log.resource},${log.ip_address || ''}`).join('\n');
+    const sanitize = (val: unknown) => {
+      if (val === null || val === undefined) return '""';
+      let str = String(val);
+      if (/^[=+\-@\t\r]/.test(str)) {
+        str = "'" + str;
+      }
+      return `"${str.replace(/"/g, '""')}"`;
+    };
+
+    const rows = data.map(log => 
+      `${sanitize(log.created_at)},${sanitize(log.action)},${sanitize(log.actor_id)},${sanitize(log.resource)},${sanitize(log.ip_address)}`
+    ).join('\n');
     return header + rows;
   }
 

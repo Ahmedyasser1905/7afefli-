@@ -58,7 +58,7 @@ describe('AdminController', () => {
   });
 
   it('should call changeUserRole', async () => {
-    expect(await controller.changeUserRole('1', 'Admin')).toEqual({});
+    expect(await controller.changeUserRole('1', { role: 'Admin' })).toEqual({});
   });
 
   it('should call getStats', async () => {

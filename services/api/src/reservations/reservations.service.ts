@@ -74,7 +74,8 @@ export class ReservationsService {
     }
 
     // 4. Invalidate slot cache for this salon/date to reduce stale availability
-    const cachePattern = `slots:${dto.salonId}:${dto.serviceId}:${dto.appointmentDate}`;
+    // NOTE: prefix must match the one in slots.service.ts (slots_v2)
+    const cachePattern = `slots_v2:${dto.salonId}:${dto.serviceId}:${dto.appointmentDate}`;
     try {
       // Wildcard invalidation — delete all barber variants for this date
       await this.cacheManager.del(`${cachePattern}:any`);
@@ -108,16 +109,20 @@ export class ReservationsService {
     startTime: string,
     endTime: string,
   ) {
-    const { data, error } = await this.supabase.adminClient.from('reservations').insert({
-      salon_id: salonId,
-      client_id: barberId,
-      barber_id: barberId,
-      appointment_date: appointmentDate,
-      start_time: startTime,
-      end_time: endTime,
-      status: 'Confirmed',
-      notes: 'CRÉNEAU BLOQUÉ',
-    }).select().single();
+    const { data, error } = await this.supabase.adminClient.rpc(
+      'create_reservation_safe',
+      {
+        p_client_id: barberId,
+        p_salon_id: salonId,
+        p_service_id: null,
+        p_barber_id: barberId,
+        p_appointment_date: appointmentDate,
+        p_start_time: startTime,
+        p_end_time: endTime,
+        p_notes: 'CRÉNEAU BLOQUÉ',
+        p_client_phone: null,
+      }
+    );
 
     if (error) {
       if (error.message?.includes('booked') || error.code === 'P0001') {
@@ -127,6 +132,12 @@ export class ReservationsService {
       }
       throw new Error(`Failed to block time: ${error.message}`);
     }
+
+    // Auto-confirm the blocked time
+    await this.supabase.adminClient
+      .from('reservations')
+      .update({ status: 'Confirmed' })
+      .eq('id', data.id);
 
     return data;
   }
@@ -155,7 +166,7 @@ export class ReservationsService {
   /**
    * Get all reservations for a salon (barber/owner view).
    */
-  async findBySalon(salonId: string, userId: string) {
+  async findBySalon(salonId: string, userId: string, date?: string) {
     // Verify the user owns the salon or is staff
     const { data: salon } = await this.supabase.adminClient
       .from('salons')
@@ -181,7 +192,7 @@ export class ReservationsService {
       }
     }
 
-    const { data, error } = await this.supabase.adminClient
+    let query = this.supabase.adminClient
       .from('reservations')
       .select(`
         *,
@@ -192,6 +203,12 @@ export class ReservationsService {
       .eq('salon_id', salonId)
       .order('appointment_date', { ascending: true })
       .order('start_time', { ascending: true });
+
+    if (date) {
+      query = query.eq('appointment_date', date);
+    }
+
+    const { data, error } = await query;
 
     if (error) throw new Error(`Failed to fetch salon reservations: ${error.message}`);
     return data;
@@ -220,12 +237,23 @@ export class ReservationsService {
     const isClient = reservation.client_id === userId;
     const isBarber = (reservation as unknown as { salons?: { owner_id: string } }).salons?.owner_id === userId;
 
+    let isStaff = false;
     if (!isClient && !isBarber) {
+      const { data: staff } = await this.supabase.adminClient
+        .from('salon_staff')
+        .select('id')
+        .eq('salon_id', reservation.salon_id)
+        .eq('profile_id', userId)
+        .single();
+      isStaff = !!staff;
+    }
+
+    if (!isClient && !isBarber && !isStaff) {
       throw new ForbiddenException('You are not authorized to update this reservation');
     }
 
     // Clients can only cancel their own pending reservations
-    if (isClient && !isBarber) {
+    if (isClient && !isBarber && !isStaff) {
       if (dto.status !== 'Cancelled') {
         throw new ForbiddenException('Clients can only cancel reservations');
       }

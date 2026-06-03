@@ -36,8 +36,7 @@ export function MyAppointmentsScreen() {
     queryFn: async () => {
       if (!user) return [];
       
-      // Mark past reservations as completed automatically
-      await supabase.rpc('auto_complete_reservations');
+      // Removed insecure RPC call: auto_complete_reservations
       
       const data = await apiClient.get<Record<string, unknown>[]>('/reservations/me');
       return data ?? [];

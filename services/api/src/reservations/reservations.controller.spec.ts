@@ -47,7 +47,7 @@ describe('ReservationsController', () => {
   });
 
   it('should call findBySalon', async () => {
-    expect(await controller.findBySalon('1', { id: 'u1' } as any)).toEqual([]);
+    expect(await controller.findBySalon('1', undefined, { id: 'u1' } as any)).toEqual([]);
   });
 
   it('should call updateStatus', async () => {

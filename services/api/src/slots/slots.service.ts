@@ -34,7 +34,7 @@ export class SlotsService {
     date: string,        // "2025-06-15"
     barberId?: string,
   ): Promise<TimeSlot[]> {
-    const cacheKey = `slots:${salonId}:${serviceId}:${date}:${barberId || 'any'}`;
+    const cacheKey = `slots_v2:${salonId}:${serviceId}:${date}:${barberId || 'any'}`;
     const cachedSlots = await this.cacheManager.get<TimeSlot[]>(cacheKey);
     if (cachedSlots) {
       return cachedSlots;
@@ -98,6 +98,18 @@ export class SlotsService {
 
     await this.cacheManager.set(cacheKey, finalSlots, 60 * 1000); // Cache for 60 seconds
 
+    console.log('[SlotsService] Generated slots:', {
+      salonId,
+      date,
+      openTime,
+      closeTime,
+      duration,
+      workingDays,
+      requestedDay,
+      allSlotsLength: allSlots.length,
+      finalSlotsLength: finalSlots.length,
+    });
+
     return finalSlots;
   }
 
@@ -111,7 +123,12 @@ export class SlotsService {
   ): Omit<TimeSlot, 'isAvailable'>[] {
     const slots: Omit<TimeSlot, 'isAvailable'>[] = [];
     const open = this.timeToMinutes(openTime);
-    const close = this.timeToMinutes(closeTime);
+    let close = this.timeToMinutes(closeTime);
+
+    // Handle midnight or next-day closing (e.g. 11:00 to 00:00 or 02:00)
+    if (close <= open) {
+      close += 24 * 60;
+    }
 
     let current = open;
     while (current + durationMinutes <= close) {
@@ -133,12 +150,14 @@ export class SlotsService {
     slot: { startTime: string; endTime: string },
     bookedSlots: { start_time: string; end_time: string }[],
   ): boolean {
-    const slotStart = this.timeToMinutes(slot.startTime);
-    const slotEnd = this.timeToMinutes(slot.endTime);
+    let slotStart = this.timeToMinutes(slot.startTime);
+    let slotEnd = this.timeToMinutes(slot.endTime);
+    if (slotEnd <= slotStart) slotEnd += 24 * 60;
 
     return bookedSlots.some(booked => {
-      const bookedStart = this.timeToMinutes(booked.start_time);
-      const bookedEnd = this.timeToMinutes(booked.end_time);
+      let bookedStart = this.timeToMinutes(booked.start_time);
+      let bookedEnd = this.timeToMinutes(booked.end_time);
+      if (bookedEnd <= bookedStart) bookedEnd += 24 * 60;
       return slotStart < bookedEnd && slotEnd > bookedStart;
     });
   }
@@ -155,8 +174,9 @@ export class SlotsService {
    * Convert minutes since midnight to "HH:MM" time string.
    */
   private minutesToTime(minutes: number): string {
-    const h = Math.floor(minutes / 60).toString().padStart(2, '0');
-    const m = (minutes % 60).toString().padStart(2, '0');
+    const normalizedM = minutes % (24 * 60);
+    const h = Math.floor(normalizedM / 60).toString().padStart(2, '0');
+    const m = (normalizedM % 60).toString().padStart(2, '0');
     return `${h}:${m}`;
   }
 }

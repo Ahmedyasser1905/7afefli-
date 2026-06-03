@@ -45,7 +45,7 @@ export class ReviewsService {
       .from('reviews')
       .select('id')
       .eq('reservation_id', dto.reservationId)
-      .single();
+      .maybeSingle();
 
     if (existingReview) {
       throw new ConflictException('You have already reviewed this appointment');
@@ -64,7 +64,12 @@ export class ReviewsService {
       .select()
       .single();
 
-    if (error) throw new Error(`Failed to create review: ${error.message}`);
+    if (error) {
+      if (error.code === '23505') { // Unique violation
+        throw new ConflictException('You have already reviewed this appointment');
+      }
+      throw new Error(`Failed to create review: ${error.message}`);
+    }
     return data;
   }
 

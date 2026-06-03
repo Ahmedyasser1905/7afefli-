@@ -18,9 +18,9 @@ const ENV_CONFIG: EnvConfig = {
     'ALLOWED_ORIGINS',
   ],
   productionOnly: [
-    'REDIS_URL',
-    'SENTRY_DSN',
-    'CHARGILY_SECRET_KEY',
+    // Temporarily disabled to prevent Railway startup crashes if missing
+    // 'SENTRY_DSN',
+    // 'CHARGILY_SECRET_KEY',
   ],
 };
 

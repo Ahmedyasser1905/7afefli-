@@ -30,22 +30,25 @@ export function useAvailableSlots({
     queryKey: ['slots', salonId, serviceId, date, staffId],
 
     queryFn: async (): Promise<TimeSlot[]> => {
-      // ── Step 1: Fetch all booked/pending slots for this date ──
-      // Call the NestJS Slots API instead of direct Supabase query
-      const url = staffId 
-        ? `/slots/${salonId}/${serviceId}/${date}?staffId=${staffId}`
-        : `/slots/${salonId}/${serviceId}/${date}`;
-        
-      const bookedSlots = await apiClient.get<Record<string, unknown>[]>(url);
-
-      // ── Step 2: Generate all possible slots (pure function) ──
-      const allSlots = generateTimeSlots(openTime, closeTime, durationMin);
-
-      // ── Step 3: Overlay booked data onto generated slots ──
-      return allSlots.map((slot) => ({
-        ...slot,
-        isAvailable: !isSlotBooked(slot, bookedSlots ?? []),
-      }));
+      const queryParams = new URLSearchParams({
+        salonId: salonId!,
+        serviceId: serviceId!,
+        date: date!,
+      });
+      if (staffId) {
+        queryParams.append('barberId', staffId);
+      }
+      
+      try {
+        const url = `/slots?${queryParams.toString()}`;
+        console.log('[useAvailableSlots] Fetching:', url);
+        const data = await apiClient.get<TimeSlot[]>(url);
+        console.log('[useAvailableSlots] Response length:', data.length);
+        return data;
+      } catch (err) {
+        console.error('[useAvailableSlots] Error fetching slots:', err);
+        throw err;
+      }
     },
 
     // Only run if all required params are present

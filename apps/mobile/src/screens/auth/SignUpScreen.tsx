@@ -232,6 +232,32 @@ export default function SignUpScreen({ navigation }: { navigation: Record<string
               />
             </View>
 
+            {/* Role Selector */}
+            <Text style={styles.roleHeaderLabel}>Je suis...</Text>
+            <View style={styles.roleContainer}>
+              {[
+                { value: 'Client' as UserRole, icon: 'person-outline', title: 'Client', desc: 'Je veux réserver des rendez-vous' },
+                { value: 'Coiffeur' as UserRole, icon: 'cut-outline', title: 'Coiffeur / Gérant', desc: 'Je gère mon salon de coiffure' },
+              ].map((option) => (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[styles.roleOption, role === option.value && styles.roleOptionActive]}
+                  onPress={() => setRole(option.value)}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.roleIconContainer, role === option.value && styles.roleIconContainerActive]}>
+                    <Ionicons name={option.icon as any} size={22} color={role === option.value ? colors.ink : colors.textSecondary} />
+                  </View>
+                  <View style={styles.roleTextContainer}>
+                    <Text style={[styles.roleTitle, role === option.value && styles.roleTitleActive]}>{option.title}</Text>
+                    <Text style={styles.roleDesc}>{option.desc}</Text>
+                  </View>
+                  {role === option.value && (
+                    <Ionicons name="checkmark-circle" size={20} color={colors.amber} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
 
             <TouchableOpacity
               style={[styles.submitButton, isLoading && styles.disabledButton]}
