@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../lib/apiClient';
+import { supabase } from '../../lib/supabase';
 import { colors, spacing, radius, shadows } from '../../theme';
 import { DateStrip } from '../../components/booking/DateStrip';
 import { SlotPicker } from '../../components/booking/SlotPicker';
@@ -59,11 +60,20 @@ export function BookingScreen() {
   });
 
   // Fetch staff
-  const { data: staff = [] } = useQuery({
+  const { data: staff = [] } = useQuery<any[]>({
     queryKey: ['salon-staff', salonId],
     queryFn: async () => {
-      const data = await apiClient.get<Record<string, unknown>[]>(`/salons/${salonId}/staff`);
-      return data;
+      try {
+        return await apiClient.get<any[]>(`/salons/${salonId}/staff`);
+      } catch (err) {
+        console.warn('[Booking] Failed to fetch staff via API, trying direct Supabase query:', err);
+        const { data, error } = await supabase
+          .from('salon_staff')
+          .select('*, profiles:profile_id(full_name, avatar_url, phone_number)')
+          .eq('salon_id', salonId);
+        if (error) throw error;
+        return data || [];
+      }
     },
   });
 
