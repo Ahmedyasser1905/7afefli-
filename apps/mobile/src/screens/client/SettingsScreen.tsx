@@ -55,35 +55,26 @@ export function SettingsScreen() {
     w.toLowerCase().includes(wilayaSearch.toLowerCase())
   );
 
-  // Load profile details from database
+  // Load profile directly from Supabase (faster, no backend round-trip needed)
   useEffect(() => {
-    async function loadProfile() {
-      if (!user) return;
-      try {
-        const data = await apiClient.get<Record<string, unknown>>('/auth/profiles/me');
-        if (data) {
-          setProfileData(data);
-          if (data.wilaya) {
-            setSelectedWilaya(data.wilaya);
-          }
-        }
-      } catch (err) {
-        console.warn('[Settings] Failed to load profile:', err);
-      }
-    }
     loadProfile();
   }, [user]);
 
   const loadProfile = async () => {
     if (!user) return;
     try {
-      const data = await apiClient.get<Record<string, unknown>>('/auth/profiles/me');
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone_number, role, avatar_url, wilaya, loyalty_points, is_phone_verified')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (error) throw error;
       if (data) {
         setProfileData(data);
         if (data.wilaya) setSelectedWilaya(data.wilaya);
       }
     } catch (err) {
-      console.warn('[Settings] Failed to reload profile:', err);
+      console.warn('[Settings] Failed to load profile from Supabase:', err);
     }
   };
 
@@ -139,9 +130,13 @@ export function SettingsScreen() {
     if (user) {
       setIsUpdating(true);
       try {
-        await apiClient.patch('/auth/profiles/me', { wilaya: wilayaName });
+        // Update wilaya directly in Supabase
+        await supabase
+          .from('profiles')
+          .update({ wilaya: wilayaName, updated_at: new Date().toISOString() })
+          .eq('id', user.id);
       } catch (err) {
-        console.error(err);
+        console.error('[Settings] Failed to update wilaya:', err);
       } finally {
         setIsUpdating(false);
       }
