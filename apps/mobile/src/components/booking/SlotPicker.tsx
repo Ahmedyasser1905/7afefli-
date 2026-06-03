@@ -151,6 +151,15 @@ export function SlotPicker({
     );
   };
 
+  // Helper to chunk slots into rows of 3
+  const chunkSlots = (arr: typeof slots, size = 3) => {
+    const chunks = [];
+    for (let i = 0; i < arr.length; i += size) {
+      chunks.push(arr.slice(i, i + size));
+    }
+    return chunks;
+  };
+
   return (
     <View style={styles.container}>
       {isRefetching && (
@@ -166,14 +175,20 @@ export function SlotPicker({
             <Ionicons name="sunny-outline" size={14} color={colors.textSecondary} />
             <Text style={styles.sectionTitle}>Matinée</Text>
           </View>
-          <FlatList
-            data={morningSlots}
-            numColumns={3}
-            keyExtractor={(item) => item.startTime}
-            renderItem={renderSlotItem}
-            scrollEnabled={false}
-            keyboardShouldPersistTaps="handled"
-          />
+          <View style={styles.gridContainer}>
+            {chunkSlots(morningSlots).map((row, rowIndex) => (
+              <View key={`morning-row-${rowIndex}`} style={styles.gridRow}>
+                {row.map((item) => (
+                  <View key={item.startTime} style={styles.gridCol}>
+                    {renderSlotItem({ item })}
+                  </View>
+                ))}
+                {row.length < 3 && Array.from({ length: 3 - row.length }).map((_, i) => (
+                  <View key={`morning-pad-${i}`} style={styles.gridColPlaceholder} />
+                ))}
+              </View>
+            ))}
+          </View>
         </View>
       )}
 
@@ -184,14 +199,20 @@ export function SlotPicker({
             <Ionicons name="partly-sunny-outline" size={14} color={colors.textSecondary} />
             <Text style={styles.sectionTitle}>Après-midi</Text>
           </View>
-          <FlatList
-            data={afternoonSlots}
-            numColumns={3}
-            keyExtractor={(item) => item.startTime}
-            renderItem={renderSlotItem}
-            scrollEnabled={false}
-            keyboardShouldPersistTaps="handled"
-          />
+          <View style={styles.gridContainer}>
+            {chunkSlots(afternoonSlots).map((row, rowIndex) => (
+              <View key={`afternoon-row-${rowIndex}`} style={styles.gridRow}>
+                {row.map((item) => (
+                  <View key={item.startTime} style={styles.gridCol}>
+                    {renderSlotItem({ item })}
+                  </View>
+                ))}
+                {row.length < 3 && Array.from({ length: 3 - row.length }).map((_, i) => (
+                  <View key={`afternoon-pad-${i}`} style={styles.gridColPlaceholder} />
+                ))}
+              </View>
+            ))}
+          </View>
         </View>
       )}
 
@@ -247,6 +268,21 @@ export function SlotPicker({
 const styles = StyleSheet.create({
   container: {
     paddingBottom: 160,
+  },
+  gridContainer: {
+    gap: 4,
+  },
+  gridRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  gridCol: {
+    flex: 1,
+  },
+  gridColPlaceholder: {
+    flex: 1,
+    margin: 4,
   },
   loadingContainer: {
     paddingVertical: spacing.xxl,
