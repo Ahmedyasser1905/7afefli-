@@ -49,9 +49,9 @@ describe('SlotsService', () => {
   describe('getAvailableSlots', () => {
     it('should return cached slots if available', async () => {
       mockCacheManager.get.mockResolvedValueOnce([{ startTime: '10:00', endTime: '10:30', isAvailable: true }]);
-      const slots = await service.getAvailableSlots('salon1', 'service1', '2025-01-01');
+      const slots = await service.getAvailableSlots('salon1', 'service1', '2028-01-01');
       expect(slots.length).toBe(1);
-      expect(mockCacheManager.get).toHaveBeenCalledWith('slots_v2:salon1:service1:2025-01-01:any');
+      expect(mockCacheManager.get).toHaveBeenCalledWith('slots_v2:salon1:service1:2028-01-01:any');
     });
 
     it('should calculate available slots when not cached', async () => {
@@ -73,8 +73,8 @@ describe('SlotsService', () => {
         error: null,
       });
 
-      // 2025-01-01 is a Wednesday (day 3), so it is working day
-      const slots = await service.getAvailableSlots('salon1', 'service1', '2025-01-01');
+      // 2028-01-01 is a Saturday (day 6), so it is working day
+      const slots = await service.getAvailableSlots('salon1', 'service1', '2028-01-01');
 
       expect(slots).toEqual([
         { startTime: '09:00', endTime: '09:30', isAvailable: false },
@@ -87,7 +87,7 @@ describe('SlotsService', () => {
       mockSupabaseAdminClient.single.mockResolvedValueOnce({ data: null, error: new Error() });
       mockSupabaseAdminClient.single.mockResolvedValueOnce({ data: null, error: new Error() });
 
-      await expect(service.getAvailableSlots('1', '2', '2025-01-01')).rejects.toThrow(BadRequestException);
+      await expect(service.getAvailableSlots('1', '2', '2028-01-01')).rejects.toThrow(BadRequestException);
     });
   });
 });

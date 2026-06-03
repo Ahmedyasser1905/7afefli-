@@ -58,8 +58,17 @@ export function useAvailableSlots({
       if (!apiSucceeded || data.length === 0) {
         console.log('[useAvailableSlots] Generating slots locally for:', { openTime, closeTime, durationMin });
         
+        // Check if the requested date is in the past
+        const now = new Date();
+        const currentDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
         // 1. Check if the salon is open on this day of the week
         if (date) {
+          if (date < currentDateStr) {
+            console.log('[useAvailableSlots] Date is in the past (local check)');
+            return [];
+          }
           const requestedDay = new Date(date).getDay(); // 0=Sun, 6=Sat
           if (workingDays && !workingDays.includes(requestedDay)) {
             console.log('[useAvailableSlots] Salon is closed on this day (local check)');
@@ -98,10 +107,16 @@ export function useAvailableSlots({
           const rawSlots = generateTimeSlots(openTime, closeTime, durationMin);
           
           // 4. Mark booked slots as unavailable
-          const localSlots = rawSlots.map((slot) => ({
-            ...slot,
-            isAvailable: !isSlotBooked(slot, bookedReservations || []),
-          })) as TimeSlot[];
+          const localSlots = rawSlots.map((slot) => {
+            let isAvailable = !isSlotBooked(slot, bookedReservations || []);
+            if (isAvailable && date === currentDateStr && slot.startTime <= currentTimeStr) {
+              isAvailable = false;
+            }
+            return {
+              ...slot,
+              isAvailable,
+            };
+          }) as TimeSlot[];
 
           console.log('[useAvailableSlots] Local generation count:', localSlots.length);
           return localSlots;

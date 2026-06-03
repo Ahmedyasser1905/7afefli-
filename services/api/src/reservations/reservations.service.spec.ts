@@ -100,7 +100,7 @@ describe('ReservationsService', () => {
         .mockResolvedValueOnce({ data: { id: 'res123', status: 'Pending' }, error: null });
 
       const res = await service.create(
-        { salonId: 'salon1', serviceId: 'svc1', appointmentDate: '2025-01-01', startTime: '10:00' },
+        { salonId: 'salon1', serviceId: 'svc1', appointmentDate: '2028-01-01', startTime: '10:00' },
         clientUser.id,
       );
 
@@ -120,7 +120,7 @@ describe('ReservationsService', () => {
 
       await expect(
         service.create(
-          { salonId: '1', serviceId: '2', appointmentDate: '2025-01-01', startTime: '10:00' },
+          { salonId: '1', serviceId: '2', appointmentDate: '2028-01-01', startTime: '10:00' },
           clientUser.id,
         ),
       ).rejects.toThrow(BadRequestException);
@@ -135,7 +135,7 @@ describe('ReservationsService', () => {
 
       await expect(
         service.create(
-          { salonId: '1', serviceId: '2', appointmentDate: '2025-01-01', startTime: '10:00' },
+          { salonId: '1', serviceId: '2', appointmentDate: '2028-01-01', startTime: '10:00' },
           clientUser.id,
         ),
       ).rejects.toThrow(ConflictException);
@@ -150,12 +150,12 @@ describe('ReservationsService', () => {
       mockQuery.single.mockResolvedValueOnce({ data: { id: 'res123' }, error: null });
 
       await service.create(
-        { salonId: 'salon1', serviceId: 'svc1', appointmentDate: '2025-01-01', startTime: '10:00' },
+        { salonId: 'salon1', serviceId: 'svc1', appointmentDate: '2028-01-01', startTime: '10:00' },
         clientUser.id,
       );
 
       expect(mockCacheManager.del).toHaveBeenCalledWith(
-        'slots_v2:salon1:svc1:2025-01-01:any',
+        'slots_v2:salon1:svc1:2028-01-01:any',
       );
     });
   });
@@ -257,7 +257,7 @@ describe('ReservationsService', () => {
         error: null,
       });
 
-      const res = await service.blockTime('salon1', 'barber1', '2025-01-01', '14:00', '15:00');
+      const res = await service.blockTime('salon1', 'barber1', '2028-01-01', '14:00', '15:00');
       expect(res).toBeDefined();
     });
 
@@ -268,7 +268,7 @@ describe('ReservationsService', () => {
       });
 
       await expect(
-        service.blockTime('salon1', 'barber1', '2025-01-01', '14:00', '15:00'),
+        service.blockTime('salon1', 'barber1', '2028-01-01', '14:00', '15:00'),
       ).rejects.toThrow(ConflictException);
     });
   });

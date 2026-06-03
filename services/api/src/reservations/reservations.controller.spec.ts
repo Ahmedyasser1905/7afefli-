@@ -34,7 +34,7 @@ describe('ReservationsController', () => {
   });
 
   it('should call create', async () => {
-    const dto = { salonId: '1', serviceId: '1', appointmentDate: '2025-01-01', startTime: '10:00' } as any;
+    const dto = { salonId: '1', serviceId: '1', appointmentDate: '2028-01-01', startTime: '10:00' } as any;
     expect(await controller.create(dto, { id: 'u1' } as any)).toEqual({ id: '1' });
   });
 

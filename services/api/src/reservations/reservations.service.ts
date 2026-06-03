@@ -33,6 +33,20 @@ export class ReservationsService {
    * Handles BOOKING_CONFLICT from the PostgreSQL overlap trigger.
    */
   async create(dto: CreateReservationDto, clientId: string) {
+    // Validate that the slot is not in the past
+    const today = new Date();
+    const utc = today.getTime() + today.getTimezoneOffset() * 60000;
+    const algeriaTime = new Date(utc + 3600000);
+    const currentDateStr = `${algeriaTime.getFullYear()}-${String(algeriaTime.getMonth() + 1).padStart(2, '0')}-${String(algeriaTime.getDate()).padStart(2, '0')}`;
+    const currentTimeStr = `${String(algeriaTime.getHours()).padStart(2, '0')}:${String(algeriaTime.getMinutes()).padStart(2, '0')}`;
+
+    if (
+      dto.appointmentDate < currentDateStr ||
+      (dto.appointmentDate === currentDateStr && dto.startTime <= currentTimeStr)
+    ) {
+      throw new BadRequestException('Cannot book a time slot in the past');
+    }
+
     // 1. Fetch service duration to calculate end_time
     const { data: service, error: serviceError } = await this.supabase.adminClient
       .from('services')

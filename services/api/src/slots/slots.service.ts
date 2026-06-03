@@ -67,6 +67,17 @@ export class SlotsService {
     const closeTime = salonResult.data.close_time;  // "21:00:00"
     const workingDays = salonResult.data.working_days;
 
+    // Check if the requested date is in the past (Algerian local time)
+    const today = new Date();
+    const utc = today.getTime() + today.getTimezoneOffset() * 60000;
+    const algeriaTime = new Date(utc + 3600000);
+    const currentDateStr = `${algeriaTime.getFullYear()}-${String(algeriaTime.getMonth() + 1).padStart(2, '0')}-${String(algeriaTime.getDate()).padStart(2, '0')}`;
+    const currentTimeStr = `${String(algeriaTime.getHours()).padStart(2, '0')}:${String(algeriaTime.getMinutes()).padStart(2, '0')}`;
+
+    if (date < currentDateStr) {
+      return [];
+    }
+
     // Check if the requested date falls on a working day
     const requestedDay = new Date(date).getDay(); // 0=Sun, 6=Sat
     if (workingDays && !workingDays.includes(requestedDay)) {
@@ -104,10 +115,16 @@ export class SlotsService {
     const allSlots = this.generateTimeSlots(openTime, closeTime, duration);
 
     // 4. Mark booked slots as unavailable
-    const finalSlots = allSlots.map(slot => ({
-      ...slot,
-      isAvailable: !this.isSlotBooked(slot, bookedSlots ?? []),
-    }));
+    const finalSlots = allSlots.map(slot => {
+      let isAvailable = !this.isSlotBooked(slot, bookedSlots ?? []);
+      if (isAvailable && date === currentDateStr && slot.startTime <= currentTimeStr) {
+        isAvailable = false;
+      }
+      return {
+        ...slot,
+        isAvailable,
+      };
+    });
 
     await this.cacheManager.set(cacheKey, finalSlots, 60 * 1000); // Cache for 60 seconds
 
