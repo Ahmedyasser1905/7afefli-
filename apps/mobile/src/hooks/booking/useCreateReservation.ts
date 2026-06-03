@@ -42,7 +42,7 @@ export function useCreateReservation() {
         
         // If the stale backend rejected clientPhone because it is not whitelisted, retry without it
         if (errorStr.includes('clientPhone') && (errorStr.includes('should not exist') || errorStr.includes('non-whitelisted'))) {
-          console.warn('[useCreateReservation] Production API rejected clientPhone, retrying without it...');
+          console.log('[useCreateReservation] Production API rejected clientPhone, retrying without it...');
           try {
             const data = await apiClient.post<Reservation>('/reservations', {
               salonId: params.salonId,

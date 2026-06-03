@@ -51,7 +51,7 @@ export function useAvailableSlots({
         console.log('[useAvailableSlots] Response length:', data.length);
         apiSucceeded = true;
       } catch (err) {
-        console.warn('[useAvailableSlots] API failed, falling back to client-side generation:', err);
+        console.log('[useAvailableSlots] API failed, falling back to client-side generation:', err);
       }
 
       // Fallback: if API failed OR returned no slots (but salon open/close times are set, indicating it should have slots)

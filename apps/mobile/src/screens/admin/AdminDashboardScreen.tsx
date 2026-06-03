@@ -36,7 +36,7 @@ export function AdminDashboardScreen() {
       try {
         return await apiClient.get<any[]>('/admin/salons');
       } catch (err) {
-        console.warn('[Admin] Failed to fetch salons via API, falling back to Supabase:', err);
+        console.log('[Admin] Failed to fetch salons via API, falling back to Supabase:', err);
         const { data, error } = await supabase
           .from('salons')
           .select('*, profiles:owner_id(full_name, phone_number)')
@@ -55,7 +55,7 @@ export function AdminDashboardScreen() {
       try {
         return await apiClient.get<any[]>('/admin/users');
       } catch (err) {
-        console.warn('[Admin] Failed to fetch users via API, falling back to Supabase:', err);
+        console.log('[Admin] Failed to fetch users via API, falling back to Supabase:', err);
         const { data, error } = await supabase
           .from('profiles')
           .select('id, full_name, phone_number, role, avatar_url, wilaya, is_phone_verified, created_at, updated_at')
@@ -74,7 +74,7 @@ export function AdminDashboardScreen() {
       try {
         return await apiClient.get<any>('/admin/stats');
       } catch (err) {
-        console.warn('[Admin] Failed to fetch stats via API, calculating locally:', err);
+        console.log('[Admin] Failed to fetch stats via API, calculating locally:', err);
         const [
           { count: totalSalons },
           { count: activeSalons },

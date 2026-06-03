@@ -55,7 +55,7 @@ export function SalonDetailScreen() {
       try {
         return await apiClient.get<PortfolioPhoto[]>(`/salons/${salonId}/portfolio`);
       } catch (err) {
-        console.warn('Failed to fetch portfolio via API, trying direct Supabase query:', err);
+        console.log('Failed to fetch portfolio via API, trying direct Supabase query:', err);
         const { data, error } = await supabase
           .from('portfolio_photos')
           .select('*')

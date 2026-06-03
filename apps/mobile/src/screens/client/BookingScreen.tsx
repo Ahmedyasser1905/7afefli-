@@ -66,7 +66,7 @@ export function BookingScreen() {
       try {
         return await apiClient.get<any[]>(`/salons/${salonId}/staff`);
       } catch (err) {
-        console.warn('[Booking] Failed to fetch staff via API, trying direct Supabase query:', err);
+        console.log('[Booking] Failed to fetch staff via API, trying direct Supabase query:', err);
         const { data, error } = await supabase
           .from('salon_staff')
           .select('*, profiles:profile_id(full_name, avatar_url, phone_number)')
