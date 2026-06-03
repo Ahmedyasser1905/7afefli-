@@ -63,17 +63,17 @@ export class SalonServicesController {
   }
 
   /**
-   * DELETE /salons/:salonId/services/:id
-   * Deactivate a service (soft delete, Coiffeur only).
+   * DELETE /salons/:salonId/services/:serviceId
+   * Remove a service (hard delete, Coiffeur only).
    */
-  @Delete(':id')
+  @Delete(':serviceId')
   @UseGuards(SupabaseAuthGuard, RolesGuard)
   @Roles('Coiffeur')
-  deactivate(
+  removeService(
     @Param('salonId') salonId: string,
-    @Param('id') id: string,
+    @Param('serviceId') serviceId: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.salonServicesService.deactivate(salonId, id, user.id);
+    return this.salonServicesService.deactivate(salonId, serviceId, user.id);
   }
 }

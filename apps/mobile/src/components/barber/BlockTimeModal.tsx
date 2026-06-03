@@ -3,6 +3,7 @@ import { Modal, View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityInd
 import { colors, radius, spacing, typography } from '../../theme';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { supabase } from '../../lib/supabase';
+import { apiClient } from '../../lib/apiClient';
 
 interface BlockTimeModalProps {
   visible: boolean;
@@ -37,24 +38,18 @@ export function BlockTimeModal({ visible, onClose, salonId, userId, onSuccess }:
     setLoading(true);
     try {
       const today = new Date().toISOString().split('T')[0];
-      const { error } = await supabase.from('reservations').insert({
-        salon_id: salonId,
-        client_id: userId,
-        barber_id: userId,
-        appointment_date: today,
-        start_time: time,
-        end_time: endTime,
-        status: 'Confirmed',
-        notes: 'CRÉNEAU BLOQUÉ',
+      await apiClient.post('/reservations/block', {
+        salonId,
+        date: today,
+        startTime: time,
+        endTime: endTime,
       });
-
-      if (error) throw error;
       
       onSuccess();
       setTime('15:00');
       setEndTime('16:00');
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err.message && err.message.includes('booking_conflict')) {
         Alert.alert('Erreur', 'Il y a déjà une réservation pendant ce créneau.');
       } else {

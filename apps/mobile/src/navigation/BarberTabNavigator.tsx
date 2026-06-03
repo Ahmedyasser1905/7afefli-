@@ -54,7 +54,7 @@ export function BarberTabNavigator() {
 
   return (
     <Tab.Navigator
-      screenOptions={({ route }: any) => ({
+      screenOptions={({ route }: { route: Record<string, unknown> }) => ({
         headerShown: false,
         tabBarStyle: {
           backgroundColor: colors.carbon,
@@ -71,8 +71,8 @@ export function BarberTabNavigator() {
           fontSize: 11,
           marginTop: 2,
         },
-        tabBarIcon: ({ focused, color }: any) => {
-          let iconName: any = 'grid';
+        tabBarIcon: ({ focused, color }: { focused: boolean, color: string }) => {
+          let iconName: unknown = 'grid';
           if (route.name === 'Dashboard') {
             iconName = focused ? 'grid' : 'grid-outline';
           } else if (route.name === 'Calendar') {

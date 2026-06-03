@@ -16,8 +16,9 @@ import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { colors, typography, spacing, radius, shadows } from '../../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
+import { apiClient } from '../../lib/apiClient';
 
-export default function OTPVerifyScreen({ route, navigation }: any) {
+export default function OTPVerifyScreen({ route, navigation }: { route: Record<string, unknown>, navigation: Record<string, unknown> }) {
   const { phone, fullName, role } = route.params || { phone: '', fullName: '', role: '' };
   
   const [code, setCode] = useState('');
@@ -26,7 +27,7 @@ export default function OTPVerifyScreen({ route, navigation }: any) {
   
   // Resend code countdown timer
   const [countdown, setCountdown] = useState(60);
-  const timerRef = useRef<any>(null);
+  const timerRef = useRef<Record<string, unknown>>(null);
 
   useEffect(() => {
     startTimer();
@@ -74,41 +75,38 @@ export default function OTPVerifyScreen({ route, navigation }: any) {
 
       if (error) throw error;
 
-      if (data.session) {
-        // If registration info is passed, write or upsert the profile in Supabase
-        if (fullName || role) {
-          try {
-            await supabase
-              .from('profiles')
-              .upsert({
-                id: data.session.user.id,
-                full_name: fullName || 'New User',
-                role: role || 'Client',
-                phone_number: phone,
-              });
-          } catch (upsertErr) {
-            console.error('Error updating profile during verification:', upsertErr);
-          }
-        }
-
-        // Fetch role from profiles table first
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', data.session.user.id)
-          .single();
-
-        // Update the Zustand store with session and role atomically
-        useAuthStore.setState({
-          session: data.session,
-          user: data.session.user,
-          role: profile?.role ?? role ?? 'Client',
-          isLoading: false
-        });
+      if (!data.session) {
+        throw new Error('Session non créée. Veuillez réessayer.');
       }
-    } catch (err: any) {
-      console.error(err);
-      const msg = err.message || 'Code incorrect ou expiré';
+
+      let userRole = role || 'Client';
+
+      try {
+        const profile = await apiClient.post<Record<string, unknown>>('/auth/verify', {
+          phoneNumber: phone,
+          fullName: fullName || undefined,
+          // NOTE: id and role are intentionally omitted — the backend reads
+          // them from the verified JWT to prevent privilege escalation.
+        });
+
+        if (profile && profile.role) {
+          userRole = profile.role as string;
+        }
+      } catch (apiErr: unknown) {
+        // Non-fatal: profile sync failed, we still log the user in
+        const msg = apiErr instanceof Error ? apiErr.message : String(apiErr);
+        console.warn('Profile sync failed (non-fatal):', msg);
+      }
+
+      // Update the Zustand store with session and role atomically
+      useAuthStore.setState({
+        session: data.session,
+        user: data.session.user,
+        role: userRole,
+        isLoading: false,
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Code incorrect ou expiré';
       setErrorMsg(msg);
       Alert.alert('Erreur de validation', msg);
     } finally {
@@ -133,7 +131,7 @@ export default function OTPVerifyScreen({ route, navigation }: any) {
       setCode('');
       setErrorMsg('Nouveau code envoyé par SMS');
       Alert.alert('Code envoyé', 'Un nouveau code de confirmation a été envoyé par SMS.');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       const msg = err.message || 'Impossible de renvoyer le code';
       setErrorMsg(msg);

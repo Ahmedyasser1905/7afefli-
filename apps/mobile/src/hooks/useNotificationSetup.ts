@@ -30,13 +30,13 @@ export function useNotificationSetup() {
     // Set up notification response listener (tap on notification → navigate)
     if (isExpoGo) return;
 
-    let subscription: any = null;
+    let subscription: unknown = null;
     try {
       const Notifications = require('expo-notifications');
       subscription = Notifications.addNotificationResponseReceivedListener(
-        (response: any) => {
+        (response: Record<string, unknown>) => {
           const data = response.notification.request.content.data;
-          console.log('[Notifications] User tapped notification:', data);
+          
           // Navigation could be handled here with a navigation ref
           // For now, just log — the app will open to the last screen
         }

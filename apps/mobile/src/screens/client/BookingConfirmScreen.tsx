@@ -13,14 +13,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation, CommonActions } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '../../lib/supabase';
+import { apiClient } from '../../lib/apiClient';
 import { colors, spacing, radius } from '../../theme';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { formatDate, formatTime, formatDZD } from '@barberdz/shared/utils/formatters';
 
 export function BookingConfirmScreen() {
-  const route = useRoute<any>();
-  const navigation = useNavigation<any>();
+  const route = useRoute<Record<string, unknown>>();
+  const navigation = useNavigation<Record<string, unknown>>();
   const { reservationId } = route.params;
 
   // Animation refs
@@ -58,29 +58,14 @@ export function BookingConfirmScreen() {
   const { data: reservation } = useQuery({
     queryKey: ['reservation-confirm', reservationId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('reservations')
-        .select(`
-          id,
-          appointment_date,
-          start_time,
-          end_time,
-          status,
-          notes,
-          salons:salon_id (name, address, wilaya, image_url),
-          services:service_id (service_name, price, duration_minutes)
-        `)
-        .eq('id', reservationId)
-        .single();
-
-      if (error) throw error;
+      const data = await apiClient.get<Record<string, unknown>>(`/reservations/${reservationId}`);
       return data;
     },
     enabled: !!reservationId,
   });
 
-  const salon = (reservation as any)?.salons;
-  const service = (reservation as any)?.services;
+  const salon = (reservation as Record<string, unknown>)?.salons;
+  const service = (reservation as Record<string, unknown>)?.services;
 
   const handleGoHome = () => {
     // Reset current stack (Home or Explore) to its first screen

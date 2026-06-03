@@ -50,7 +50,7 @@ export default function RoleSelectScreen() {
 
       // Update the role in the global store
       setRole(selected);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       const msg = err.message || 'Impossible de mettre à jour le rôle';
       setErrorMsg(msg);

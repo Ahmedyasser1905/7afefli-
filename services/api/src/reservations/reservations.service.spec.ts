@@ -1,0 +1,270 @@
+// services/api/src/reservations/reservations.service.spec.ts
+// Security + business logic tests for ReservationsService.
+
+import { Test, TestingModule } from '@nestjs/testing';
+import { ReservationsService } from './reservations.service';
+import { SupabaseService } from '../supabase/supabase.service';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
+
+// --------------------------------------------------------------------------
+// Mock supabase query builder
+// --------------------------------------------------------------------------
+const buildMockQuery = () => ({
+  select: jest.fn().mockReturnThis(),
+  eq: jest.fn().mockReturnThis(),
+  in: jest.fn().mockReturnThis(),
+  single: jest.fn(),
+  update: jest.fn().mockReturnThis(),
+  insert: jest.fn().mockReturnThis(),
+  order: jest.fn().mockReturnThis(),
+});
+
+let mockQuery = buildMockQuery();
+
+const mockSupabaseAdminClient = {
+  from: jest.fn(() => mockQuery),
+  rpc: jest.fn(),
+};
+
+const mockCacheManager = {
+  get: jest.fn().mockResolvedValue(null),
+  set: jest.fn().mockResolvedValue(undefined),
+  del: jest.fn().mockResolvedValue(undefined),
+};
+
+// --------------------------------------------------------------------------
+// Helper: authenticated users
+// --------------------------------------------------------------------------
+const clientUser   = { id: 'client1', role: 'Client', email: 'c@c.com', phone: '0', accessToken: 't' };
+const barberUser   = { id: 'barber1', role: 'Coiffeur', email: 'b@b.com', phone: '0', accessToken: 't' };
+const adminUser    = { id: 'admin1', role: 'Admin', email: 'a@a.com', phone: '0', accessToken: 't' };
+const strangerUser = { id: 'stranger', role: 'Client', email: 's@s.com', phone: '0', accessToken: 't' };
+
+// --------------------------------------------------------------------------
+// Tests
+// --------------------------------------------------------------------------
+describe('ReservationsService', () => {
+  let service: ReservationsService;
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    mockQuery = buildMockQuery();
+    mockSupabaseAdminClient.from.mockReturnValue(mockQuery);
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        ReservationsService,
+        {
+          provide: SupabaseService,
+          useValue: { adminClient: mockSupabaseAdminClient },
+        },
+        {
+          provide: CACHE_MANAGER,
+          useValue: mockCacheManager,
+        },
+      ],
+    }).compile();
+
+    service = module.get<ReservationsService>(ReservationsService);
+  });
+
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // create
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('create', () => {
+    it('should calculate end time and call RPC', async () => {
+      // Service duration lookup
+      mockQuery.single
+        .mockResolvedValueOnce({ data: { duration_minutes: 30 }, error: null });
+
+      // RPC create_reservation_safe
+      mockSupabaseAdminClient.rpc.mockResolvedValueOnce({
+        data: { id: 'res123' },
+        error: null,
+      });
+
+      // Enriched data lookup
+      mockQuery.single
+        .mockResolvedValueOnce({ data: { id: 'res123', status: 'Pending' }, error: null });
+
+      const res = await service.create(
+        { salonId: 'salon1', serviceId: 'svc1', appointmentDate: '2025-01-01', startTime: '10:00' },
+        clientUser.id,
+      );
+
+      expect(res).toBeDefined();
+      expect(mockSupabaseAdminClient.rpc).toHaveBeenCalledWith(
+        'create_reservation_safe',
+        expect.objectContaining({
+          p_client_id: clientUser.id,
+          p_start_time: '10:00',
+          p_end_time: '10:30',
+        }),
+      );
+    });
+
+    it('should throw BadRequestException if service not found', async () => {
+      mockQuery.single.mockResolvedValueOnce({ data: null, error: { message: 'not found' } });
+
+      await expect(
+        service.create(
+          { salonId: '1', serviceId: '2', appointmentDate: '2025-01-01', startTime: '10:00' },
+          clientUser.id,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw ConflictException on double-booking', async () => {
+      mockQuery.single.mockResolvedValueOnce({ data: { duration_minutes: 30 }, error: null });
+      mockSupabaseAdminClient.rpc.mockResolvedValueOnce({
+        data: null,
+        error: { message: 'slot already booked', code: 'P0001' },
+      });
+
+      await expect(
+        service.create(
+          { salonId: '1', serviceId: '2', appointmentDate: '2025-01-01', startTime: '10:00' },
+          clientUser.id,
+        ),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('should invalidate slot cache after successful booking', async () => {
+      mockQuery.single.mockResolvedValueOnce({ data: { duration_minutes: 30 }, error: null });
+      mockSupabaseAdminClient.rpc.mockResolvedValueOnce({
+        data: { id: 'res123' },
+        error: null,
+      });
+      mockQuery.single.mockResolvedValueOnce({ data: { id: 'res123' }, error: null });
+
+      await service.create(
+        { salonId: 'salon1', serviceId: 'svc1', appointmentDate: '2025-01-01', startTime: '10:00' },
+        clientUser.id,
+      );
+
+      expect(mockCacheManager.del).toHaveBeenCalledWith(
+        'slots:salon1:svc1:2025-01-01:any',
+      );
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // findOne — ownership / access control
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('findOne — reservation ownership', () => {
+    const reservationData = {
+      id: 'res1',
+      salon_id: 'salon1',
+      client_id: clientUser.id,
+      barber_id: barberUser.id,
+      salons: { owner_id: barberUser.id },
+    };
+
+    it('should return reservation to the client (owner)', async () => {
+      mockQuery.single.mockResolvedValueOnce({ data: reservationData, error: null });
+
+      const res = await service.findOne('res1', clientUser);
+      expect(res).toEqual(reservationData);
+    });
+
+    it('should return reservation to the barber (assigned staff)', async () => {
+      mockQuery.single.mockResolvedValueOnce({ data: reservationData, error: null });
+
+      const res = await service.findOne('res1', barberUser);
+      expect(res).toEqual(reservationData);
+    });
+
+    it('should return reservation to Admin regardless of ownership', async () => {
+      mockQuery.single.mockResolvedValueOnce({ data: reservationData, error: null });
+
+      const res = await service.findOne('res1', adminUser);
+      expect(res).toEqual(reservationData);
+    });
+
+    it('should throw ForbiddenException for a stranger with no relation', async () => {
+      const data = { ...reservationData, client_id: clientUser.id, barber_id: null, salons: { owner_id: 'other' } };
+      mockQuery.single.mockResolvedValueOnce({ data, error: null });
+      // Staff check returns null
+      mockQuery.single.mockResolvedValueOnce({ data: null, error: null });
+
+      await expect(service.findOne('res1', strangerUser)).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw NotFoundException when reservation does not exist', async () => {
+      mockQuery.single.mockResolvedValueOnce({ data: null, error: { code: 'PGRST116' } });
+
+      await expect(service.findOne('missing-id', clientUser)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // updateStatus
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('updateStatus', () => {
+    it('should throw NotFoundException if reservation missing', async () => {
+      mockQuery.single.mockResolvedValueOnce({ data: null, error: null });
+      await expect(service.updateStatus('r1', { status: 'Confirmed' }, 'u1')).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw ForbiddenException if client tries to confirm', async () => {
+      mockQuery.single.mockResolvedValueOnce({
+        data: { client_id: clientUser.id, salons: { owner_id: barberUser.id }, status: 'Pending' },
+      });
+      await expect(
+        service.updateStatus('r1', { status: 'Confirmed' }, clientUser.id),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should allow client to cancel pending reservation', async () => {
+      mockQuery.single.mockResolvedValueOnce({
+        data: { client_id: clientUser.id, salons: { owner_id: barberUser.id }, status: 'Pending' },
+      });
+      mockQuery.single.mockResolvedValueOnce({ data: { id: 'r1', status: 'Cancelled' }, error: null });
+
+      const res = await service.updateStatus('r1', { status: 'Cancelled' }, clientUser.id);
+      expect(res.status).toBe('Cancelled');
+    });
+
+    it('should NOT allow client to cancel already-cancelled reservation', async () => {
+      mockQuery.single.mockResolvedValueOnce({
+        data: { client_id: clientUser.id, salons: { owner_id: barberUser.id }, status: 'Cancelled' },
+      });
+      await expect(
+        service.updateStatus('r1', { status: 'Cancelled' }, clientUser.id),
+      ).rejects.toThrow();
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // blockTime
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('blockTime', () => {
+    it('should insert a blocked reservation record', async () => {
+      mockQuery.single.mockResolvedValueOnce({ data: { id: 'block1', status: 'Confirmed' }, error: null });
+
+      const res = await service.blockTime('salon1', 'barber1', '2025-01-01', '14:00', '15:00');
+      expect(res).toBeDefined();
+    });
+
+    it('should throw ConflictException if slot already booked', async () => {
+      mockQuery.single.mockResolvedValueOnce({
+        data: null,
+        error: { message: 'slot already booked', code: 'P0001' },
+      });
+
+      await expect(
+        service.blockTime('salon1', 'barber1', '2025-01-01', '14:00', '15:00'),
+      ).rejects.toThrow(ConflictException);
+    });
+  });
+});

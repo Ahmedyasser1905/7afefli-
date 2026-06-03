@@ -22,11 +22,12 @@ import { useAuthStore } from '../../store/authStore';
 import { colors, spacing, radius } from '../../theme';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { decode } from 'base64-arraybuffer';
+import { apiClient } from '../../lib/apiClient';
 
 interface EditProfileModalProps {
   visible: boolean;
   onClose: () => void;
-  profileData: any;
+  profileData: Record<string, unknown>;
   onSaved: () => void;
 }
 
@@ -76,7 +77,7 @@ export function EditProfileModal({ visible, onClose, profileData, onSaved }: Edi
         setAvatarUrl(publicUrlData.publicUrl);
         setUploading(false);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setUploading(false);
       Alert.alert('Erreur', err.message || 'Impossible de télécharger la photo');
     }
@@ -91,7 +92,7 @@ export function EditProfileModal({ visible, onClose, profileData, onSaved }: Edi
 
     setSaving(true);
     try {
-      const updates: any = {
+      const updates: unknown = {
         full_name: fullName.trim(),
         phone_number: phone.trim() || null,
         updated_at: new Date().toISOString(),
@@ -101,17 +102,12 @@ export function EditProfileModal({ visible, onClose, profileData, onSaved }: Edi
         updates.avatar_url = avatarUrl;
       }
 
-      const { error } = await supabase
-        .from('profiles')
-        .update(updates)
-        .eq('id', user.id);
-
-      if (error) throw error;
+      await apiClient.patch('/auth/profiles/me', updates);
 
       Alert.alert('Succès', 'Profil mis à jour');
       onSaved();
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       Alert.alert('Erreur', err.message);
     } finally {
       setSaving(false);

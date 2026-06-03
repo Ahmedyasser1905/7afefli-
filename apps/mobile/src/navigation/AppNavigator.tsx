@@ -71,12 +71,7 @@ export function AppNavigator() {
   // Register push notifications & listen for notification taps
   useNotificationSetup();
 
-  console.log('[AppNavigator] Render state:', { 
-    hasSession: !!session, 
-    userId: session?.user?.id,
-    role, 
-    needsPhone 
-  });
+  
 
   useEffect(() => {
     // Attempt to restore existing session on app start
@@ -90,19 +85,19 @@ export function AppNavigator() {
           return;
         }
         if (session) {
-          console.log('[Auth] Restoring session for user:', session.user.id);
+          
           const { role, hasPhone } = await fetchProfileInfo(session.user.id);
-          console.log('[Auth] Restored profile info:', { role, hasPhone });
+          
           // Set everything atomically
           useAuthStore.setState({
             session: session,
             user: session.user,
-            role: role as any,
+            role: role as unknown,
             needsPhone: !hasPhone,
             isLoading: false,
           });
         } else {
-          console.log('[Auth] No session to restore');
+          
           clearAuth();
         }
       } catch (err) {
@@ -116,7 +111,7 @@ export function AppNavigator() {
     // Listen for Supabase auth state changes
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('[Auth] onAuthStateChange event:', event, 'hasSession:', !!session);
+        
         if (event === 'SIGNED_OUT') {
           clearAuth();
           return;
@@ -133,19 +128,19 @@ export function AppNavigator() {
           // If the store already has this session + a role, skip re-fetching
           const currentState = useAuthStore.getState();
           if (currentState.session?.access_token === session.access_token && currentState.role) {
-            console.log('[Auth] Session already present with role, skipping fetch');
+            
             return;
           }
 
-          console.log('[Auth] Fetching profile info for logged in user:', session.user.id);
+          
           const { role, hasPhone } = await fetchProfileInfo(session.user.id);
-          console.log('[Auth] Fetched profile info:', { role, hasPhone });
+          
 
           // Set session + role + needsPhone atomically
           useAuthStore.setState({
             session: session,
             user: session.user,
-            role: role as any,
+            role: role as unknown,
             needsPhone: !hasPhone,
             isLoading: false,
           });

@@ -17,6 +17,7 @@ import { useAuthStore } from '../../store/authStore';
 import { colors, radius, spacing } from '../../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
 import { formatDZD } from '@barberdz/shared/utils/formatters';
+import { apiClient } from '../../lib/apiClient';
 
 interface AddWalkInModalProps {
   visible: boolean;
@@ -39,11 +40,7 @@ export function AddWalkInModal({ visible, onClose, salonId, onSuccess }: AddWalk
   const { data: services = [] } = useQuery({
     queryKey: ['salon-services', salonId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('services')
-        .select('*')
-        .eq('salon_id', salonId);
-      if (error) throw error;
+      const data = await apiClient.get<Record<string, unknown>[]>(`/salons/${salonId}/services`);
       return data;
     },
     enabled: visible && !!salonId,
@@ -57,35 +54,26 @@ export function AddWalkInModal({ visible, onClose, salonId, onSuccess }: AddWalk
 
     setLoading(true);
     try {
-      const service = services.find(s => s.id === selectedServiceId);
-      const durationMin = service?.duration_minutes || 30;
-      
-      // Calculate end time
-      const [h, m] = form.time.split(':').map(Number);
-      const endM = m + durationMin;
-      const endH = h + Math.floor(endM / 60);
-      const finalEndM = endM % 60;
-      const endTime = `${String(endH).padStart(2, '0')}:${String(finalEndM).padStart(2, '0')}`;
+      const payload: Record<string, unknown> = {
+        salonId,
+        serviceId: selectedServiceId,
+        appointmentDate: new Date().toISOString().split('T')[0],
+        startTime: form.time,
+        notes: `[Sans RDV] Client: ${form.clientName}${form.notes ? `\nNotes: ${form.notes}` : ''}`,
+      };
 
-      const { error } = await supabase.from('reservations').insert({
-        salon_id: salonId,
-        client_id: user?.id, // Use barber's ID as placeholder for walk-in client relation
-        barber_id: user?.id,
-        service_id: selectedServiceId,
-        appointment_date: new Date().toISOString().split('T')[0], // Today
-        start_time: form.time,
-        end_time: endTime,
-        status: 'Confirmed',
-        notes: `[Sans RDV] Client: ${form.clientName}${form.phone ? ` - Tel: ${form.phone}` : ''}${form.notes ? `\nNotes: ${form.notes}` : ''}`,
-      });
+      if (form.phone && form.phone.trim().length > 0) {
+        payload.clientPhone = form.phone.trim();
+      }
 
-      if (error) throw error;
+      const res = await apiClient.post<Record<string, unknown>>('/reservations', payload);
+      await apiClient.patch(`/reservations/${res.id}/status`, { status: 'Confirmed' });
       
       onSuccess();
       setForm({ clientName: '', phone: '', time: '10:00', notes: '' });
       setSelectedServiceId(null);
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err.message && err.message.includes('booking_conflict')) {
         Alert.alert('Erreur', 'Ce créneau est déjà réservé par un autre client ou bloqué.');
       } else {

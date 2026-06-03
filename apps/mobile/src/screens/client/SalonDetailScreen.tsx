@@ -20,6 +20,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
+import { apiClient } from '../../lib/apiClient';
 import { colors, spacing, radius, shadows } from '../../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
 import type { Salon, Service, Review, PortfolioPhoto } from '@barberdz/shared/types';
@@ -28,8 +29,8 @@ const DEFAULT_COVER = 'https://images.unsplash.com/photo-1503951914875-452162b0f
 const DEFAULT_AVATAR = 'https://lh3.googleusercontent.com/aida-public/AB6AXuBRQWg_Xc-hckv32TMl23w3Cmwd60Jfa3onMRJmyq2rdcvXoTRgGi6On2KOEVTvmrS9-SbemMGS51_LEHQs1ZxegGjSR4DZA3jucMor_wY0Pxy60Z3HTFdJCRlAu-rdbbhw6Sr3Ij91hYl0I8ekc8OVsjNYqWXvUGUW8s_w6Jj3MMwDInwYRhYBiVAuft8ggvfn0pVY7IOHZmM99GtHingFPzXsqQxHIG8ereW05P_VCWdAd9cuxZHbd9-TMAwJBAzB50_1gIsUU5k-';
 
 export function SalonDetailScreen() {
-  const route = useRoute<any>();
-  const navigation = useNavigation<any>();
+  const route = useRoute<Record<string, unknown>>();
+  const navigation = useNavigation<Record<string, unknown>>();
   const { salonId } = route.params;
 
   const [selectedServices, setSelectedServices] = useState<Set<string>>(new Set());
@@ -41,18 +42,8 @@ export function SalonDetailScreen() {
   const { data: salon, isLoading } = useQuery<Salon>({
     queryKey: ['salon-detail', salonId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('salons')
-        .select(`
-          *,
-          services (*),
-          salon_staff (*, profiles:profile_id (full_name, avatar_url)),
-          reviews (*, profiles:client_id (full_name, avatar_url))
-        `)
-        .eq('id', salonId)
-        .single();
-      if (error) throw error;
-      return data as Salon;
+      const data = await apiClient.get<Salon>(`/salons/${salonId}`);
+      return data;
     },
     staleTime: 3 * 60 * 1000, // 3 min — avoid re-fetching the heavy join
   });
@@ -61,18 +52,8 @@ export function SalonDetailScreen() {
   const { data: photos = [] } = useQuery<PortfolioPhoto[]>({
     queryKey: ['salon-portfolio', salonId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('portfolio_photos')
-        .select('*')
-        .eq('salon_id', salonId)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return (data ?? []).map((photo: any) => ({
-        ...photo,
-        url: supabase.storage
-          .from('portfolio')
-          .getPublicUrl(photo.storage_path).data.publicUrl,
-      }));
+      const data = await apiClient.get<PortfolioPhoto[]>(`/salons/${salonId}/portfolio`);
+      return data;
     },
     staleTime: 3 * 60 * 1000,
   });
@@ -90,9 +71,9 @@ export function SalonDetailScreen() {
     });
   };
 
-  const services = (salon as any)?.services ?? [];
-  const staff = (salon as any)?.salon_staff ?? [];
-  const reviews = (salon as any)?.reviews ?? [];
+  const services = (salon as Record<string, unknown>)?.services ?? [];
+  const staff = (salon as Record<string, unknown>)?.salon_staff ?? [];
+  const reviews = (salon as Record<string, unknown>)?.reviews ?? [];
 
   // Calculate estimated price
   const estimatedPrice = useMemo(() => {
@@ -302,7 +283,7 @@ export function SalonDetailScreen() {
           <View style={styles.sectionContainer}>
             <Text style={styles.sectionTitle}>Rencontrez l'équipe</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.teamScroll}>
-              {staff.map((member: any) => {
+              {staff.map((member: Record<string, unknown>) => {
                 const displayName = member.custom_name || member.profiles?.full_name?.split(' ')[0] || 'Barbier';
                 const avatar = member.avatar_url || member.profiles?.avatar_url || DEFAULT_AVATAR;
                 return (
@@ -327,7 +308,7 @@ export function SalonDetailScreen() {
         <View style={[styles.sectionContainer, { marginBottom: 120 }]}>
           <Text style={styles.sectionTitle}>Avis clients ({reviews.length})</Text>
           {reviews.length > 0 ? (
-            reviews.slice(0, 3).map((review: any) => (
+            reviews.slice(0, 3).map((review: Record<string, unknown>) => (
               <View key={review.id} style={styles.reviewCard}>
                 <View style={styles.reviewHeader}>
                   <Image

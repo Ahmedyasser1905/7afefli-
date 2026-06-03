@@ -17,7 +17,7 @@ import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, radius, shadows } from '../../theme';
 import { useNearbySalons } from '../../hooks/salons/useNearbySalons';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '../../lib/supabase';
+import { apiClient } from '../../lib/apiClient';
 import { SalonCard } from '../../components/salon/SalonCard';
 import { SalonMapView } from '../../components/map/SalonMapView';
 import Ionicons from "@react-native-vector-icons/ionicons";
@@ -37,7 +37,7 @@ interface Coords {
 }
 
 export function HomeScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<Record<string, unknown>>();
   const [location, setLocation] = useState<Coords | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set(['nearby']));
@@ -77,7 +77,7 @@ export function HomeScreen() {
             }
           }
         );
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.warn('Location error:', err.message);
         setLocationError('Localisation indisponible');
         // Fallback coordinates
@@ -99,14 +99,8 @@ export function HomeScreen() {
   const { data: allSalonsForMap = [] } = useQuery<Salon[]>({
     queryKey: ['all-salons-map'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('salons')
-        .select('*')
-        .eq('is_approved', true)
-        .order('average_rating', { ascending: false })
-        .limit(100);
-      if (error) throw new Error(error.message);
-      return (data ?? []) as Salon[];
+      const response = await apiClient.get<Record<string, unknown>>('/salons?limit=100');
+      return (response.data ?? []) as Salon[];
     },
     staleTime: 5 * 60 * 1000,
   });

@@ -47,20 +47,20 @@ export async function registerForPushNotifications(userId: string): Promise<void
   try {
     const Notif = getNotificationsModule();
     if (!Notif) {
-      console.log('[Push] Skipping push registration (Expo Go or module unavailable)');
+      
       return;
     }
 
     if (!Device.isDevice) {
-      console.log('[Push] Skipping push registration (simulator)');
+      
       return;
     }
 
     // Request permissions
-    const { status: existingStatus } = await Notif.getPermissionsAsync() as any;
+    const { status: existingStatus } = await Notif.getPermissionsAsync() as unknown;
     const finalStatus =
       existingStatus !== 'granted'
-        ? (await Notif.requestPermissionsAsync() as any).status
+        ? (await Notif.requestPermissionsAsync() as unknown).status
         : existingStatus;
 
     if (finalStatus !== 'granted') {
@@ -90,7 +90,7 @@ export async function registerForPushNotifications(userId: string): Promise<void
       await Notif.getExpoPushTokenAsync({ projectId })
     ).data;
 
-    console.log('[Push] Expo push token:', token);
+    
 
     // Save token to profiles table
     const { error } = await supabase
@@ -101,7 +101,7 @@ export async function registerForPushNotifications(userId: string): Promise<void
     if (error) {
       console.warn('[Push] Failed to save push token:', error.message);
     } else {
-      console.log('[Push] Token saved to profile');
+      
     }
   } catch (err) {
     console.warn('[Push] Failed to register for push notifications:', err);
@@ -133,7 +133,7 @@ export async function scheduleAppointmentReminder(reservation: {
 
     // Don't schedule if reminder time is in the past
     if (reminderDt.getTime() <= Date.now()) {
-      console.log('[Notifications] Reminder time already passed, skipping schedule');
+      
       return 'already-passed';
     }
 
@@ -151,7 +151,7 @@ export async function scheduleAppointmentReminder(reservation: {
       },
     });
 
-    console.log(`[Notifications] Reminder scheduled for ${reminderDt.toLocaleString()} (id: ${triggerId})`);
+    
     return triggerId;
   } catch (err) {
     console.warn('[Notifications] Failed to schedule appointment reminder:', err);
@@ -171,7 +171,7 @@ export async function cancelAppointmentReminder(reservationId: string): Promise<
     const Notif = getNotificationsModule();
     if (!Notif) return;
     await Notif.cancelScheduledNotificationAsync(`reminder-${reservationId}`);
-    console.log(`[Notifications] Cancelled reminder for reservation ${reservationId}`);
+    
   } catch (err) {
     console.warn('[Notifications] Failed to cancel appointment reminder:', err);
   }
@@ -192,7 +192,7 @@ export async function triggerLocalNotification(payload: {
   try {
     const Notif = getNotificationsModule();
     if (!Notif) {
-      console.log('[Notifications] Skipping local notification (Expo Go)');
+      
       return;
     }
     await Notif.scheduleNotificationAsync({
@@ -216,7 +216,7 @@ export async function triggerLocalNotification(payload: {
 // 5. GET ALL SCHEDULED NOTIFICATIONS (debug)
 // ─────────────────────────────────────────────────────────
 
-export async function getScheduledNotifications(): Promise<any[]> {
+export async function getScheduledNotifications(): Promise<Record<string, unknown>[]> {
   try {
     const Notif = getNotificationsModule();
     if (!Notif) return [];

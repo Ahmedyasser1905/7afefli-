@@ -5,6 +5,7 @@ import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { triggerLocalNotification } from '../../lib/notifications';
+import { apiClient } from '../../lib/apiClient';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import type { Reservation } from '@barberdz/shared/types';
 
@@ -70,12 +71,11 @@ export function useRealtimeBookings({
           let clientName = 'Un client';
           let serviceName = '';
           try {
-            const [profileRes, serviceRes] = await Promise.all([
-              supabase.from('profiles').select('full_name').eq('id', reservation.client_id).single(),
-              supabase.from('services').select('service_name').eq('id', reservation.service_id).single(),
-            ]);
-            if (profileRes.data?.full_name) clientName = profileRes.data.full_name;
-            if (serviceRes.data?.service_name) serviceName = ` — ${serviceRes.data.service_name}`;
+            const resData = await apiClient.get<Record<string, unknown>>(`/reservations/${reservation.id}`);
+            if (resData.profiles?.full_name) clientName = resData.profiles.full_name;
+            else if (resData.client_phone) clientName = resData.client_phone;
+            
+            if (resData.services?.service_name) serviceName = ` — ${resData.services.service_name}`;
           } catch (err) {
             // Fallback: use generic name
           }
@@ -122,12 +122,12 @@ export function useRealtimeBookings({
 
       .subscribe((status, err) => {
         if (status === 'SUBSCRIBED') {
-          console.log(`[Realtime] ✅ Subscribed: salon ${salonId}`);
+          
         }
         if (status === 'CHANNEL_ERROR') {
           // Prevent Red Box in React Native during hot-reloads
           if (err && err.toString().includes('1000')) {
-            console.log(`[Realtime] ℹ️ Channel closed normally (1000)`);
+            
           } else {
             console.error(`[Realtime] ❌ Channel error:`, err);
           }
@@ -138,9 +138,12 @@ export function useRealtimeBookings({
     // Cleanup on unmount or salonId change
     return () => {
       if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
+        const channel = channelRef.current;
+        channel.unsubscribe().then(() => {
+          supabase.removeChannel(channel);
+        });
         channelRef.current = null;
       }
     };
-  }, [salonId]);
+  }, [salonId, queryClient, onNewBooking, onStatusChange, onCancellation]);
 }

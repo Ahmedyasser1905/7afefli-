@@ -23,6 +23,7 @@ import { EditSalonModal } from '../../components/barber/EditSalonModal';
 import { EditSalonLocationModal } from '../../components/barber/EditSalonLocationModal';
 import { formatDZD } from '@barberdz/shared/utils/formatters';
 import { decode } from 'base64-arraybuffer';
+import { apiClient } from '../../lib/apiClient';
 
 export function MySalonScreen() {
   const user = useAuthStore((s) => s.user);
@@ -53,13 +54,7 @@ export function MySalonScreen() {
   const { data: services = [], isLoading: isServicesLoading, refetch: refetchServices } = useQuery({
     queryKey: ['salon-services', salon?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('services')
-        .select('*')
-        .eq('salon_id', salon?.id)
-        .order('created_at', { ascending: true });
-      if (error) throw error;
-      return data;
+      return apiClient.get(`/salons/${salon?.id}/services`);
     },
     enabled: !!salon,
   });
@@ -68,24 +63,7 @@ export function MySalonScreen() {
   const { data: photos = [], refetch: refetchPortfolio } = useQuery({
     queryKey: ['salon-portfolio', salon?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('portfolio_photos')
-        .select('*')
-        .eq('salon_id', salon?.id)
-        .order('created_at', { ascending: false });
-      
-      // Handle table not found
-      if (error) {
-        if (error.code === '42P01') return [];
-        throw error;
-      }
-      
-      return (data ?? []).map((photo: any) => ({
-        ...photo,
-        url: supabase.storage
-          .from('portfolio')
-          .getPublicUrl(photo.storage_path).data.publicUrl,
-      }));
+      return apiClient.get(`/salons/${salon?.id}/portfolio`);
     },
     enabled: !!salon,
   });
@@ -94,17 +72,7 @@ export function MySalonScreen() {
   const { data: reviews = [] } = useQuery({
     queryKey: ['salon-reviews', salon?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('reviews')
-        .select('*, profiles:client_id(full_name, avatar_url)')
-        .eq('salon_id', salon?.id)
-        .order('created_at', { ascending: false });
-      
-      if (error) {
-        if (error.code === '42P01') return [];
-        throw error;
-      }
-      return data;
+      return apiClient.get(`/salons/${salon?.id}/reviews`);
     },
     enabled: !!salon,
   });
@@ -113,12 +81,7 @@ export function MySalonScreen() {
   const { data: staff = [], refetch: refetchStaff } = useQuery({
     queryKey: ['salon-staff', salon?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('salon_staff')
-        .select('*, profiles:profile_id(full_name, avatar_url, phone_number)')
-        .eq('salon_id', salon?.id);
-      if (error) throw error;
-      return data;
+      return apiClient.get(`/salons/${salon?.id}/staff`);
     },
     enabled: !!salon,
   });
@@ -130,8 +93,12 @@ export function MySalonScreen() {
         text: 'Retirer',
         style: 'destructive',
         onPress: async () => {
-          const { error } = await supabase.from('salon_staff').delete().eq('id', staffId);
-          if (!error) refetchStaff();
+          try {
+            await apiClient.delete(`/salons/${salon?.id}/staff/${staffId}`);
+            refetchStaff();
+          } catch (err: unknown) {
+            Alert.alert('Erreur', err.message);
+          }
         },
       },
     ]);
@@ -151,7 +118,7 @@ export function MySalonScreen() {
         await uploadPortfolioPhoto(result.assets[0].base64);
       }
     } catch (error) {
-      console.log('Error picking image:', error);
+      
     }
   };
 
@@ -177,22 +144,13 @@ export function MySalonScreen() {
       }
 
       // Insert record
-      const { error: dbError } = await supabase.from('portfolio_photos').insert({
-        salon_id: salon.id,
-        uploader_id: user?.id,
-        storage_path: fileName,
+      await apiClient.post(`/salons/${salon.id}/portfolio`, {
+        storagePath: fileName,
       });
-
-      if (dbError) {
-        if (dbError.code === '42P01') {
-          throw new Error("La table 'portfolio_photos' n'existe pas. Veuillez exécuter le script SQL.");
-        }
-        throw dbError;
-      }
 
       Alert.alert('Succès', 'Photo ajoutée au portfolio');
       refetchPortfolio();
-    } catch (err: any) {
+    } catch (err: unknown) {
       Alert.alert('Erreur', err.message);
     } finally {
       setUploading(false);
@@ -210,9 +168,9 @@ export function MySalonScreen() {
             // Delete from storage
             await supabase.storage.from('portfolio').remove([storagePath]);
             // Delete record from DB
-            await supabase.from('portfolio_photos').delete().eq('id', photoId);
+            await apiClient.delete(`/salons/${salon?.id}/portfolio/${photoId}`);
             refetchPortfolio();
-          } catch (err: any) {
+          } catch (err: unknown) {
             Alert.alert('Erreur', err.message);
           }
         },
@@ -234,7 +192,7 @@ export function MySalonScreen() {
         await uploadStaffAvatar(staffId, result.assets[0].base64);
       }
     } catch (error) {
-      console.log('Error picking image:', error);
+      
     }
   };
 
@@ -261,14 +219,12 @@ export function MySalonScreen() {
       const avatarUrl = publicUrlData.publicUrl;
 
       // Update staff record
-      const { error: dbError } = await supabase.from('salon_staff')
-        .update({ avatar_url: avatarUrl })
-        .eq('id', staffId);
-
-      if (dbError) throw dbError;
+      await apiClient.patch(`/salons/${salon.id}/staff/${staffId}/avatar`, {
+        avatarUrl,
+      });
 
       refetchStaff();
-    } catch (err: any) {
+    } catch (err: unknown) {
       Alert.alert('Erreur', err.message);
     } finally {
       setUploading(false);
@@ -282,8 +238,12 @@ export function MySalonScreen() {
         text: 'Supprimer',
         style: 'destructive',
         onPress: async () => {
-          const { error } = await supabase.from('services').delete().eq('id', id);
-          if (!error) refetchServices();
+          try {
+            await apiClient.delete(`/salons/${salon?.id}/services/${id}`);
+            refetchServices();
+          } catch (err: unknown) {
+            Alert.alert('Erreur', err.message);
+          }
         }
       }
     ]);
@@ -350,7 +310,7 @@ export function MySalonScreen() {
             ) : services.length === 0 ? (
               <Text style={styles.emptyText}>Aucun service configuré.</Text>
             ) : (
-              services.map((service: any) => (
+              services.map((service: Record<string, unknown>) => (
                 <View key={service.id} style={styles.serviceCard}>
                   <View style={styles.serviceInfo}>
                     <Text style={styles.serviceName}>{service.service_name}</Text>
@@ -382,7 +342,7 @@ export function MySalonScreen() {
               <Text style={styles.emptyText}>Votre portfolio est vide.</Text>
             ) : (
               <View style={styles.grid}>
-                {photos.map((photo: any) => (
+                {photos.map((photo: Record<string, unknown>) => (
                   <View key={photo.id} style={styles.gridImageContainer}>
                     <Image source={{ uri: photo.url }} style={styles.gridImage} resizeMode="cover" />
                     <TouchableOpacity
@@ -409,7 +369,7 @@ export function MySalonScreen() {
             {staff.length === 0 ? (
               <Text style={styles.emptyText}>Aucun barbier dans votre équipe.</Text>
             ) : (
-              staff.map((member: any) => {
+              staff.map((member: Record<string, unknown>) => {
                 const avatarUrl = member.avatar_url || member.profiles?.avatar_url;
                 return (
                   <View key={member.id} style={styles.staffCard}>
@@ -447,7 +407,7 @@ export function MySalonScreen() {
             {reviews.length === 0 ? (
               <Text style={styles.emptyText}>Aucun avis pour l'instant.</Text>
             ) : (
-              reviews.map((review: any) => (
+              reviews.map((review: Record<string, unknown>) => (
                 <View key={review.id} style={styles.reviewCard}>
                   <View style={styles.reviewHeader}>
                     <Text style={styles.reviewName}>{review.profiles?.full_name || 'Client anonyme'}</Text>

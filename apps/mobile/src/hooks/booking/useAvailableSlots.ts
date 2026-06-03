@@ -2,7 +2,7 @@
 // Fetches booked reservations, generates all possible slots, overlays booked data
 
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '../../lib/supabase';
+import { apiClient } from '../../lib/apiClient';
 import { generateTimeSlots, isSlotBooked } from '@barberdz/shared/utils/timeSlots';
 import type { TimeSlot } from '@barberdz/shared/types';
 
@@ -31,19 +31,12 @@ export function useAvailableSlots({
 
     queryFn: async (): Promise<TimeSlot[]> => {
       // ── Step 1: Fetch all booked/pending slots for this date ──
-      let query = supabase
-        .from('reservations')
-        .select('start_time, end_time, status')
-        .eq('salon_id', salonId!)
-        .eq('appointment_date', date!)
-        .in('status', ['Confirmed', 'Pending', 'Blocked']);
-
-      if (staffId) {
-        query = query.or(`staff_id.eq.${staffId},staff_id.is.null`);
-      }
-
-      const { data: bookedSlots, error } = await query;
-      if (error) throw new Error(error.message);
+      // Call the NestJS Slots API instead of direct Supabase query
+      const url = staffId 
+        ? `/slots/${salonId}/${serviceId}/${date}?staffId=${staffId}`
+        : `/slots/${salonId}/${serviceId}/${date}`;
+        
+      const bookedSlots = await apiClient.get<Record<string, unknown>[]>(url);
 
       // ── Step 2: Generate all possible slots (pure function) ──
       const allSlots = generateTimeSlots(openTime, closeTime, durationMin);

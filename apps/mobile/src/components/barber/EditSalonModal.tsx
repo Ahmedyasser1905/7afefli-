@@ -22,11 +22,12 @@ import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { colors, spacing, radius } from '../../theme';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import { apiClient } from '../../lib/apiClient';
 
 interface EditSalonModalProps {
   visible: boolean;
   onClose: () => void;
-  salon: any;
+  salon: Record<string, unknown>;
   onSaved: () => void;
 }
 
@@ -72,26 +73,20 @@ export function EditSalonModal({ visible, onClose, salon, onSaved }: EditSalonMo
 
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from('salons')
-        .update({
-          name: name.trim(),
-          description: description.trim() || null,
-          wilaya: wilaya.trim(),
-          address: address.trim(),
-          open_time: openTime + ':00',
-          close_time: closeTime + ':00',
-          image_url: imageUrl,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', salon.id);
-
-      if (error) throw error;
+      await apiClient.patch(`/salons/${salon.id}`, {
+        name: name.trim(),
+        description: description.trim() || null,
+        wilaya: wilaya.trim(),
+        address: address.trim(),
+        open_time: openTime + ':00',
+        close_time: closeTime + ':00',
+        image_url: imageUrl,
+      });
 
       Alert.alert('Succès', 'Salon mis à jour');
       onSaved();
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       Alert.alert('Erreur', err.message);
     } finally {
       setSaving(false);
@@ -137,7 +132,7 @@ export function EditSalonModal({ visible, onClose, salon, onSaved }: EditSalonMo
         .getPublicUrl(data.path);
 
       setImageUrl(publicUrlData.publicUrl);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Upload Error:', err);
       Alert.alert('Erreur', "L'upload de l'image a échoué.");
     } finally {

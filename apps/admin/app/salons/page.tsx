@@ -31,42 +31,62 @@ export default function SalonApprovalsPage() {
 
   async function fetchPendingSalons() {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('salons')
-      .select('*, profiles!owner_id(full_name, phone_number)')
-      .eq('is_approved', false)
-      .order('created_at', { ascending: false });
-
-    if (!error && data) {
-      setPending(data as PendingSalon[]);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/salons/pending`, {
+        headers: { Authorization: `Bearer ${session.access_token}` }
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        setPending(data as PendingSalon[]);
+      }
+    } catch (e) {
+      console.error(e);
     }
     setLoading(false);
   }
 
   async function approveSalon(salonId: string) {
     setActionLoading(salonId);
-    const { error } = await supabase
-      .from('salons')
-      .update({
-        is_approved: true,
-        subscription_status: 'Trial',
-        trial_ends_at: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(), // 3 months
-      })
-      .eq('id', salonId);
-
-    if (!error) {
-      setPending((prev) => prev.filter((s) => s.id !== salonId));
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/salons/${salonId}/approve`, {
+        method: 'PATCH',
+        headers: { 
+          Authorization: `Bearer ${session?.access_token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ approved: true })
+      });
+      if (res.ok) {
+        setPending((prev) => prev.filter((s) => s.id !== salonId));
+      }
+    } catch (e) {
+      console.error(e);
     }
     setActionLoading(null);
   }
 
   async function rejectSalon(salonId: string) {
     setActionLoading(salonId);
-    // For now, just delete the salon
-    const { error } = await supabase.from('salons').delete().eq('id', salonId);
-
-    if (!error) {
-      setPending((prev) => prev.filter((s) => s.id !== salonId));
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/salons/${salonId}/approve`, {
+        method: 'PATCH',
+        headers: { 
+          Authorization: `Bearer ${session?.access_token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ approved: false })
+      });
+      if (res.ok) {
+        setPending((prev) => prev.filter((s) => s.id !== salonId));
+      }
+    } catch (e) {
+      console.error(e);
     }
     setActionLoading(null);
   }

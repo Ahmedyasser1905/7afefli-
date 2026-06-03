@@ -19,6 +19,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
+import { apiClient } from '../../lib/apiClient';
 import { useAuthStore } from '../../store/authStore';
 import { colors, spacing, radius, shadows, typography } from '../../theme';
 import Ionicons from '@react-native-vector-icons/ionicons';
@@ -53,13 +54,12 @@ export function ClientsScreen() {
     queryKey: ['barber-salon-crm', user?.id],
     queryFn: async () => {
       if (!user) return null;
-      const { data, error } = await supabase
-        .from('salons')
-        .select('id, name')
-        .eq('owner_id', user.id)
-        .single();
-      if (error) throw error;
-      return data;
+      try {
+        const data = await apiClient.get<Record<string, unknown>>('/salons/my-salon');
+        return data;
+      } catch (e) {
+        return null; // Don't crash if salon doesn't exist
+      }
     },
     enabled: !!user,
   });
@@ -71,30 +71,7 @@ export function ClientsScreen() {
     queryKey: ['barber-crm-reservations', salonId],
     queryFn: async () => {
       if (!salonId) return [];
-      const { data, error } = await supabase
-        .from('reservations')
-        .select(`
-          id,
-          client_id,
-          client_phone,
-          appointment_date,
-          start_time,
-          status,
-          notes,
-          profiles:client_id (
-            id,
-            full_name,
-            phone_number,
-            avatar_url,
-            loyalty_points
-          ),
-          services:service_id (
-            price
-          )
-        `)
-        .eq('salon_id', salonId);
-
-      if (error) throw error;
+      const data = await apiClient.get<Record<string, unknown>[]>(`/reservations/salon/${salonId}`);
       return data || [];
     },
     enabled: !!salonId,
@@ -104,7 +81,7 @@ export function ClientsScreen() {
   const clientsList = useMemo(() => {
     const clientsMap = new Map<string, ClientItem>();
 
-    reservations.forEach((res: any) => {
+    reservations.forEach((res: Record<string, unknown>) => {
       const isWalkIn = res.client_id === user?.id || !res.client_id;
       let clientId = '';
       let clientName = 'Client de passage';

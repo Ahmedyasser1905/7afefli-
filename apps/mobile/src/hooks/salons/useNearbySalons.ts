@@ -1,8 +1,8 @@
 // apps/mobile/src/hooks/salons/useNearbySalons.ts
-// Fetches nearby salons using PostGIS geolocation via Supabase RPC
+// Fetches nearby salons using PostGIS geolocation via NestJS API
 
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '../../lib/supabase';
+import { apiClient } from '../../lib/apiClient';
 import type { Salon } from '@barberdz/shared/types';
 
 interface Coords {
@@ -17,19 +17,13 @@ export function useNearbySalons(location: Coords | null, radiusKm: number = 10) 
     queryFn: async (): Promise<Salon[]> => {
       if (!location) return [];
 
-      // Call PostGIS-powered RPC function
-      const { data, error } = await supabase.rpc('get_nearby_salons', {
-        user_lat: location.latitude,
-        user_lng: location.longitude,
-        radius_km: radiusKm,
-      });
-
-      if (error) {
-        console.warn('[useNearbySalons] RPC error:', error);
+      try {
+        const data = await apiClient.get<Salon[]>(`/salons/nearby?lat=${location.latitude}&lng=${location.longitude}&radius=${radiusKm}`);
+        return data ?? [];
+      } catch (error) {
+        console.warn('[useNearbySalons] API error:', error);
         return [];
       }
-
-      return (data ?? []) as Salon[];
     },
 
     enabled: !!location,
@@ -42,22 +36,8 @@ export function useSalonDetail(salonId: string | null) {
     queryKey: ['salon-detail', salonId],
 
     queryFn: async (): Promise<Salon> => {
-      const { data, error } = await supabase
-        .from('salons')
-        .select(
-          `
-          *,
-          services (*),
-          salon_staff (*, profiles:profile_id (full_name, avatar_url)),
-          portfolio_photos (*),
-          reviews (*, profiles:client_id (full_name, avatar_url))
-        `,
-        )
-        .eq('id', salonId!)
-        .single();
-
-      if (error) throw new Error(error.message);
-      return data as Salon;
+      const data = await apiClient.get<Salon>(`/salons/${salonId}`);
+      return data;
     },
 
     enabled: !!salonId,
@@ -70,14 +50,7 @@ export function useSalonServices(salonId: string | null) {
     queryKey: ['salon-services', salonId],
 
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('services')
-        .select('*')
-        .eq('salon_id', salonId!)
-        .eq('is_active', true)
-        .order('price', { ascending: true });
-
-      if (error) throw new Error(error.message);
+      const data = await apiClient.get<Record<string, unknown>[]>(`/salons/${salonId}/services`);
       return data;
     },
 

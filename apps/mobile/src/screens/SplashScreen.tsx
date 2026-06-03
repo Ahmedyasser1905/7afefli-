@@ -83,7 +83,7 @@ const CornerOrnament: React.FC<{
 }> = ({ pos, opacity }) => {
   const isR = pos.includes('R');
   const isB = pos.includes('B');
-  const transforms: any[] = [];
+  const transforms: unknown[] = [];
   if (isR) transforms.push({ scaleX: -1 });
   if (isB) transforms.push({ scaleY: -1 });
   return (

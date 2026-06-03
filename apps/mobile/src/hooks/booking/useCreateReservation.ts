@@ -3,7 +3,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Alert } from 'react-native';
-import { supabase } from '../../lib/supabase';
+import { apiClient } from '../../lib/apiClient';
 import { useAuthStore } from '../../store/authStore';
 import { useBookingStore } from '../../store/bookingStore';
 import type { Reservation } from '@barberdz/shared/types';
@@ -28,40 +28,23 @@ export function useCreateReservation() {
     mutationFn: async (params: CreateReservationParams): Promise<Reservation> => {
       if (!user) throw new Error('Not authenticated');
 
-      const { data, error } = await supabase
-        .from('reservations')
-        .insert({
-          client_id: user.id,
-          salon_id: params.salonId,
-          service_id: params.serviceId,
-          staff_id: params.staffId ?? null,
-          appointment_date: params.appointmentDate,
-          start_time: params.startTime,
-          end_time: params.endTime,
-          status: 'Pending',
-          client_phone: params.clientPhone ?? null,
-          notes: params.notes ?? null,
-        })
-        .select(
-          `
-          *,
-          salons:salon_id (name, address, wilaya),
-          services:service_id (service_name, price, duration_minutes)
-        `,
-        )
-        .single();
-
-      if (error) {
-        // PostgreSQL trigger raised SQLSTATE P0001 — booking conflict
-        if (error.code === 'P0001' || error.message.includes('BOOKING_CONFLICT')) {
-          throw new Error(
-            'Ce créneau n\'est plus disponible. Veuillez en choisir un autre.',
-          );
+      try {
+        const data = await apiClient.post<Reservation>('/reservations', {
+          salonId: params.salonId,
+          serviceId: params.serviceId,
+          barberId: params.staffId ?? undefined,
+          appointmentDate: params.appointmentDate,
+          startTime: params.startTime,
+          notes: params.notes,
+          clientPhone: params.clientPhone,
+        });
+        return data;
+      } catch (error: unknown) {
+        if (error.message?.includes('no longer available') || error.message?.includes('booked')) {
+          throw new Error('Ce créneau n\'est plus disponible. Veuillez en choisir un autre.');
         }
         throw new Error(`Réservation échouée: ${error.message}`);
       }
-
-      return data as Reservation;
     },
 
     onSuccess: (reservation) => {

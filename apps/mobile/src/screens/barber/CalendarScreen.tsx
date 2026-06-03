@@ -6,6 +6,7 @@ import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Image, Alert } fr
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
+import { apiClient } from '../../lib/apiClient';
 import { colors, spacing, radius, shadows } from '../../theme';
 import { useRealtimeBookings } from '../../hooks/barber/useRealtimeBookings';
 import { useAuthStore } from '../../store/authStore';
@@ -52,13 +53,12 @@ export function CalendarScreen() {
     queryKey: ['barber-salon', user?.id],
     queryFn: async () => {
       if (!user) return null;
-      const { data, error } = await supabase
-        .from('salons')
-        .select('id, name, open_time, close_time')
-        .eq('owner_id', user.id)
-        .single();
-      if (error) throw error;
-      return data;
+      try {
+        const data = await apiClient.get<Record<string, unknown>>('/salons/my-salon');
+        return data;
+      } catch (error) {
+        return null;
+      }
     },
     enabled: !!user,
   });
@@ -70,17 +70,11 @@ export function CalendarScreen() {
     queryKey: ['barber-reservations', salonId, selectedDate],
     queryFn: async () => {
       if (!salonId) return [];
-      const { data, error } = await supabase
-        .from('reservations')
-        .select(
-          '*, profiles:client_id (full_name, avatar_url), services:service_id (service_name, price, duration_minutes)',
-        )
-        .eq('salon_id', salonId)
-        .eq('appointment_date', selectedDate)
-        .in('status', ['Pending', 'Confirmed', 'Completed'])
-        .order('start_time', { ascending: true });
-      if (error) throw error;
-      return data as Reservation[];
+      const data = await apiClient.get<Reservation[]>(`/reservations/salon/${salonId}`);
+      return data.filter(r => 
+        r.appointment_date === selectedDate && 
+        ['Pending', 'Confirmed', 'Completed'].includes(r.status)
+      );
     },
     enabled: !!salonId,
   });
@@ -201,8 +195,8 @@ export function CalendarScreen() {
           {reservations.map((reservation) => {
             const top = timeToPixelOffset(reservation.start_time, openHour);
             const height = durationToHeight(reservation.start_time, reservation.end_time);
-            const client = (reservation as any).profiles;
-            const service = (reservation as any).services;
+            const client = (reservation as Record<string, unknown>).profiles;
+            const service = (reservation as Record<string, unknown>).services;
 
             const isPending = reservation.status === 'Pending';
             const isConfirmed = reservation.status === 'Confirmed';
@@ -256,7 +250,7 @@ export function CalendarScreen() {
                     ⏱️ {formatTime(reservation.start_time)} – {formatTime(reservation.end_time)}
                   </Text>
                 </View>
-                <Ionicons name={statusIcon as any} size={18} color={iconColor} style={styles.blockStatusIcon} />
+                <Ionicons name={statusIcon as unknown as keyof typeof Ionicons.glyphMap} size={18} color={iconColor} style={styles.blockStatusIcon} />
               </TouchableOpacity>
             );
           })}

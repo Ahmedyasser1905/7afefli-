@@ -47,7 +47,7 @@ export class SupabaseAuthGuard implements CanActivate {
         .single();
 
       // Attach authenticated user to request
-      (request as any).user = {
+      (request as unknown as Record<string, unknown>).user = {
         id: user.id,
         email: user.email,
         phone: user.phone,

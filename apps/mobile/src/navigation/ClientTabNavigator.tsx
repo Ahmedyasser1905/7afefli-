@@ -46,7 +46,7 @@ const Tab = createBottomTabNavigator();
 export function ClientTabNavigator() {
   return (
     <Tab.Navigator
-      screenOptions={({ route }: any) => ({
+      screenOptions={({ route }: { route: Record<string, unknown> }) => ({
         headerShown: false,
         tabBarStyle: {
           backgroundColor: colors.carbon,
@@ -63,8 +63,8 @@ export function ClientTabNavigator() {
           fontSize: 11,
           marginTop: 2,
         },
-        tabBarIcon: ({ focused, color }: any) => {
-          let iconName: any = 'home';
+        tabBarIcon: ({ focused, color }: { focused: boolean, color: string }) => {
+          let iconName: unknown = 'home';
           if (route.name === 'Home') {
             iconName = focused ? 'home' : 'home-outline';
           } else if (route.name === 'Explore') {

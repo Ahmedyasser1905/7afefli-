@@ -1,7 +1,9 @@
 // services/api/src/slots/slots.service.ts
 // Core slot generation logic — generates available time slots for a salon/service/date
 
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Inject } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { SupabaseService } from '../supabase/supabase.service';
 
 export interface TimeSlot {
@@ -12,7 +14,10 @@ export interface TimeSlot {
 
 @Injectable()
 export class SlotsService {
-  constructor(private readonly supabase: SupabaseService) {}
+  constructor(
+    private readonly supabase: SupabaseService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+  ) {}
 
   /**
    * Generate available time slots for a given salon, service, and date.
@@ -29,6 +34,12 @@ export class SlotsService {
     date: string,        // "2025-06-15"
     barberId?: string,
   ): Promise<TimeSlot[]> {
+    const cacheKey = `slots:${salonId}:${serviceId}:${date}:${barberId || 'any'}`;
+    const cachedSlots = await this.cacheManager.get<TimeSlot[]>(cacheKey);
+    if (cachedSlots) {
+      return cachedSlots;
+    }
+
     // 1. Fetch service duration and salon hours in parallel
     const [serviceResult, salonResult] = await Promise.all([
       this.supabase.adminClient
@@ -80,10 +91,14 @@ export class SlotsService {
     const allSlots = this.generateTimeSlots(openTime, closeTime, duration);
 
     // 4. Mark booked slots as unavailable
-    return allSlots.map(slot => ({
+    const finalSlots = allSlots.map(slot => ({
       ...slot,
       isAvailable: !this.isSlotBooked(slot, bookedSlots ?? []),
     }));
+
+    await this.cacheManager.set(cacheKey, finalSlots, 60 * 1000); // Cache for 60 seconds
+
+    return finalSlots;
   }
 
   /**

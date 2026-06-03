@@ -14,11 +14,12 @@ import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { colors, radius, spacing } from '../../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
+import { apiClient } from '../../lib/apiClient';
 
 interface LeaveReviewModalProps {
   visible: boolean;
   onClose: () => void;
-  reservation: any;
+  reservation: Record<string, unknown>;
   onSuccess: () => void;
 }
 
@@ -33,34 +34,26 @@ export function LeaveReviewModal({ visible, onClose, reservation, onSuccess }: L
 
     setLoading(true);
     try {
-      const { error } = await supabase.from('reviews').insert({
-        reservation_id: reservation.id,
-        client_id: user?.id,
-        salon_id: reservation.salons.id,
+      await apiClient.post('/reviews', {
+        reservationId: reservation.id,
+        salonId: reservation.salons.id,
         rating,
         comment: comment.trim() || null,
       });
 
-      if (error) {
-        // If table doesn't exist yet, we catch it
-        if (error.code === '42P01') {
-          throw new Error("La table 'reviews' n'existe pas dans la base de données. Veuillez exécuter le script SQL.");
-        }
-        // Handle duplicate review error
-        if (error.code === '23505') {
-          Alert.alert('Info', 'Vous avez déjà laissé un avis pour ce rendez-vous.');
-          onSuccess();
-          onClose();
-          return;
-        }
-        throw error;
-      }
-
       Alert.alert('Merci !', 'Votre avis a été enregistré.');
       onSuccess();
       onClose();
-    } catch (err: any) {
-      Alert.alert('Erreur', err.message);
+    } catch (err: unknown) {
+      if (err.message && err.message.includes('42P01')) {
+        Alert.alert('Erreur', "La table 'reviews' n'existe pas dans la base de données. Veuillez exécuter le script SQL.");
+      } else if (err.message && err.message.includes('23505')) {
+        Alert.alert('Info', 'Vous avez déjà laissé un avis pour ce rendez-vous.');
+        onSuccess();
+        onClose();
+      } else {
+        Alert.alert('Erreur', err.message);
+      }
     } finally {
       setLoading(false);
     }

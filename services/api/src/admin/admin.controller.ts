@@ -7,6 +7,7 @@ import {
   Param,
   Body,
   UseGuards,
+  Delete,
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { SupabaseAuthGuard } from '../auth/auth.guard';
@@ -41,6 +42,29 @@ export class AdminController {
     return this.adminService.approveSalon(id, approved);
   }
 
+  @Get('salons')
+  getAllSalons() {
+    return this.adminService.getAllSalons();
+  }
+
+  @Delete('salons/:id')
+  deleteSalon(@Param('id') id: string) {
+    return this.adminService.deleteSalon(id);
+  }
+
+  @Get('users')
+  getAllUsers() {
+    return this.adminService.getAllUsers();
+  }
+
+  @Patch('users/:id/role')
+  changeUserRole(
+    @Param('id') id: string,
+    @Body('role') role: string,
+  ) {
+    return this.adminService.changeUserRole(id, role);
+  }
+
   /**
    * GET /admin/stats
    * Get platform-wide statistics.
@@ -48,5 +72,20 @@ export class AdminController {
   @Get('stats')
   getStats() {
     return this.adminService.getStats();
+  }
+
+  @Get('audit')
+  getAuditLogs() {
+    return this.adminService.getAuditLogs();
+  }
+
+  @Get('audit/export')
+  exportAuditLogsCsv() {
+    return this.adminService.exportAuditLogsCsv();
+  }
+
+  @Get('revenue')
+  getRevenueStats() {
+    return this.adminService.getRevenueStats();
   }
 }

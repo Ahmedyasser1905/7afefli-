@@ -12,6 +12,7 @@ import {
 import { ReservationsService } from './reservations.service';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 import { UpdateReservationStatusDto } from './dto/update-reservation-status.dto';
+import { BlockTimeDto } from './dto/block-time.dto';
 import { SupabaseAuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -29,12 +30,32 @@ export class ReservationsController {
    */
   @Post()
   @UseGuards(RolesGuard)
-  @Roles('Client')
+  @Roles('Client', 'Coiffeur')
   create(
     @Body() dto: CreateReservationDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.reservationsService.create(dto, user.id);
+  }
+
+  /**
+   * POST /reservations/block
+   * Block a time slot (Coiffeur only).
+   */
+  @Post('block')
+  @UseGuards(RolesGuard)
+  @Roles('Coiffeur')
+  blockTime(
+    @Body() dto: BlockTimeDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.reservationsService.blockTime(
+      dto.salonId,
+      user.id,
+      dto.date,
+      dto.startTime,
+      dto.endTime,
+    );
   }
 
   /**
@@ -69,5 +90,18 @@ export class ReservationsController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.reservationsService.updateStatus(id, dto, user.id);
+  }
+
+  /**
+   * GET /reservations/:id
+   * Get a single reservation — only visible to the client, salon owner,
+   * assigned staff member, or an Admin.
+   */
+  @Get(':id')
+  findOne(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.reservationsService.findOne(id, user);
   }
 }

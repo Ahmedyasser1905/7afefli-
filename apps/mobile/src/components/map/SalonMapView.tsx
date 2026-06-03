@@ -14,7 +14,7 @@ interface SalonMapViewProps {
   userLocation: { latitude: number; longitude: number } | null;
   onSalonPress?: (salonId: string) => void;
   height?: number;
-  style?: any;
+  style?: unknown;
 }
 
 export function SalonMapView({
@@ -309,7 +309,7 @@ function initLeaflet(){
   }, [userLocation, mapReady]);
   // Prevent WebView from re-mounting when mapHtml hasn't changed
   const handleMessage = useCallback(
-    (event: any) => {
+    (event: unknown) => {
       const data = event.nativeEvent.data;
       if (data === 'MAP_READY') {
         setMapReady(true);

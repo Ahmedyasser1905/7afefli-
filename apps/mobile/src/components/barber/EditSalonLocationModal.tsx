@@ -15,11 +15,12 @@ import { WebView } from 'react-native-webview';
 import { supabase } from '../../lib/supabase';
 import { colors, spacing, radius } from '../../theme';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import { apiClient } from '../../lib/apiClient';
 
 interface EditSalonLocationModalProps {
   visible: boolean;
   onClose: () => void;
-  salon: any;
+  salon: Record<string, unknown>;
   onSaved: () => void;
 }
 
@@ -40,22 +41,15 @@ export function EditSalonLocationModal({ visible, onClose, salon, onSaved }: Edi
     if (!salon) return;
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from('salons')
-        .update({
-          latitude: lat,
-          longitude: lng,
-          location: `POINT(${lng} ${lat})`,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', salon.id);
-
-      if (error) throw error;
+      await apiClient.patch(`/salons/${salon.id}`, {
+        latitude: lat,
+        longitude: lng,
+      });
 
       Alert.alert('Succès', 'Emplacement mis à jour');
       onSaved();
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       Alert.alert('Erreur', err.message);
     } finally {
       setSaving(false);
@@ -161,7 +155,7 @@ export function EditSalonLocationModal({ visible, onClose, salon, onSaved }: Edi
             window.ReactNativeWebView.postMessage(JSON.stringify({ lat: loc[0], lng: loc[1] }));
           }
         })
-        .catch(err => console.log(err));
+        .catch(err => 
     }
 
     document.getElementById('searchInput').addEventListener('keypress', function(e) {
@@ -171,7 +165,7 @@ export function EditSalonLocationModal({ visible, onClose, salon, onSaved }: Edi
 </body>
 </html>`;
 
-  const handleMessage = (event: any) => {
+  const handleMessage = (event: unknown) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
       if (data.lat && data.lng) {

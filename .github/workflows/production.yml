@@ -1,0 +1,46 @@
+name: Production CI/CD
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install API Dependencies
+        working-directory: ./services/api
+        run: npm ci
+
+      - name: Build API
+        working-directory: ./services/api
+        run: npm run build
+
+      - name: Test API
+        working-directory: ./services/api
+        run: npm test
+
+      - name: Install Mobile Dependencies
+        working-directory: ./apps/mobile
+        run: npm ci || npm install
+
+      - name: Test Mobile
+        working-directory: ./apps/mobile
+        run: npm test
+
+      - name: Install Admin Dependencies
+        working-directory: ./apps/admin
+        run: npm ci
+
+      - name: Build Admin
+        working-directory: ./apps/admin
+        run: npm run build

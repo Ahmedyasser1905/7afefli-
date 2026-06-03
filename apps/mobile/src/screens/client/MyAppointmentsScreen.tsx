@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
+import { apiClient } from '../../lib/apiClient';
 import { useAuthStore } from '../../store/authStore';
 import { colors, spacing, radius, shadows } from '../../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
@@ -27,7 +28,7 @@ export function MyAppointmentsScreen() {
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
   const user = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
-  const [reviewReservation, setReviewReservation] = useState<any>(null);
+  const [reviewReservation, setReviewReservation] = useState<Record<string, unknown>>(null);
 
   // Fetch client reservations
   const { data: reservations = [], isLoading, refetch } = useQuery({
@@ -38,26 +39,7 @@ export function MyAppointmentsScreen() {
       // Mark past reservations as completed automatically
       await supabase.rpc('auto_complete_reservations');
       
-      const { data, error } = await supabase
-        .from('reservations')
-        .select(`
-          id,
-          appointment_date,
-          start_time,
-          end_time,
-          status,
-          created_at,
-          notes,
-          salons:salon_id (id, name, address, wilaya, image_url),
-          services:service_id (id, service_name, price, duration_minutes),
-          salon_staff:staff_id (custom_name, profiles:profile_id(full_name)),
-          reviews (id)
-        `)
-        .eq('client_id', user.id)
-        .order('appointment_date', { ascending: false })
-        .order('start_time', { ascending: false });
-
-      if (error) throw error;
+      const data = await apiClient.get<Record<string, unknown>[]>('/reservations/me');
       return data ?? [];
     },
     enabled: !!user,
@@ -66,17 +48,13 @@ export function MyAppointmentsScreen() {
   // Cancel reservation mutation
   const cancelMutation = useMutation({
     mutationFn: async (reservationId: string) => {
-      const { error } = await supabase
-        .from('reservations')
-        .update({ status: 'Cancelled' })
-        .eq('id', reservationId);
-      if (error) throw error;
+      await apiClient.patch(`/reservations/${reservationId}/status`, { status: 'Cancelled' });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['my-reservations'] });
       Alert.alert('Succès', 'Votre rendez-vous a été annulé.');
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       Alert.alert('Erreur', err.message || 'Impossible d\'annuler le rendez-vous');
     },
   });
@@ -100,7 +78,7 @@ export function MyAppointmentsScreen() {
   const filteredReservations = React.useMemo(() => {
     const todayStr = new Date().toISOString().split('T')[0];
     
-    return reservations.filter((r: any) => {
+    return reservations.filter((r: Record<string, unknown>) => {
       const isUpcoming = r.status !== 'Cancelled' && r.status !== 'Completed' && r.appointment_date >= todayStr;
       
       if (activeTab === 'upcoming') {
@@ -111,7 +89,7 @@ export function MyAppointmentsScreen() {
     });
   }, [reservations, activeTab]);
 
-  const renderItem = ({ item }: { item: any }) => {
+  const renderItem = ({ item }: { item: Record<string, unknown> }) => {
     const salon = item.salons;
     const service = item.services;
 

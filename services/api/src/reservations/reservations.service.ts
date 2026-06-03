@@ -7,14 +7,25 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  Logger,
+  Inject,
 } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { SupabaseService } from '../supabase/supabase.service';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 import { UpdateReservationStatusDto } from './dto/update-reservation-status.dto';
+import { addMinutesToTime } from '../utils/time.util';
+import { AuthenticatedUser } from '../auth/auth.guard';
 
 @Injectable()
 export class ReservationsService {
-  constructor(private readonly supabase: SupabaseService) {}
+  private readonly logger = new Logger(ReservationsService.name);
+
+  constructor(
+    private readonly supabase: SupabaseService,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+  ) {}
 
   /**
    * Create a reservation.
@@ -35,37 +46,86 @@ export class ReservationsService {
     }
 
     // 2. Calculate end_time from start_time + duration
-    const endTime = this.addMinutesToTime(dto.startTime, service.duration_minutes);
+    const endTime = addMinutesToTime(dto.startTime, service.duration_minutes);
 
-    // 3. Insert reservation — the DB trigger will prevent double-booking
-    const { data, error } = await this.supabase.adminClient
-      .from('reservations')
-      .insert({
-        client_id: clientId,
-        salon_id: dto.salonId,
-        service_id: dto.serviceId,
-        barber_id: dto.barberId ?? null,
-        appointment_date: dto.appointmentDate,
-        start_time: dto.startTime,
-        end_time: endTime,
-        status: 'Pending',
-        notes: dto.notes ?? null,
-      })
-      .select(`
-        *,
-        services(service_name, price, duration_minutes),
-        salons(name, address, wilaya)
-      `)
-      .single();
+    // 3. Call the safe RPC to prevent double-booking with Advisory Locks
+    const { data, error } = await this.supabase.adminClient.rpc(
+      'create_reservation_safe',
+      {
+        p_client_id: clientId,
+        p_salon_id: dto.salonId,
+        p_service_id: dto.serviceId,
+        p_barber_id: dto.barberId ?? null,
+        p_appointment_date: dto.appointmentDate,
+        p_start_time: dto.startTime,
+        p_end_time: endTime,
+        p_notes: dto.notes ?? null,
+        p_client_phone: dto.clientPhone ?? null,
+      }
+    );
 
     if (error) {
-      // PostgreSQL trigger raised SQLSTATE P0001 — booking conflict
-      if (error.code === 'P0001' || error.message?.includes('BOOKING_CONFLICT')) {
+      if (error.message?.includes('booked') || error.code === 'P0001') {
         throw new ConflictException(
           'This time slot is no longer available. Please select another.',
         );
       }
       throw new Error(`Reservation failed: ${error.message}`);
+    }
+
+    // 4. Invalidate slot cache for this salon/date to reduce stale availability
+    const cachePattern = `slots:${dto.salonId}:${dto.serviceId}:${dto.appointmentDate}`;
+    try {
+      // Wildcard invalidation — delete all barber variants for this date
+      await this.cacheManager.del(`${cachePattern}:any`);
+      if (dto.barberId) await this.cacheManager.del(`${cachePattern}:${dto.barberId}`);
+    } catch {
+      // Cache invalidation failure is non-fatal
+      this.logger.warn('Slot cache invalidation failed (non-fatal)');
+    }
+
+    // 5. Fetch the enriched data
+    const { data: enrichedData } = await this.supabase.adminClient
+      .from('reservations')
+      .select(`
+        *,
+        services(service_name, price, duration_minutes),
+        salons(name, address, wilaya)
+      `)
+      .eq('id', data.id)
+      .single();
+
+    return enrichedData || data;
+  }
+
+  /**
+   * Block a time slot (Coiffeur only).
+   */
+  async blockTime(
+    salonId: string,
+    barberId: string,
+    appointmentDate: string,
+    startTime: string,
+    endTime: string,
+  ) {
+    const { data, error } = await this.supabase.adminClient.from('reservations').insert({
+      salon_id: salonId,
+      client_id: barberId,
+      barber_id: barberId,
+      appointment_date: appointmentDate,
+      start_time: startTime,
+      end_time: endTime,
+      status: 'Confirmed',
+      notes: 'CRÉNEAU BLOQUÉ',
+    }).select().single();
+
+    if (error) {
+      if (error.message?.includes('booked') || error.code === 'P0001') {
+        throw new ConflictException(
+          'This time slot is no longer available or conflicts with another reservation.',
+        );
+      }
+      throw new Error(`Failed to block time: ${error.message}`);
     }
 
     return data;
@@ -79,8 +139,10 @@ export class ReservationsService {
       .from('reservations')
       .select(`
         *,
-        services(service_name, price, duration_minutes),
-        salons(name, address, wilaya)
+        services(id, service_name, price, duration_minutes),
+        salons(id, name, address, wilaya, image_url),
+        salon_staff:staff_id(custom_name, profiles!profile_id(full_name)),
+        reviews(id)
       `)
       .eq('client_id', clientId)
       .order('appointment_date', { ascending: false })
@@ -124,7 +186,8 @@ export class ReservationsService {
       .select(`
         *,
         profiles!reservations_client_id_fkey(full_name, phone_number, avatar_url),
-        services(service_name, price, duration_minutes)
+        services(service_name, price, duration_minutes),
+        salon_staff:staff_id(custom_name, profiles!profile_id(full_name))
       `)
       .eq('salon_id', salonId)
       .order('appointment_date', { ascending: true })
@@ -155,7 +218,7 @@ export class ReservationsService {
 
     // Verify authorization
     const isClient = reservation.client_id === userId;
-    const isBarber = (reservation as any).salons?.owner_id === userId;
+    const isBarber = (reservation as unknown as { salons?: { owner_id: string } }).salons?.owner_id === userId;
 
     if (!isClient && !isBarber) {
       throw new ForbiddenException('You are not authorized to update this reservation');
@@ -171,7 +234,7 @@ export class ReservationsService {
       }
     }
 
-    const updateData: Record<string, any> = { status: dto.status };
+    const updateData: Record<string, unknown> = { status: dto.status };
 
     if (dto.status === 'Cancelled') {
       updateData.cancelled_by = userId;
@@ -190,13 +253,64 @@ export class ReservationsService {
   }
 
   /**
-   * Add minutes to a time string "HH:MM" and return "HH:MM".
+   * Get a single reservation by ID.
+   * SECURITY: Access is restricted to:
+   *   - The reservation client (owner)
+   *   - The salon owner
+   *   - The assigned staff member
+   *   - An Admin
    */
-  private addMinutesToTime(time: string, minutes: number): string {
-    const [h, m] = time.split(':').map(Number);
-    const totalMinutes = h * 60 + m + minutes;
-    const newH = Math.floor(totalMinutes / 60).toString().padStart(2, '0');
-    const newM = (totalMinutes % 60).toString().padStart(2, '0');
-    return `${newH}:${newM}`;
+  async findOne(id: string, user: AuthenticatedUser) {
+    const { data, error } = await this.supabase.adminClient
+      .from('reservations')
+      .select(`
+        id, salon_id, client_id, barber_id, appointment_date, start_time, end_time,
+        status, notes, cancelled_by, cancel_reason, created_at, updated_at,
+        profiles!reservations_client_id_fkey(full_name, phone_number, avatar_url),
+        services(service_name, price, duration_minutes),
+        salons(id, name, address, wilaya, owner_id)
+      `)
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        throw new NotFoundException('Reservation not found');
+      }
+      throw new Error(`Failed to fetch reservation: ${error.message}`);
+    }
+
+    // Authorization check
+    if (user.role !== 'Admin') {
+      const reservation = data as unknown as {
+        client_id: string;
+        barber_id: string | null;
+        salons: { owner_id: string } | null;
+      };
+
+      const isClient  = reservation.client_id === user.id;
+      const isBarber  = reservation.barber_id === user.id;
+      const isOwner   = reservation.salons?.owner_id === user.id;
+
+      // Check if user is salon staff
+      let isStaff = false;
+      if (!isClient && !isBarber && !isOwner) {
+        const salonData = data as unknown as { salon_id: string };
+        const { data: staff } = await this.supabase.adminClient
+          .from('salon_staff')
+          .select('id')
+          .eq('salon_id', salonData.salon_id)
+          .eq('profile_id', user.id)
+          .single();
+        isStaff = !!staff;
+      }
+
+      if (!isClient && !isBarber && !isOwner && !isStaff) {
+        throw new ForbiddenException('You are not authorized to view this reservation');
+      }
+    }
+
+    return data;
   }
+
 }

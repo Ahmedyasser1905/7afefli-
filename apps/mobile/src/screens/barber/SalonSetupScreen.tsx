@@ -11,14 +11,16 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { supabase } from '../../lib/supabase';
+import { useNavigation } from '@react-navigation/native';
+import { apiClient } from '../../lib/apiClient';
 import { useAuthStore } from '../../store/authStore';
 import { colors, typography, spacing, radius } from '../../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
-import { WebView } from 'react-native-webview';
+import MapView, { Marker } from 'react-native-maps';
 
 export function SalonSetupScreen({ onComplete }: { onComplete: () => void }) {
   const user = useAuthStore((s) => s.user);
+  const navigation = useNavigation();
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
 
@@ -40,8 +42,7 @@ export function SalonSetupScreen({ onComplete }: { onComplete: () => void }) {
 
     setLoading(true);
     try {
-      const { error } = await supabase.from('salons').insert({
-        owner_id: user?.id,
+      await apiClient.post('/salons', {
         name: form.name,
         wilaya: form.wilaya,
         address: form.address,
@@ -50,16 +51,12 @@ export function SalonSetupScreen({ onComplete }: { onComplete: () => void }) {
         latitude: form.latitude,
         longitude: form.longitude,
         working_days: [1, 2, 3, 4, 5, 6], // Default Mon-Sat
-        is_approved: true, // Auto-approve for now
-        subscription_status: 'Trial',
       });
-
-      if (error) throw error;
       
       Alert.alert('Succès', 'Votre salon a été créé avec succès !', [
         { text: 'Continuer', onPress: onComplete }
       ]);
-    } catch (err: any) {
+    } catch (err: unknown) {
       Alert.alert('Erreur', err.message);
     } finally {
       setLoading(false);
@@ -136,7 +133,7 @@ export function SalonSetupScreen({ onComplete }: { onComplete: () => void }) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => supabase.auth.signOut()} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.7}>
           <Ionicons name="arrow-back" size={24} color={colors.amber} />
         </TouchableOpacity>
         <View style={styles.titleContainer}>
@@ -204,16 +201,24 @@ export function SalonSetupScreen({ onComplete }: { onComplete: () => void }) {
         <View style={styles.mapContainer}>
           <Text style={styles.mapHint}>Déplacez le marqueur ou cliquez sur la carte pour définir votre position exacte.</Text>
           <View style={styles.mapWrapper}>
-            <WebView
-              source={{ html: mapHtml }}
+            <MapView
               style={styles.map}
-              onMessage={(event) => {
-                try {
-                  const data = JSON.parse(event.nativeEvent.data);
-                  setForm({ ...form, latitude: data.lat, longitude: data.lng });
-                } catch (e) {}
+              initialRegion={{
+                latitude: form.latitude,
+                longitude: form.longitude,
+                latitudeDelta: 0.05,
+                longitudeDelta: 0.05,
               }}
-            />
+              onPress={(e) => {
+                setForm({
+                  ...form,
+                  latitude: e.nativeEvent.coordinate.latitude,
+                  longitude: e.nativeEvent.coordinate.longitude,
+                });
+              }}
+            >
+              <Marker coordinate={{ latitude: form.latitude, longitude: form.longitude }} />
+            </MapView>
           </View>
         </View>
       )}

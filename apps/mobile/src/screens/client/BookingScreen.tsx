@@ -6,7 +6,7 @@ import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, ActivityIn
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '../../lib/supabase';
+import { apiClient } from '../../lib/apiClient';
 import { colors, spacing, radius, shadows } from '../../theme';
 import { DateStrip } from '../../components/booking/DateStrip';
 import { SlotPicker } from '../../components/booking/SlotPicker';
@@ -17,8 +17,8 @@ import Ionicons from "@react-native-vector-icons/ionicons";
 import type { Service } from '@barberdz/shared/types';
 
 export function BookingScreen() {
-  const route = useRoute<any>();
-  const navigation = useNavigation<any>();
+  const route = useRoute<Record<string, unknown>>();
+  const navigation = useNavigation<Record<string, unknown>>();
   const { salonId, selectedServiceIds } = route.params;
 
   const {
@@ -44,12 +44,7 @@ export function BookingScreen() {
   const { data: salon, isLoading: isSalonLoading } = useQuery({
     queryKey: ['salon-booking', salonId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('salons')
-        .select('id, name, open_time, close_time, working_days')
-        .eq('id', salonId)
-        .single();
-      if (error) throw error;
+      const data = await apiClient.get<Record<string, unknown>>(`/salons/${salonId}`);
       return data;
     },
   });
@@ -58,14 +53,8 @@ export function BookingScreen() {
   const { data: services = [], isLoading: isServicesLoading } = useQuery<Service[]>({
     queryKey: ['salon-services', salonId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('services')
-        .select('*')
-        .eq('salon_id', salonId)
-        .eq('is_active', true)
-        .order('price', { ascending: true });
-      if (error) throw error;
-      return data as Service[];
+      const data = await apiClient.get<Service[]>(`/salons/${salonId}/services`);
+      return data;
     },
   });
 
@@ -73,12 +62,8 @@ export function BookingScreen() {
   const { data: staff = [] } = useQuery({
     queryKey: ['salon-staff', salonId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('salon_staff')
-        .select('*, profiles:profile_id (full_name, avatar_url)')
-        .eq('salon_id', salonId);
-      if (error) throw error;
-      return data ?? [];
+      const data = await apiClient.get<Record<string, unknown>[]>(`/salons/${salonId}/staff`);
+      return data;
     },
   });
 
@@ -164,7 +149,7 @@ export function BookingScreen() {
 
   const selectedBarber = useMemo(() => {
     if (!selectedBarberId) return null;
-    return staff.find((s: any) => s.id === selectedBarberId);
+    return staff.find((s: Record<string, unknown>) => s.id === selectedBarberId);
   }, [selectedBarberId, staff]);
 
   if (isSalonLoading || isServicesLoading) {
@@ -279,7 +264,7 @@ export function BookingScreen() {
             </TouchableOpacity>
 
             {/* Staff list */}
-            {staff.map((s: any) => (
+            {staff.map((s: Record<string, unknown>) => (
               <TouchableOpacity
                 key={s.id}
                 style={[

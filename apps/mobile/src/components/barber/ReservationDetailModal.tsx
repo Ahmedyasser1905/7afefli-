@@ -16,7 +16,7 @@ import { formatTime, formatDZD } from '@barberdz/shared/utils/formatters';
 interface ReservationDetailModalProps {
   visible: boolean;
   onClose: () => void;
-  reservation: any;
+  reservation: Record<string, unknown>;
   onCancel?: (id: string) => void;
 }
 

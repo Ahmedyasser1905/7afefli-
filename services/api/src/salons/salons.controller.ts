@@ -9,6 +9,7 @@ import {
   Body,
   Query,
   UseGuards,
+  Delete,
 } from '@nestjs/common';
 import { SalonsService } from './salons.service';
 import { CreateSalonDto } from './dto/create-salon.dto';
@@ -53,6 +54,16 @@ export class SalonsController {
   }
 
   /**
+   * GET /salons/my-salon
+   * Get salon for the authenticated owner
+   */
+  @Get('my-salon')
+  @UseGuards(SupabaseAuthGuard)
+  findMySalon(@CurrentUser() user: AuthenticatedUser) {
+    return this.salonsService.findByOwner(user.id);
+  }
+
+  /**
    * GET /salons/:id
    * Get full salon details with services, staff, portfolio.
    */
@@ -87,5 +98,70 @@ export class SalonsController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.salonsService.update(id, dto, user.id);
+  }
+
+  /**
+   * POST /salons/:id/staff
+   * Add a staff member
+   */
+  @Post(':id/staff')
+  @UseGuards(SupabaseAuthGuard)
+  addStaff(
+    @Param('id') id: string,
+    @Body() dto: { customName: string },
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.salonsService.addStaff(id, dto.customName, user.id);
+  }
+
+  @Get(':id/staff')
+  getStaff(@Param('id') id: string) {
+    return this.salonsService.getStaff(id);
+  }
+
+  @Delete(':id/staff/:staffId')
+  @UseGuards(SupabaseAuthGuard)
+  removeStaff(
+    @Param('id') id: string,
+    @Param('staffId') staffId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.salonsService.removeStaff(id, staffId, user.id);
+  }
+
+  @Patch(':id/staff/:staffId/avatar')
+  @UseGuards(SupabaseAuthGuard)
+  updateStaffAvatar(
+    @Param('id') id: string,
+    @Param('staffId') staffId: string,
+    @Body('avatarUrl') avatarUrl: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.salonsService.updateStaffAvatar(id, staffId, avatarUrl, user.id);
+  }
+
+  @Get(':id/portfolio')
+  getPortfolio(@Param('id') id: string) {
+    return this.salonsService.getPortfolio(id);
+  }
+
+  @Post(':id/portfolio')
+  @UseGuards(SupabaseAuthGuard)
+  addPortfolioPhoto(
+    @Param('id') id: string,
+    @Body('storagePath') storagePath: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.salonsService.addPortfolioPhoto(id, storagePath, user.id);
+  }
+
+  @Delete(':id/portfolio/:photoId')
+  @UseGuards(SupabaseAuthGuard)
+  removePortfolioPhoto(
+    @Param('id') id: string,
+    @Param('photoId') photoId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.salonsService.removePortfolioPhoto(id, photoId, user.id);
   }
 }

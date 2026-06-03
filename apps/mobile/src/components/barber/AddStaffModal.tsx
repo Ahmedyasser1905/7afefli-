@@ -13,6 +13,7 @@ import {
 import { supabase } from '../../lib/supabase';
 import { colors, radius, spacing } from '../../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
+import { apiClient } from '../../lib/apiClient';
 
 interface AddStaffModalProps {
   visible: boolean;
@@ -36,36 +37,16 @@ export function AddStaffModal({ visible, onClose, salonId, onSuccess }: AddStaff
     try {
       const fullName = `${firstName.trim()} ${lastName.trim()}`;
 
-      // Check if already a staff member by custom name
-      const { data: existing } = await supabase
-        .from('salon_staff')
-        .select('id')
-        .eq('salon_id', salonId)
-        .ilike('custom_name', fullName)
-        .limit(1);
-
-      if (existing && existing.length > 0) {
-        Alert.alert('Déjà ajouté', 'Ce barbier fait déjà partie de votre équipe.');
-        setLoading(false);
-        return;
-      }
-
-      // Add to salon_staff with null profile_id and the custom_name
-      const { error: insertError } = await supabase.from('salon_staff').insert({
-        salon_id: salonId,
-        profile_id: null,
-        custom_name: fullName,
-        role: 'barber',
+      await apiClient.post(`/salons/${salonId}/staff`, {
+        customName: fullName,
       });
-
-      if (insertError) throw insertError;
 
       Alert.alert('Succès', `${fullName} a été ajouté à votre équipe !`);
       onSuccess();
       setFirstName('');
       setLastName('');
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       Alert.alert('Erreur', err.message);
     } finally {
       setLoading(false);

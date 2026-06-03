@@ -39,9 +39,9 @@ export class SupabaseService implements OnModuleInit {
    */
   getClientForUser(accessToken: string): SupabaseClient {
     const supabaseUrl = this.configService.getOrThrow<string>('SUPABASE_URL');
-    const serviceRoleKey = this.configService.getOrThrow<string>('SUPABASE_SERVICE_ROLE_KEY');
+    const anonKey = this.configService.getOrThrow<string>('SUPABASE_ANON_KEY');
 
-    return createClient(supabaseUrl, serviceRoleKey, {
+    return createClient(supabaseUrl, anonKey, {
       auth: {
         autoRefreshToken: false,
         persistSession: false,

@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
+import { apiClient } from '../../lib/apiClient';
 import { useAuthStore } from '../../store/authStore';
 import { colors, spacing, radius, shadows } from '../../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
@@ -29,7 +30,7 @@ export function SettingsScreen() {
   const [pushEnabled, setPushEnabled] = useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = useState(true);
   const [selectedWilaya, setSelectedWilaya] = useState('Alger');
-  const [profileData, setProfileData] = useState<any>(null);
+  const [profileData, setProfileData] = useState<Record<string, unknown>>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isEditProfileVisible, setIsEditProfileVisible] = useState(false);
   const [isWilayaModalVisible, setIsWilayaModalVisible] = useState(false);
@@ -59,26 +60,7 @@ export function SettingsScreen() {
     async function loadProfile() {
       if (!user) return;
       try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-        
-        if (error) {
-          // Handle infinite recursion in RLS policy (42P17)
-          if (error.code === '42P17') {
-            console.warn('[Settings] RLS recursion on profiles — using defaults');
-            return;
-          }
-          // Handle expired token or auth errors
-          if (error.message?.includes('expired') || error.message?.includes('invalid')) {
-            console.warn('[Settings] Auth token issue — user may need to re-login');
-            return;
-          }
-          console.warn('[Settings] Error loading profile:', error.message);
-          return;
-        }
+        const data = await apiClient.get<Record<string, unknown>>('/auth/profiles/me');
         if (data) {
           setProfileData(data);
           if (data.wilaya) {
@@ -95,15 +77,7 @@ export function SettingsScreen() {
   const loadProfile = async () => {
     if (!user) return;
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-      if (error) {
-        if (error.code === '42P17') return;
-        return;
-      }
+      const data = await apiClient.get<Record<string, unknown>>('/auth/profiles/me');
       if (data) {
         setProfileData(data);
         if (data.wilaya) setSelectedWilaya(data.wilaya);
@@ -135,6 +109,28 @@ export function SettingsScreen() {
     );
   };
 
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Supprimer le compte',
+      'Cette action est irréversible. Toutes vos données, rendez-vous et historiques seront supprimés définitivement. Voulez-vous continuer ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer définitivement',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await apiClient.delete('/auth/me');
+              await supabase.auth.signOut();
+            } catch (error: unknown) {
+              Alert.alert('Erreur', error.message || 'Impossible de supprimer le compte.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const selectWilaya = async (w: string) => {
     const wilayaName = w.replace(/^\d+\s*-\s*/, '');
     setSelectedWilaya(wilayaName);
@@ -143,10 +139,7 @@ export function SettingsScreen() {
     if (user) {
       setIsUpdating(true);
       try {
-        await supabase
-          .from('profiles')
-          .update({ wilaya: wilayaName })
-          .eq('id', user.id);
+        await apiClient.patch('/auth/profiles/me', { wilaya: wilayaName });
       } catch (err) {
         console.error(err);
       } finally {
@@ -271,8 +264,14 @@ export function SettingsScreen() {
 
         {/* Logout Button */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.8}>
-          <Ionicons name="log-out-outline" size={20} color={colors.error} />
-          <Text style={styles.logoutText}>Se déconnecter</Text>
+          <Ionicons name="log-out-outline" size={20} color={colors.amber} />
+          <Text style={[styles.logoutText, { color: colors.amber }]}>Se déconnecter</Text>
+        </TouchableOpacity>
+
+        {/* Delete Account Button */}
+        <TouchableOpacity style={[styles.logoutButton, { marginTop: spacing.md, borderColor: 'rgba(239, 68, 68, 0.3)' }]} onPress={handleDeleteAccount} activeOpacity={0.8}>
+          <Ionicons name="trash-outline" size={20} color={colors.error} />
+          <Text style={styles.logoutText}>Supprimer le compte</Text>
         </TouchableOpacity>
 
         {/* Branding Footer */}

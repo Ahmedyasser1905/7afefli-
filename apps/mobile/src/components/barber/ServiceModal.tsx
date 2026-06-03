@@ -13,6 +13,7 @@ import {
 import { supabase } from '../../lib/supabase';
 import { colors, radius, spacing } from '../../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
+import { apiClient } from '../../lib/apiClient';
 
 interface ServiceModalProps {
   visible: boolean;
@@ -37,20 +38,16 @@ export function ServiceModal({ visible, onClose, salonId, onSuccess }: ServiceMo
 
     setLoading(true);
     try {
-      const { error } = await supabase.from('services').insert({
-        salon_id: salonId,
+      await apiClient.post(`/salons/${salonId}/services`, {
         service_name: form.service_name,
         price: parseInt(form.price),
         duration_minutes: parseInt(form.duration_minutes),
-        is_active: true,
       });
-
-      if (error) throw error;
       
       onSuccess();
       setForm({ service_name: '', price: '', duration_minutes: '30' });
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       Alert.alert('Erreur', err.message);
     } finally {
       setLoading(false);

@@ -17,7 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import * as Location from 'expo-location';
-import { supabase } from '../../lib/supabase';
+import { apiClient } from '../../lib/apiClient';
 import { colors, spacing, radius } from '../../theme';
 import { SalonCard } from '../../components/salon/SalonCard';
 import { SalonMapView } from '../../components/map/SalonMapView';
@@ -41,7 +41,7 @@ interface Coords {
 }
 
 export function ExploreScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<Record<string, unknown>>();
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [selectedWilaya, setSelectedWilaya] = useState('Toutes');
@@ -80,7 +80,7 @@ export function ExploreScreen() {
           // Algiers fallback
           setLocation({ latitude: 36.7538, longitude: 3.0588 });
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.warn('Location error:', err.message);
         // Algiers fallback
         setLocation({ latitude: 36.7538, longitude: 3.0588 });
@@ -98,19 +98,9 @@ export function ExploreScreen() {
   const { data: allSalons = [], isLoading, error: queryError, refetch } = useQuery<Salon[]>({
     queryKey: ['explore-salons'],
     queryFn: async () => {
-      console.log("Fetching explore salons...");
-      const { data, error } = await supabase
-        .from('salons')
-        .select('*')
-        .eq('is_approved', true)
-        .order('is_sponsored', { ascending: false })
-        .order('average_rating', { ascending: false });
-
-      if (error) {
-        console.error("Explore salons error:", error);
-        throw new Error(error.message);
-      }
-      return (data ?? []) as Salon[];
+      
+      const response = await apiClient.get<Record<string, unknown>>('/salons?limit=100');
+      return (response.data ?? []) as Salon[];
     },
     staleTime: 5 * 60 * 1000,
   });

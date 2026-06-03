@@ -28,7 +28,7 @@ export default function PhoneEntryScreen() {
   const setNeedsPhone = useAuthStore((s) => s.setNeedsPhone);
   const [phone, setPhone] = useState('');
 
-  console.log('[PhoneEntryScreen] Mounted/Rendered. User:', user?.id);
+  
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -64,7 +64,7 @@ export default function PhoneEntryScreen() {
 
       // Mark phone as done — navigate to main app
       setNeedsPhone(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       // Still proceed even if save fails
       setNeedsPhone(false);
