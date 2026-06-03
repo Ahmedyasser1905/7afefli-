@@ -173,4 +173,28 @@ export class AdminService {
     if (error) throw new Error(error.message);
     return data;
   }
+
+  async getAllReservations() {
+    const { data, error } = await this.supabase.adminClient
+      .from('reservations')
+      .select(`
+        *,
+        profiles!reservations_client_id_fkey(full_name, phone_number),
+        salons(name),
+        services(service_name, price)
+      `)
+      .order('appointment_date', { ascending: false })
+      .order('start_time', { ascending: false });
+    if (error) throw new Error(error.message);
+    return data;
+  }
+
+  async getAllSubscriptions() {
+    const { data, error } = await this.supabase.adminClient
+      .from('subscriptions')
+      .select('*, salons(name)')
+      .order('starts_at', { ascending: false });
+    if (error) throw new Error(error.message);
+    return data;
+  }
 }

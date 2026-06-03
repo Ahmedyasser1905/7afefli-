@@ -109,12 +109,13 @@ export default function SalonApprovalsPage() {
           <span style={styles.adminBadge}>Admin</span>
         </div>
         <nav style={styles.nav}>
-          <a href="/" style={styles.navLink}>📊 Dashboard</a>
+          <a href="/dashboard" style={styles.navLink}>📊 Dashboard</a>
           <a href="/salons" style={{ ...styles.navLink, ...styles.navLinkActive }}>
             🏪 Approbations
           </a>
+          <a href="/users" style={styles.navLink}>👥 Utilisateurs</a>
+          <a href="/reservations" style={styles.navLink}>📅 Réservations</a>
           <a href="/subscriptions" style={styles.navLink}>💳 Abonnements</a>
-          <a href="/sponsored" style={styles.navLink}>⭐ Sponsorisés</a>
         </nav>
       </aside>
 

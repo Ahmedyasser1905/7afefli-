@@ -11,7 +11,8 @@ coverage/
 oracleJdk-26/
 .idea/
 .vscode/
-apps/mobile/.expo/
 apps/mobile/node_modules/
 services/api/node_modules/
 services/api/dist/
+.next/
+apps/admin/.next/

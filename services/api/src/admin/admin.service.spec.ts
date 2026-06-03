@@ -101,4 +101,20 @@ describe('AdminService', () => {
       expect(res).toEqual({ totalRevenue: 150, totalPayments: 2 });
     });
   });
+
+  describe('getAllReservations', () => {
+    it('should return all reservations', async () => {
+      mockQueryBuilder.then.mockImplementationOnce((resolve: any) => resolve({ data: [{ id: 'res-1' }], error: null }));
+      const res = await service.getAllReservations();
+      expect(res).toEqual([{ id: 'res-1' }]);
+    });
+  });
+
+  describe('getAllSubscriptions', () => {
+    it('should return all subscriptions', async () => {
+      mockQueryBuilder.then.mockImplementationOnce((resolve: any) => resolve({ data: [{ id: 'sub-1' }], error: null }));
+      const res = await service.getAllSubscriptions();
+      expect(res).toEqual([{ id: 'sub-1' }]);
+    });
+  });
 });

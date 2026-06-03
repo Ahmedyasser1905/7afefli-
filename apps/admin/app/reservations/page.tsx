@@ -1,57 +1,67 @@
-// apps/admin/app/subscriptions/page.tsx
+// apps/admin/app/reservations/page.tsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 
-interface Subscription {
+interface Reservation {
   id: string;
-  salon_id: string;
-  plan: string;
+  appointment_date: string;
+  start_time: string;
+  end_time: string;
   status: string;
-  starts_at: string;
-  ends_at: string | null;
-  trial_ends_at: string | null;
+  notes: string | null;
+  client: {
+    full_name: string | null;
+    phone_number: string | null;
+  } | null;
   salons: {
     name: string;
   } | null;
+  services: {
+    service_name: string;
+    price: number;
+  } | null;
 }
 
-export default function AdminSubscriptionsPage() {
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+export default function AdminReservationsPage() {
+  const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchSubscriptions();
+    fetchReservations();
   }, []);
 
-  async function fetchSubscriptions() {
+  async function fetchReservations() {
     setLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/subscriptions`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/reservations`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
 
       if (res.ok) {
-        setSubscriptions(await res.json());
+        setReservations(await res.json());
       }
     } catch (e) {
-      console.error('Failed to fetch subscriptions:', e);
+      console.error('Failed to fetch reservations:', e);
     } finally {
       setLoading(false);
     }
   }
 
-  function formatDate(dateStr: string | null): string {
-    if (!dateStr) return '—';
+  function formatDate(dateStr: string): string {
     return new Date(dateStr).toLocaleDateString('fr-FR', {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
     });
+  }
+
+  function formatTime(timeStr: string): string {
+    return timeStr.substring(0, 5);
   }
 
   return (
@@ -67,10 +77,10 @@ export default function AdminSubscriptionsPage() {
           <a href="/dashboard" style={styles.navLink}>📊 Dashboard</a>
           <a href="/salons" style={styles.navLink}>🏪 Approbations</a>
           <a href="/users" style={styles.navLink}>👥 Utilisateurs</a>
-          <a href="/reservations" style={styles.navLink}>📅 Réservations</a>
-          <a href="/subscriptions" style={{ ...styles.navLink, ...styles.navLinkActive }}>
-            💳 Abonnements
+          <a href="/reservations" style={{ ...styles.navLink, ...styles.navLinkActive }}>
+            📅 Réservations
           </a>
+          <a href="/subscriptions" style={styles.navLink}>💳 Abonnements</a>
         </nav>
       </aside>
 
@@ -78,12 +88,12 @@ export default function AdminSubscriptionsPage() {
       <main style={styles.main}>
         <div style={styles.headerRow}>
           <div>
-            <h2 style={styles.pageTitle}>Gestion des Abonnements</h2>
+            <h2 style={styles.pageTitle}>Gestion des Réservations</h2>
             <p style={styles.pageSubtitle}>
-              Suivi des formules souscrites par les salons partenaires
+              {reservations.length} réservation{reservations.length !== 1 ? 's' : ''} enregistrée{reservations.length !== 1 ? 's' : ''}
             </p>
           </div>
-          <button onClick={fetchSubscriptions} style={styles.refreshBtn}>
+          <button onClick={fetchReservations} style={styles.refreshBtn}>
             🔄 Actualiser
           </button>
         </div>
@@ -91,7 +101,7 @@ export default function AdminSubscriptionsPage() {
         {loading ? (
           <div style={styles.loadingContainer}>
             <div style={styles.spinner} />
-            <p style={styles.loadingText}>Chargement des abonnements...</p>
+            <p style={styles.loadingText}>Chargement des réservations...</p>
           </div>
         ) : (
           <div style={styles.tableContainer}>
@@ -99,56 +109,59 @@ export default function AdminSubscriptionsPage() {
               <thead>
                 <tr>
                   <th style={styles.th}>Salon</th>
-                  <th style={styles.th}>Formule</th>
+                  <th style={styles.th}>Client</th>
+                  <th style={styles.th}>Service</th>
+                  <th style={styles.th}>Date & Heure</th>
+                  <th style={styles.th}>Tarif</th>
                   <th style={styles.th}>Statut</th>
-                  <th style={styles.th}>Date de début</th>
-                  <th style={styles.th}>Fin d'essai gratuit</th>
-                  <th style={styles.th}>Fin d'abonnement</th>
                 </tr>
               </thead>
               <tbody>
-                {subscriptions.length === 0 ? (
+                {reservations.length === 0 ? (
                   <tr>
                     <td colSpan={6} style={{ ...styles.td, textAlign: 'center', color: '#9A9A9A' }}>
-                      Aucun abonnement enregistré.
+                      Aucune réservation enregistrée.
                     </td>
                   </tr>
                 ) : (
-                  subscriptions.map((sub) => (
-                    <tr key={sub.id} style={styles.tr}>
+                  reservations.map((res) => (
+                    <tr key={res.id} style={styles.tr}>
                       <td style={styles.td}>
-                        <div style={styles.salonName}>{sub.salons?.name ?? 'Salon Inconnu'}</div>
-                        <div style={styles.salonId}>{sub.salon_id}</div>
+                        <div style={styles.salonName}>{res.salons?.name ?? '—'}</div>
                       </td>
                       <td style={styles.td}>
-                        <span style={styles.planText}>✨ Plan {sub.plan}</span>
+                        <div style={styles.clientName}>{res.client?.full_name ?? 'Client de passage'}</div>
+                        <div style={styles.clientPhone}>{res.client?.phone_number ?? '—'}</div>
+                      </td>
+                      <td style={styles.td}>
+                        <span style={styles.serviceText}>{res.services?.service_name ?? '—'}</span>
+                      </td>
+                      <td style={styles.td}>
+                        <div style={styles.dateText}>{formatDate(res.appointment_date)}</div>
+                        <div style={styles.timeText}>
+                          ⏱️ {formatTime(res.start_time)} – {formatTime(res.end_time)}
+                        </div>
+                      </td>
+                      <td style={styles.td}>
+                        <span style={styles.priceText}>
+                          {res.services?.price ? `${res.services.price} DZD` : '—'}
+                        </span>
                       </td>
                       <td style={styles.td}>
                         <span
                           style={{
                             ...styles.statusBadge,
-                            ...(sub.status === 'Active'
-                              ? styles.badgeActive
-                              : sub.status === 'Trial'
-                              ? styles.badgeTrial
-                              : styles.badgeExpired),
+                            ...(res.status === 'Confirmed'
+                              ? styles.badgeConfirmed
+                              : res.status === 'Pending'
+                              ? styles.badgePending
+                              : res.status === 'Cancelled'
+                              ? styles.badgeCancelled
+                              : styles.badgeCompleted),
                           }}
                         >
-                          {sub.status === 'Active'
-                            ? 'Actif'
-                            : sub.status === 'Trial'
-                            ? 'Essai'
-                            : 'Expiré'}
+                          {res.status}
                         </span>
-                      </td>
-                      <td style={styles.td}>
-                        <span style={styles.dateText}>{formatDate(sub.starts_at)}</span>
-                      </td>
-                      <td style={styles.td}>
-                        <span style={styles.dateText}>{formatDate(sub.trial_ends_at)}</span>
-                      </td>
-                      <td style={styles.td}>
-                        <span style={styles.dateText}>{formatDate(sub.ends_at)}</span>
                       </td>
                     </tr>
                   ))
@@ -282,19 +295,28 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 600,
     color: '#F5F5F5',
   },
-  salonId: {
-    fontSize: 10,
-    color: '#5A5A5A',
-    fontFamily: 'monospace',
+  clientName: {
+    fontWeight: 500,
+  },
+  clientPhone: {
+    fontSize: 12,
+    color: '#9A9A9A',
     marginTop: 2,
   },
-  planText: {
-    color: '#E8A020',
-    fontWeight: 600,
+  serviceText: {
+    color: '#F5F5F5',
   },
   dateText: {
+    fontWeight: 500,
+  },
+  timeText: {
+    fontSize: 12,
     color: '#9A9A9A',
-    fontSize: 13,
+    marginTop: 2,
+  },
+  priceText: {
+    color: '#2ECC71',
+    fontWeight: 600,
   },
   statusBadge: {
     display: 'inline-block',
@@ -304,17 +326,21 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 600,
     textTransform: 'uppercase',
   },
-  badgeActive: {
+  badgeConfirmed: {
     backgroundColor: 'rgba(46, 204, 113, 0.15)',
     color: '#2ECC71',
   },
-  badgeTrial: {
-    backgroundColor: 'rgba(52, 152, 219, 0.15)',
-    color: '#3498DB',
+  badgePending: {
+    backgroundColor: 'rgba(232, 160, 32, 0.15)',
+    color: '#E8A020',
   },
-  badgeExpired: {
+  badgeCancelled: {
     backgroundColor: 'rgba(231, 76, 60, 0.15)',
     color: '#E74C3C',
+  },
+  badgeCompleted: {
+    backgroundColor: 'rgba(154, 154, 154, 0.15)',
+    color: '#9A9A9A',
   },
   loadingContainer: {
     display: 'flex',

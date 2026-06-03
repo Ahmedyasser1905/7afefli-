@@ -13,6 +13,8 @@ const mockService = {
   getAuditLogs: jest.fn().mockResolvedValue([]),
   exportAuditLogsCsv: jest.fn().mockResolvedValue(''),
   getRevenueStats: jest.fn().mockResolvedValue({}),
+  getAllReservations: jest.fn().mockResolvedValue([]),
+  getAllSubscriptions: jest.fn().mockResolvedValue([]),
 };
 
 describe('AdminController', () => {
@@ -75,5 +77,13 @@ describe('AdminController', () => {
 
   it('should call getRevenueStats', async () => {
     expect(await controller.getRevenueStats()).toEqual({});
+  });
+
+  it('should call getAllReservations', async () => {
+    expect(await controller.getAllReservations()).toEqual([]);
+  });
+
+  it('should call getAllSubscriptions', async () => {
+    expect(await controller.getAllSubscriptions()).toEqual([]);
   });
 });

@@ -89,4 +89,14 @@ export class AdminController {
   getRevenueStats() {
     return this.adminService.getRevenueStats();
   }
+
+  @Get('reservations')
+  getAllReservations() {
+    return this.adminService.getAllReservations();
+  }
+
+  @Get('subscriptions')
+  getAllSubscriptions() {
+    return this.adminService.getAllSubscriptions();
+  }
 }
