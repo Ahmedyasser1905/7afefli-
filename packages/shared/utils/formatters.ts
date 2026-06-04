@@ -55,7 +55,8 @@ export function formatDateShort(dateStr: string): string {
  * Format a time string to 24h display.
  * @example formatTime('09:00:00') → "09:00"
  */
-export function formatTime(time: string): string {
+export function formatTime(time: string | null | undefined): string {
+  if (!time || typeof time !== 'string') return '--:--';
   return time.substring(0, 5);
 }
 

@@ -288,7 +288,7 @@ export function DashboardScreen() {
               {service?.service_name || 'Service'} • {item.salon_staff ? (item.salon_staff.custom_name || item.salon_staff.profiles?.full_name) : 'N\'importe quel coiffeur'}
             </Text>
             <Text style={styles.bookingTime}>
-              ⏱️ {formatTime(item.start_time)} – {formatTime(item.end_time)}
+              ⏱️ {formatTime(item.start_time as string)} – {formatTime(item.end_time as string)}
             </Text>
           </View>
         </View>
