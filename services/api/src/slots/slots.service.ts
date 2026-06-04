@@ -59,7 +59,7 @@ export class SlotsService {
         .eq('salon_id', salonId),
       this.supabase.adminClient
         .from('reservations')
-        .select('start_time, end_time, staff_id, barber_id')
+        .select('start_time, end_time, staff_id, barber_id, notes')
         .eq('salon_id', salonId)
         .eq('appointment_date', date)
         .in('status', ['Pending', 'Confirmed']),
@@ -130,23 +130,32 @@ export class SlotsService {
         return slotStart < bs && se > bookedStart;
       };
 
+      // Helper: does a reservation belong to the target barber?
+      const isTargetBarber = (booked: { staff_id: string | null; barber_id: string | null }) =>
+        (targetStaffId   && booked.staff_id  === targetStaffId)  ||
+        (targetProfileId && booked.barber_id === targetProfileId) ||
+        booked.staff_id  === barberId ||
+        booked.barber_id === barberId;
+
       let isAvailable = true;
+
+      // ── PRIORITY RULE: CRÉNEAU BLOQUÉ ──
+      // A blocked time created by the barber overrides everything.
+      // In Mode A: blocked for the exact barber → slot unavailable.
+      // In Mode B: if ANY barber in the salon has a block here,
+      //            reduce available capacity by one (same counting as a regular booking).
+      const blockedSlots = bookedSlots.filter(
+        (b): b is typeof b & { notes: string } =>
+          typeof (b as Record<string, unknown>).notes === 'string' &&
+          ((b as Record<string, unknown>).notes as string).includes('CRÉNEAU BLOQUÉ')
+      );
 
       if (barberId) {
         // ── MODE A: Client chose a specific barber ──
-        // Block only if THAT barber already has a reservation overlapping this slot.
-        // A reservation belongs to the target barber if:
-        //   • its staff_id matches the barber's salon_staff.id (targetStaffId), OR
-        //   • its barber_id matches the barber's profile_id (targetProfileId), OR
-        //   • it matches the raw barberId string (fallback for legacy data)
+        // Block if THAT barber has a normal reservation OR a CRÉNEAU BLOQUÉ overlapping this slot.
         const isTargetBarberBusy = bookedSlots.some(booked => {
           if (!doesOverlap(booked)) return false;
-          return (
-            (targetStaffId   && booked.staff_id  === targetStaffId)  ||
-            (targetProfileId && booked.barber_id === targetProfileId) ||
-            booked.staff_id  === barberId ||
-            booked.barber_id === barberId
-          );
+          return isTargetBarber(booked);
         });
 
         if (isTargetBarberBusy) {
@@ -154,13 +163,11 @@ export class SlotsService {
         }
       } else {
         // ── MODE B: No specific barber (any available barber) ──
-        // Count how many DISTINCT barbers are occupied at this slot.
-        // Each barber can only serve one client at a time.
-        // If all N barbers are busy → slot blocked.
+        // Count distinct barbers occupied at this slot.
+        // CRÉNEAU BLOQUÉ counts as that barber being fully occupied.
         const busyBarbers = new Set<string>();
         for (const booked of bookedSlots) {
           if (!doesOverlap(booked)) continue;
-          // Track by staff_id (most reliable), fall back to barber_id
           if (booked.staff_id) {
             busyBarbers.add(booked.staff_id);
           } else if (booked.barber_id) {
@@ -169,6 +176,12 @@ export class SlotsService {
             // Unassigned reservation — still consumes one barber slot
             busyBarbers.add(`unassigned-${booked.start_time}`);
           }
+        }
+        // Also add any blocked barbers (they are fully unavailable during their block)
+        for (const blocked of blockedSlots) {
+          if (!doesOverlap(blocked)) continue;
+          if (blocked.staff_id) busyBarbers.add(blocked.staff_id);
+          else if (blocked.barber_id) busyBarbers.add(blocked.barber_id);
         }
 
         if (busyBarbers.size >= N) {

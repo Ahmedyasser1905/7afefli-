@@ -176,6 +176,13 @@ export class ReservationsService {
 
   /**
    * Block a time slot (Coiffeur only).
+   *
+   * Uses a DIRECT INSERT (not the conflict-checking RPC) so that:
+   *   - Existing reservations during that time are PRESERVED (not cancelled).
+   *   - The block is always created regardless of existing bookings.
+   *   - The block prevents NEW client reservations because the slots service
+   *     marks any slot overlapping a 'Confirmed' reservation for that barber
+   *     as unavailable.
    */
   async blockTime(
     salonId: string,
@@ -194,36 +201,31 @@ export class ReservationsService {
 
     const staffId = staff?.id || null;
 
-    const { data, error } = await this.supabase.adminClient.rpc(
-      'create_reservation_safe',
-      {
-        p_client_id: barberId,
-        p_salon_id: salonId,
-        p_service_id: null,
-        p_barber_id: barberId,
-        p_appointment_date: appointmentDate,
-        p_start_time: startTime,
-        p_end_time: endTime,
-        p_notes: 'CRÉNEAU BLOQUÉ',
-        p_client_phone: null,
-        p_staff_id: staffId,
-      }
-    );
+    // Direct INSERT — bypasses the advisory-lock RPC so existing reservations
+    // during this window are left intact. The admin client uses the service role
+    // which can always write to the table.
+    const { data, error } = await this.supabase.adminClient
+      .from('reservations')
+      .insert({
+        client_id:        barberId,
+        salon_id:         salonId,
+        service_id:       null,
+        barber_id:        barberId,
+        staff_id:         staffId,
+        appointment_date: appointmentDate,
+        start_time:       startTime,
+        end_time:         endTime,
+        notes:            'CRÉNEAU BLOQUÉ',
+        status:           'Confirmed',
+        client_phone:     null,
+      })
+      .select()
+      .single();
 
     if (error) {
-      if (error.message?.includes('booked') || error.code === 'P0001') {
-        throw new ConflictException(
-          'This time slot is no longer available or conflicts with another reservation.',
-        );
-      }
+      this.logger.error(`blockTime insert failed: ${error.message}`);
       throw new Error(`Failed to block time: ${error.message}`);
     }
-
-    // Auto-confirm the blocked time
-    await this.supabase.adminClient
-      .from('reservations')
-      .update({ status: 'Confirmed' })
-      .eq('id', data.id);
 
     // Invalidate slot cache for all services in the salon at this date/barber
     await this.invalidateSlotsCache(salonId, null, appointmentDate, barberId);
