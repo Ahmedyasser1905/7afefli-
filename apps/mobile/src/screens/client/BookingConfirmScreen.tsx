@@ -11,7 +11,7 @@ import {
   Easing,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRoute, useNavigation, CommonActions } from '@react-navigation/native';
+import { useRoute, useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../lib/apiClient';
 import { colors, spacing, radius } from '../../theme';
@@ -64,8 +64,8 @@ export function BookingConfirmScreen() {
     enabled: !!reservationId,
   });
 
-  const salon = (reservation as Record<string, unknown>)?.salons;
-  const service = (reservation as Record<string, unknown>)?.services;
+  const salon   = (reservation as Record<string, unknown>)?.salons ?? (reservation as Record<string, unknown>)?.salon;
+  const service = (reservation as Record<string, unknown>)?.services ?? (reservation as Record<string, unknown>)?.service;
 
   const handleGoHome = () => {
     // Reset current stack (Home or Explore) to its first screen
@@ -193,9 +193,13 @@ export function BookingConfirmScreen() {
                 <View style={styles.statusBadge}>
                   <View style={styles.statusDot} />
                   <Text style={styles.statusText}>
-                    {reservation.status === 'Confirmed'
-                      ? 'Confirmé'
-                      : 'En attente de confirmation'}
+                    {({
+                        Confirmed: 'Confirmé',
+                        Pending:   'En attente de confirmation',
+                        Cancelled: 'Annulé',
+                        Completed: 'Terminé',
+                      } as Record<string, string>)[reservation.status as string]
+                      ?? 'En attente de confirmation'}
                   </Text>
                 </View>
               </View>

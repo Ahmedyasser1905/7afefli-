@@ -98,8 +98,8 @@ export function HomeScreen() {
   const { data: allSalonsForMap = [] } = useQuery<Salon[]>({
     queryKey: ['all-salons-map'],
     queryFn: async () => {
-      const response = await apiClient.get<Record<string, unknown>>('/salons?limit=100');
-      return (response.data ?? []) as Salon[];
+      const data = await apiClient.get<Salon[]>('/salons?limit=100');
+      return data ?? [];
     },
     staleTime: 5 * 60 * 1000,
   });

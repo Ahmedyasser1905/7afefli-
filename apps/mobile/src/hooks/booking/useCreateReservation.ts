@@ -32,6 +32,7 @@ export function useCreateReservation() {
           barberId: params.staffId ?? undefined,
           appointmentDate: params.appointmentDate,
           startTime: params.startTime,
+          endTime: params.endTime,
           notes: params.notes,
           clientPhone: params.clientPhone,
         });
@@ -48,6 +49,7 @@ export function useCreateReservation() {
               barberId: params.staffId ?? undefined,
               appointmentDate: params.appointmentDate,
               startTime: params.startTime,
+              endTime: params.endTime,
               notes: params.notes,
             });
 

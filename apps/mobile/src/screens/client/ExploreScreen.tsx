@@ -96,9 +96,8 @@ export function ExploreScreen() {
   const { data: allSalons = [], isLoading, error: queryError, refetch } = useQuery<Salon[]>({
     queryKey: ['explore-salons'],
     queryFn: async () => {
-      
-      const response = await apiClient.get<Record<string, unknown>>('/salons?limit=100');
-      return (response.data ?? []) as Salon[];
+      const data = await apiClient.get<Salon[]>('/salons?limit=100');
+      return data ?? [];
     },
     staleTime: 5 * 60 * 1000,
   });

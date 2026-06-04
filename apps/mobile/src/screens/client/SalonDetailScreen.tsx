@@ -51,7 +51,7 @@ export function SalonDetailScreen() {
   const { data: photos = [] } = useQuery<PortfolioPhoto[]>({
     queryKey: ['salon-portfolio', salonId],
     queryFn: async () => {
-      return apiClient.get<PortfolioPhoto[]>(`/salons/${salonId}/portfolio`);
+      return await apiClient.get<PortfolioPhoto[]>(`/salons/${salonId}/portfolio`);
     },
     staleTime: 3 * 60 * 1000,
   });
@@ -181,7 +181,7 @@ export function SalonDetailScreen() {
               <View style={[styles.statusBadge, isOpen ? styles.statusBadgeOpen : styles.statusBadgeClosed]}>
                 <View style={[styles.statusDot, isOpen ? styles.dotGreen : styles.dotRed]} />
                 <Text style={[styles.statusText, isOpen ? styles.textGreen : styles.textRed]}>
-                  {isOpen ? `Ouvert - ${salon.close_time.substring(0, 5)}` : (salon.force_closed ? 'Fermé exceptionnellement' : 'Fermé')}
+                  {isOpen ? `Ouvert • Ferme à ${closeTimeStr}` : (salon.force_closed ? 'Fermé exceptionnellement' : 'Fermé')}
                 </Text>
               </View>
             </View>
