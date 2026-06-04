@@ -100,8 +100,8 @@ export function useAvailableSlots({
     // Only run if all required params are present
     enabled: Boolean(salonId && serviceId && date && durationMin > 0),
 
-    // Refetch every 60 seconds to catch bookings by other users
-    refetchInterval: 60 * 1000,
+    // Refetch every 30 seconds to pick up blocks and new bookings faster
+    refetchInterval: 30 * 1000,
 
     // Keep stale data visible while refetching (no flash of empty state)
     placeholderData: (prev) => prev,

@@ -197,7 +197,7 @@ export class SlotsService {
       return { ...slot, isAvailable };
     });
 
-    await this.cacheManager.set(cacheKey, finalSlots, 60 * 1000); // Cache for 60 seconds
+    await this.cacheManager.set(cacheKey, finalSlots, 30 * 1000); // Cache for 30 seconds
 
     return finalSlots;
   }
