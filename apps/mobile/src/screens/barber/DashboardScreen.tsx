@@ -137,7 +137,17 @@ export function DashboardScreen() {
     const nowStr = getNowStr();
     return realBookings.filter((r) => {
       const endTime = (r.end_time ?? '').slice(0, 5);
-      const isExpiredConfirmed = endTime && endTime < nowStr && r.status === 'Confirmed';
+      const apptDate = r.appointment_date as string ?? '';
+      const todayDate = today();
+      // Expired = past date OR (today + end_time has passed)
+      const isExpiredConfirmed = r.status === 'Confirmed' && (
+        apptDate < todayDate ||
+        (apptDate === todayDate && endTime && endTime < nowStr)
+      );
+      const isExpiredPending = r.status === 'Pending' && (
+        apptDate < todayDate ||
+        (apptDate === todayDate && endTime && endTime < nowStr)
+      );
 
       switch (selectedFilter) {
         case 'all':
@@ -146,7 +156,7 @@ export function DashboardScreen() {
         case 'Confirmed':
           return r.status === 'Confirmed' && !isExpiredConfirmed;
         case 'Pending':
-          return r.status === 'Pending';
+          return r.status === 'Pending' && !isExpiredPending;
         case 'Cancelled':
           return r.status === 'Cancelled';
         case 'Completed':
@@ -495,14 +505,23 @@ export function DashboardScreen() {
     const client = item.profiles;
     const service = item.services;
 
-    // Client-side expired check: if end_time passed but server hasn't updated yet
+    // Client-side expired check — uses date too (fixes midnight edge case)
     const nowAlg = new Date(Date.now() + 60 * 60 * 1000);
     const nowStr = `${String(nowAlg.getUTCHours()).padStart(2, '0')}:${String(nowAlg.getUTCMinutes()).padStart(2, '0')}`;
-    const endTime = (item.end_time as string ?? '').slice(0, 5);
-    const isExpiredConfirmed = endTime && endTime < nowStr && item.status === 'Confirmed';
+    const endTime  = (item.end_time as string ?? '').slice(0, 5);
+    const apptDate = (item.appointment_date as string ?? '');
+    const todayDate = today();
+    const isExpired = (
+      apptDate < todayDate ||  // reservation is from a past date
+      (apptDate === todayDate && endTime && endTime < nowStr) // today + time passed
+    );
+    const isExpiredConfirmed = isExpired && item.status === 'Confirmed';
+    const isExpiredPending   = isExpired && item.status === 'Pending';
 
-    // Effective status for display — override Confirmed→Completed if time has passed
-    const effectiveStatus = isExpiredConfirmed ? 'Completed' : item.status;
+    // Effective status for display
+    const effectiveStatus = isExpiredConfirmed ? 'Completed'
+      : isExpiredPending ? 'Cancelled'
+      : item.status;
 
     const isPending   = effectiveStatus === 'Pending';
     const isConfirmed = effectiveStatus === 'Confirmed';
