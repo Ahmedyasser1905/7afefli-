@@ -1,7 +1,7 @@
 // apps/mobile/src/screens/barber/DashboardScreen.tsx
 // Barber's first screen — today's stats + live booking feed
 
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -76,20 +76,6 @@ export function DashboardScreen() {
     );
   }, [todaysBookings]);
 
-  // Current Algeria time (UTC+1) — updated every minute so past reservations auto-hide
-  const [nowTimeStr, setNowTimeStr] = useState(() => {
-    const t = new Date(Date.now() + 60 * 60 * 1000);
-    return `${String(t.getUTCHours()).padStart(2, '0')}:${String(t.getUTCMinutes()).padStart(2, '0')}`;
-  });
-  useEffect(() => {
-    const tick = () => {
-      const t = new Date(Date.now() + 60 * 60 * 1000);
-      setNowTimeStr(`${String(t.getUTCHours()).padStart(2, '0')}:${String(t.getUTCMinutes()).padStart(2, '0')}`);
-    };
-    const interval = setInterval(tick, 60_000); // refresh every minute
-    return () => clearInterval(interval);
-  }, []);
-
   const blockedItems = useMemo(
     () => allItems.filter((r) => (r as any).notes?.includes('CRÉNEAU BLOQUÉ')),
     [allItems],
@@ -99,13 +85,11 @@ export function DashboardScreen() {
     () =>
       allItems.filter((r) => {
         if ((r as any).notes?.includes('CRÉNEAU BLOQUÉ')) return false;
+        // Hide Completed and Cancelled — backend auto-updates these on fetch
         if (r.status === 'Completed' || r.status === 'Cancelled') return false;
-        // Hide reservations whose end_time has already passed — no action needed
-        const endTime = (r.end_time ?? '').slice(0, 5); // "HH:MM"
-        if (endTime && endTime < nowTimeStr) return false;
         return true;
       }),
-    [allItems, nowTimeStr],
+    [allItems],
   );
 
   // Combine for FlatList: active bookings first, then blocked slots at the bottom
@@ -129,6 +113,7 @@ export function DashboardScreen() {
       }, 0);
     return { total: active.length, pending: pending.length, revenue };
   }, [allItems]);
+
 
   // Update status mutation
   const updateStatus = useMutation({
