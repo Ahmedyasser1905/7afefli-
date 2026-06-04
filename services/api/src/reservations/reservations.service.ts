@@ -213,6 +213,25 @@ export class ReservationsService {
       .maybeSingle();
     fallbackServiceId = anyService?.id ?? null;
 
+    // Check if this time window is already blocked by this barber
+    const { data: existingBlock } = await this.supabase.adminClient
+      .from('reservations')
+      .select('id, start_time, end_time')
+      .eq('salon_id', salonId)
+      .eq('appointment_date', appointmentDate)
+      .eq('status', 'Confirmed')
+      .ilike('notes', '%NEAU BLOQU%')
+      .or(`barber_id.eq.${barberId}${staffId ? `,staff_id.eq.${staffId}` : ''}`)
+      .lt('start_time', endTime)
+      .gt('end_time', startTime)
+      .maybeSingle();
+
+    if (existingBlock) {
+      throw new ConflictException(
+        `Ce créneau est déjà bloqué (${existingBlock.start_time?.slice(0,5)} – ${existingBlock.end_time?.slice(0,5)}). Débloquez-le d'abord si nécessaire.`
+      );
+    }
+
     const { data, error } = await this.supabase.adminClient
       .from('reservations')
       .insert({
@@ -233,8 +252,14 @@ export class ReservationsService {
 
     if (error) {
       this.logger.error(`blockTime insert failed: ${error.message} | code: ${error.code}`);
-      // Throw BadRequestException so the real DB error reaches the client
-      throw new BadRequestException(`Impossible de bloquer ce créneau: ${error.message}`);
+      // Parse the DB trigger error message to give a cleaner response
+      const msg = error.message || '';
+      if (msg.toLowerCase().includes('booking_conflict') || msg.toLowerCase().includes('r\u00e9serv\u00e9')) {
+        throw new ConflictException(
+          'Ce créneau a une réservation client active. Impossible de le bloquer pendant qu\'un client est réservé.'
+        );
+      }
+      throw new BadRequestException(`Impossible de bloquer ce créneau: ${msg}`);
     }
 
     // Invalidate slot cache for all services in the salon at this date/barber
