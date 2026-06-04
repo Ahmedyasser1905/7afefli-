@@ -76,6 +76,12 @@ export function DashboardScreen() {
     );
   }, [todaysBookings]);
 
+  // Current Algeria time (UTC+1) in "HH:MM" — used to hide past reservations instantly
+  const nowTimeStr = useMemo(() => {
+    const algeriaTime = new Date(Date.now() + 60 * 60 * 1000);
+    return `${String(algeriaTime.getUTCHours()).padStart(2, '0')}:${String(algeriaTime.getUTCMinutes()).padStart(2, '0')}`;
+  }, []); // computed once on mount; dashboard is for TODAY so this is fine
+
   const blockedItems = useMemo(
     () => allItems.filter((r) => (r as any).notes?.includes('CRÉNEAU BLOQUÉ')),
     [allItems],
@@ -83,15 +89,18 @@ export function DashboardScreen() {
 
   const bookingItems = useMemo(
     () =>
-      allItems.filter(
-        (r) =>
-          !(r as any).notes?.includes('CRÉNEAU BLOQUÉ') &&
-          r.status !== 'Completed', // hide completed — they're done, no action needed
-      ),
-    [allItems],
+      allItems.filter((r) => {
+        if ((r as any).notes?.includes('CRÉNEAU BLOQUÉ')) return false;
+        if (r.status === 'Completed' || r.status === 'Cancelled') return false;
+        // Hide reservations whose end_time has already passed — no action needed
+        const endTime = (r.end_time ?? '').slice(0, 5); // "HH:MM"
+        if (endTime && endTime < nowTimeStr) return false;
+        return true;
+      }),
+    [allItems, nowTimeStr],
   );
 
-  // Combine for FlatList: real bookings first, then blocked slots at the bottom
+  // Combine for FlatList: active bookings first, then blocked slots at the bottom
   const listData = useMemo(() => [
     ...bookingItems.map(item => ({ ...item, _type: 'booking' as const })),
     ...(blockedItems.length > 0 ? [{ _type: 'blocked-header' as const, id: '__blocked_header__' }] : []),
