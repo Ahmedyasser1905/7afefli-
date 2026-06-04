@@ -232,8 +232,9 @@ export class ReservationsService {
       .single();
 
     if (error) {
-      this.logger.error(`blockTime insert failed: ${error.message}`);
-      throw new Error(`Failed to block time: ${error.message}`);
+      this.logger.error(`blockTime insert failed: ${error.message} | code: ${error.code}`);
+      // Throw BadRequestException so the real DB error reaches the client
+      throw new BadRequestException(`Impossible de bloquer ce créneau: ${error.message}`);
     }
 
     // Invalidate slot cache for all services in the salon at this date/barber
