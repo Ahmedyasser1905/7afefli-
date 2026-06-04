@@ -156,20 +156,25 @@ export class SlotsService {
 
       let isAvailable = true;
 
-      if (barberId) {
-        // ── MODE A: Client chose a specific barber ──
-        // Block if THAT barber has a normal reservation OR a CRÉNEAU BLOQUÉ overlapping this slot.
+      // ── PRIORITÉ ABSOLUE : CRÉNEAU BLOQUÉ = SALON ENTIER FERMÉ ──────────
+      // Si N'IMPORTE QUEL barbier a bloqué ce créneau → tout le salon est fermé.
+      // Aucun client ne peut réserver avec aucun barbier pendant cette période.
+      const hasSalonBlock = blockedSlots.some(b => doesOverlap(b));
+      if (hasSalonBlock) {
+        isAvailable = false;
+      } else if (barberId) {
+        // ── MODE A: Client a choisi un barbier spécifique ──
+        // Vérifie que CE barbier n'a pas de réservation ou bloc qui chevauche ce créneau.
         const isTargetBarberBusy = bookedSlots.some(booked => {
           if (!doesOverlap(booked)) return false;
           return isTargetBarber(booked);
         });
-
         if (isTargetBarberBusy) {
           isAvailable = false;
         }
       } else {
-        // ── MODE B: No specific barber (any available barber) ──
-        // Count distinct barbers occupied at this slot.
+        // ── MODE B: N'importe quel barbier disponible ──
+        // Compte les barbiers occupés vs total.
         const busyBarbers = new Set<string>();
         for (const booked of bookedSlots) {
           if (!doesOverlap(booked)) continue;
@@ -181,20 +186,12 @@ export class SlotsService {
             busyBarbers.add(`unassigned-${booked.start_time}`);
           }
         }
-        // CRÉNEAU BLOQUÉ: explicitly add blocked barbers (already in bookedSlots above
-        // but make sure blocks are counted even with null staff_id)
-        for (const blocked of blockedSlots) {
-          if (!doesOverlap(blocked)) continue;
-          if (blocked.staff_id) busyBarbers.add(blocked.staff_id);
-          else if (blocked.barber_id) busyBarbers.add((blocked as Record<string, unknown>).barber_id as string);
-        }
-
         if (busyBarbers.size >= N) {
           isAvailable = false;
         }
       }
 
-      // Block past slots for today (skip in barber walk-in mode)
+      // Bloquer les créneaux passés pour aujourd'hui
       if (isAvailable && date === currentDateStr && slot.startTime <= currentTimeStr) {
         isAvailable = false;
       }
