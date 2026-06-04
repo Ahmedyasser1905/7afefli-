@@ -301,11 +301,33 @@ export class ReservationsService {
 
     return { success: true, message: 'Créneau débloqué avec succès' };
   }
-
   /**
    * Get all reservations for the authenticated client.
    */
   async findByClient(clientId: string) {
+    // Auto-complete past reservations for this client (Algeria UTC+1)
+    const algeriaOffset = 60;
+    const nowAlgeria  = new Date(Date.now() + algeriaOffset * 60 * 1000);
+    const todayStr    = nowAlgeria.toISOString().split('T')[0];
+    const currentTime = `${String(nowAlgeria.getUTCHours()).padStart(2, '0')}:${String(nowAlgeria.getUTCMinutes()).padStart(2, '0')}`;
+
+    await this.supabase.adminClient
+      .from('reservations')
+      .update({ status: 'Completed' })
+      .eq('client_id', clientId)
+      .in('status', ['Confirmed', 'Pending'])
+      .not('notes', 'ilike', '%NEAU BLOQU%')
+      .lt('appointment_date', todayStr);
+
+    await this.supabase.adminClient
+      .from('reservations')
+      .update({ status: 'Completed' })
+      .eq('client_id', clientId)
+      .in('status', ['Confirmed', 'Pending'])
+      .not('notes', 'ilike', '%NEAU BLOQU%')
+      .eq('appointment_date', todayStr)
+      .lt('end_time', currentTime);
+
     const { data, error } = await this.supabase.adminClient
       .from('reservations')
       .select(`
@@ -351,6 +373,34 @@ export class ReservationsService {
         throw new ForbiddenException('You are not authorized to view this salon\'s reservations');
       }
     }
+
+    // ── Auto-complete past reservations ──────────────────────────────────────
+    // Any real reservation (not a CRÉNEAU BLOQUÉ) whose end_time has passed
+    // is automatically moved to 'Completed'. Algeria is UTC+1.
+    const algeriaOffset = 60; // minutes
+    const nowAlgeria = new Date(Date.now() + algeriaOffset * 60 * 1000);
+    const todayStr   = nowAlgeria.toISOString().split('T')[0];
+    const currentTime = `${String(nowAlgeria.getUTCHours()).padStart(2, '0')}:${String(nowAlgeria.getUTCMinutes()).padStart(2, '0')}`;
+
+    // 1. All confirmed/pending reservations from PREVIOUS days → Completed
+    await this.supabase.adminClient
+      .from('reservations')
+      .update({ status: 'Completed' })
+      .eq('salon_id', salonId)
+      .in('status', ['Confirmed', 'Pending'])
+      .not('notes', 'ilike', '%NEAU BLOQU%')
+      .lt('appointment_date', todayStr);
+
+    // 2. Today's reservations whose end_time has already passed → Completed
+    await this.supabase.adminClient
+      .from('reservations')
+      .update({ status: 'Completed' })
+      .eq('salon_id', salonId)
+      .in('status', ['Confirmed', 'Pending'])
+      .not('notes', 'ilike', '%NEAU BLOQU%')
+      .eq('appointment_date', todayStr)
+      .lt('end_time', currentTime);
+    // ─────────────────────────────────────────────────────────────────────────
 
     let query = this.supabase.adminClient
       .from('reservations')
