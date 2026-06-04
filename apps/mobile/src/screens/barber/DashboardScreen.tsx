@@ -103,9 +103,7 @@ export function DashboardScreen() {
 
       switch (selectedFilter) {
         case 'all':
-          // Active upcoming only: Pending + Confirmed not expired
-          if (r.status === 'Cancelled' || r.status === 'Completed') return false;
-          if (isExpiredConfirmed) return false;
+          // Show everything — all statuses together
           return true;
         case 'Confirmed':
           return r.status === 'Confirmed' && !isExpiredConfirmed;
@@ -114,7 +112,6 @@ export function DashboardScreen() {
         case 'Cancelled':
           return r.status === 'Cancelled';
         case 'Completed':
-          // Show DB-Completed + client-side expired Confirmed
           return r.status === 'Completed' || isExpiredConfirmed;
         default:
           return true;
