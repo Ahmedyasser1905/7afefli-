@@ -46,11 +46,10 @@ export function validateEnvironment(): void {
   }
 
   if (missing.length > 0) {
-    logger.error(
-      `🚨 Missing required environment variables:\n  ${missing.join('\n  ')}\n\n` +
-      `Copy .env.example to .env and fill in all values before starting.`,
-    );
-    process.exit(1);
+    const errorMsg = `🚨 Missing required environment variables:\n  ${missing.join('\n  ')}\n\n` +
+      `Copy .env.example to .env and fill in all values before starting.`;
+    logger.error(errorMsg);
+    throw new Error(errorMsg);
   }
 
   logger.log('✅ Environment validation passed');
