@@ -16,6 +16,6 @@
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["api/**/*", "services/api/api/**/*", "services/api/src/**/*"],
+  "include": ["api/**/*", "services/api/src/**/*"],
   "exclude": ["node_modules"]
 }
