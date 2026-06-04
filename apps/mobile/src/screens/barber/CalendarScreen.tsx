@@ -108,15 +108,15 @@ export function CalendarScreen() {
       const data = await apiClient.get<Reservation[]>(
         `/reservations/salon/${salonId}?date=${selectedDate}`,
       );
-      // Sort: newest created_at first for list, but timeline uses start_time (positional)
-      // Exclude CRÉNEAU BLOQUÉ — these are internal blocks, not client appointments
+      // Exclude CRÉNEAU BLOQUÉ — internal blocks not shown in calendar
       return data.filter(
         (r) =>
-          ['Pending', 'Confirmed', 'Completed'].includes(r.status) &&
           !(r as Record<string, unknown>).notes?.toString().includes('CRÉNEAU BLOQUÉ'),
       );
     },
     enabled: !!salonId,
+    staleTime: 0,
+    refetchInterval: 2 * 60 * 1000,
   });
 
   // ── Fetch ALL pending reservations (other days) ───────────────────────────
@@ -250,9 +250,10 @@ export function CalendarScreen() {
             const service = (reservation as Record<string, unknown>).services as Record<string, unknown> | undefined;
             const isWalkIn = (reservation.notes as string | null)?.includes('[Sans RDV]');
 
-            const isPending = reservation.status === 'Pending';
+            const isPending   = reservation.status === 'Pending';
             const isConfirmed = reservation.status === 'Confirmed';
             const isCompleted = reservation.status === 'Completed';
+            const isCancelled = reservation.status === 'Cancelled';
 
             let borderLeftColor = colors.steel;
             let bgBlockColor = 'rgba(44, 44, 44, 0.4)';
@@ -274,6 +275,11 @@ export function CalendarScreen() {
               bgBlockColor = 'rgba(90, 90, 90, 0.08)';
               statusIcon = 'checkmark-done-circle';
               iconColor = colors.textMuted;
+            } else if (isCancelled) {
+              borderLeftColor = colors.error;
+              bgBlockColor = 'rgba(231, 76, 60, 0.06)';
+              statusIcon = 'close-circle-outline';
+              iconColor = colors.error;
             }
 
             return (
