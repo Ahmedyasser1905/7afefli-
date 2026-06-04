@@ -389,10 +389,19 @@ export function DashboardScreen() {
     const client = item.profiles;
     const service = item.services;
 
-    const isPending = item.status === 'Pending';
-    const isConfirmed = item.status === 'Confirmed';
-    const isCancelled = item.status === 'Cancelled';
-    const isCompleted = item.status === 'Completed';
+    // Client-side expired check: if end_time passed but server hasn't updated yet
+    const nowAlg = new Date(Date.now() + 60 * 60 * 1000);
+    const nowStr = `${String(nowAlg.getUTCHours()).padStart(2, '0')}:${String(nowAlg.getUTCMinutes()).padStart(2, '0')}`;
+    const endTime = (item.end_time as string ?? '').slice(0, 5);
+    const isExpiredConfirmed = endTime && endTime < nowStr && item.status === 'Confirmed';
+
+    // Effective status for display — override Confirmed→Completed if time has passed
+    const effectiveStatus = isExpiredConfirmed ? 'Completed' : item.status;
+
+    const isPending   = effectiveStatus === 'Pending';
+    const isConfirmed = effectiveStatus === 'Confirmed';
+    const isCancelled = effectiveStatus === 'Cancelled';
+    const isCompleted = effectiveStatus === 'Completed';
 
     const isWalkIn = item.notes?.includes('[Sans RDV]');
     let displayClientName = client?.full_name;
@@ -407,7 +416,7 @@ export function DashboardScreen() {
     }
 
     let borderLeftColor: string = colors.steel;
-    if (isPending) borderLeftColor = colors.pending;
+    if (isPending)   borderLeftColor = colors.pending;
     if (isConfirmed) borderLeftColor = colors.success;
     if (isCancelled) borderLeftColor = colors.error;
 
