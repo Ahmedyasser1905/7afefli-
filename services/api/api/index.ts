@@ -1,6 +1,8 @@
 // services/api/api/index.ts
 // Vercel serverless entry point for NestJS API
 // Uses singleton bootstrap pattern to minimize cold starts.
+// express is loaded via require() to avoid TypeScript TS2349 type conflicts
+// with @types/express v5 in strict compilation environments.
 
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
@@ -12,11 +14,16 @@ import * as Sentry from '@sentry/node';
 import { nodeProfilingIntegration } from '@sentry/profiling-node';
 import { WinstonModule, utilities as nestWinstonModuleUtilities } from 'nest-winston';
 import * as winston from 'winston';
-import express from 'express';
+import type { Request, Response, Application } from 'express';
 import { AppModule } from '../src/app.module';
 import { validateEnvironment } from '../src/config/env.validation';
 
-const server = express();
+// Use require() to bypass TS2349 — express uses `export =` CommonJS syntax
+// which is not callable via namespace import in strict TS without esModuleInterop
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const expressLib = require('express');
+const server: Application = expressLib();
+
 let app: any;
 
 async function bootstrap() {
@@ -45,8 +52,8 @@ async function bootstrap() {
     app.enableShutdownHooks();
 
     // ── Body size limit — protect against oversized payloads ────────────────
-    app.use(express.json({ limit: '1mb' }));
-    app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+    app.use(expressLib.json({ limit: '1mb' }));
+    app.use(expressLib.urlencoded({ extended: true, limit: '1mb' }));
 
     // ── Global prefix ───────────────────────────────────────────────────────
     app.setGlobalPrefix('api/v1');
@@ -96,7 +103,7 @@ async function bootstrap() {
   }
 }
 
-export default async (req: express.Request, res: express.Response) => {
+export default async (req: Request, res: Response) => {
   await bootstrap();
   server(req, res);
 };
