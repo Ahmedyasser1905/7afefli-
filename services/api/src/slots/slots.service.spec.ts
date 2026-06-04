@@ -26,7 +26,9 @@ const mockSupabaseAdminClient = {
   or: jest.fn().mockReturnThis(),
   single: jest.fn(),
   maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
-  then: jest.fn(),
+  then: jest.fn().mockImplementation(function(onFulfilled) {
+    return Promise.resolve({ data: [], error: null }).then(onFulfilled);
+  }),
 };
 
 describe('SlotsService', () => {

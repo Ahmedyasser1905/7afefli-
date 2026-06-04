@@ -15,22 +15,38 @@ import {
 // --------------------------------------------------------------------------
 // Mock supabase query builder
 // --------------------------------------------------------------------------
-const buildMockQuery = () => ({
-  select: jest.fn().mockReturnThis(),
-  eq: jest.fn().mockReturnThis(),
-  in: jest.fn().mockReturnThis(),
-  single: jest.fn(),
-  maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
-  update: jest.fn().mockReturnThis(),
-  insert: jest.fn().mockReturnThis(),
-  order: jest.fn().mockReturnThis(),
-  or: jest.fn().mockReturnThis(),
-});
+const buildMockQuery = () => {
+  const query: any = {
+    select: jest.fn().mockImplementation(() => query),
+    eq: jest.fn().mockImplementation(() => query),
+    in: jest.fn().mockImplementation(() => query),
+    single: jest.fn(),
+    maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
+    update: jest.fn().mockImplementation(() => query),
+    insert: jest.fn().mockImplementation(() => query),
+    order: jest.fn().mockImplementation(() => query),
+    or: jest.fn().mockImplementation(() => query),
+    then: jest.fn().mockImplementation((onFulfilled) => {
+      return Promise.resolve({ data: [], error: null }).then(onFulfilled);
+    }),
+  };
+  return query;
+};
 
 let mockQuery = buildMockQuery();
 
+const mockServicesQuery = buildMockQuery();
+const mockSalonsQuery = buildMockQuery();
+const mockStaffQuery = buildMockQuery();
+const mockReservationsQuery = buildMockQuery();
+
 const mockSupabaseAdminClient = {
-  from: jest.fn(() => mockQuery),
+  from: jest.fn((table) => {
+    if (table === 'services') return mockServicesQuery;
+    if (table === 'salons') return mockSalonsQuery;
+    if (table === 'salon_staff') return mockStaffQuery;
+    return mockReservationsQuery;
+  }),
   rpc: jest.fn(),
 };
 
@@ -56,8 +72,31 @@ describe('ReservationsService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    
     mockQuery = buildMockQuery();
-    mockSupabaseAdminClient.from.mockReturnValue(mockQuery);
+    
+    mockServicesQuery.single = mockQuery.single;
+    mockServicesQuery.maybeSingle = mockQuery.maybeSingle;
+    
+    mockSalonsQuery.single = jest.fn().mockResolvedValue({
+      data: { owner_id: 'barber1', open_time: '09:00:00', close_time: '21:00:00', working_days: [0, 1, 2, 3, 4, 5, 6] },
+      error: null,
+    });
+    mockStaffQuery.single = mockQuery.single;
+    mockStaffQuery.maybeSingle = jest.fn().mockResolvedValue({
+      data: { id: 'staff1', profile_id: 'barber1' },
+      error: null,
+    });
+    
+    mockReservationsQuery.single = mockQuery.single;
+    mockReservationsQuery.maybeSingle = mockQuery.maybeSingle;
+    
+    mockSupabaseAdminClient.from.mockImplementation((table) => {
+      if (table === 'services') return mockServicesQuery;
+      if (table === 'salons') return mockSalonsQuery;
+      if (table === 'salon_staff') return mockStaffQuery;
+      return mockReservationsQuery;
+    });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [

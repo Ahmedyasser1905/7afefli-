@@ -121,8 +121,7 @@ export function AddWalkInModal({ visible, onClose, salonId, onSuccess }: AddWalk
         payload.clientPhone = form.phone.trim();
       }
 
-      const res = await apiClient.post<Record<string, unknown>>('/reservations', payload);
-      await apiClient.patch(`/reservations/${res.id}/status`, { status: 'Confirmed' });
+      await apiClient.post<Record<string, unknown>>('/reservations', payload);
       
       onSuccess();
       setForm({ clientName: '', phone: '', notes: '' });

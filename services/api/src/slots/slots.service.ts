@@ -40,8 +40,8 @@ export class SlotsService {
       return cachedSlots;
     }
 
-    // 1. Fetch service duration and salon hours in parallel
-    const [serviceResult, salonResult] = await Promise.all([
+    // 1. Fetch service duration, salon hours, staff members, and existing bookings in parallel
+    const [serviceResult, salonResult, staffResult, bookedResult] = await Promise.all([
       this.supabase.adminClient
         .from('services')
         .select('duration_minutes')
@@ -53,6 +53,16 @@ export class SlotsService {
         .select('open_time, close_time, working_days')
         .eq('id', salonId)
         .single(),
+      this.supabase.adminClient
+        .from('salon_staff')
+        .select('id, profile_id')
+        .eq('salon_id', salonId),
+      this.supabase.adminClient
+        .from('reservations')
+        .select('start_time, end_time, staff_id, barber_id')
+        .eq('salon_id', salonId)
+        .eq('appointment_date', date)
+        .in('status', ['Pending', 'Confirmed']),
     ]);
 
     if (serviceResult.error || !serviceResult.data) {
@@ -84,20 +94,9 @@ export class SlotsService {
       return []; // Salon is closed on this day
     }
 
-    // 2. Fetch all staff members of the salon to determine total capacity N
-    const { data: staffList } = await this.supabase.adminClient
-      .from('salon_staff')
-      .select('id, profile_id')
-      .eq('salon_id', salonId);
+    const staffList = staffResult.data;
     const N = staffList?.length || 1;
-
-    // Fetch all booked slots for that date
-    const { data: bookedSlots } = await this.supabase.adminClient
-      .from('reservations')
-      .select('start_time, end_time, staff_id, barber_id')
-      .eq('salon_id', salonId)
-      .eq('appointment_date', date)
-      .in('status', ['Pending', 'Confirmed']);
+    const bookedSlots = bookedResult.data;
 
     // Resolve barberId to staff.id and profile_id if specified
     let targetStaffId: string | null = null;

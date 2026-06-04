@@ -47,20 +47,39 @@ export class ReservationsService {
       throw new BadRequestException('Cannot book a time slot in the past');
     }
 
-    // 1. Fetch service duration to calculate end_time
-    const { data: service, error: serviceError } = await this.supabase.adminClient
-      .from('services')
-      .select('duration_minutes')
-      .eq('id', dto.serviceId)
-      .eq('salon_id', dto.salonId)
-      .single();
+    // 1. Fetch service, salon details, and staff membership in parallel
+    const [serviceResult, salonResult, staffResult] = await Promise.all([
+      this.supabase.adminClient
+        .from('services')
+        .select('duration_minutes')
+        .eq('id', dto.serviceId)
+        .eq('salon_id', dto.salonId)
+        .single(),
+      this.supabase.adminClient
+        .from('salons')
+        .select('owner_id')
+        .eq('id', dto.salonId)
+        .single(),
+      this.supabase.adminClient
+        .from('salon_staff')
+        .select('id')
+        .eq('salon_id', dto.salonId)
+        .eq('profile_id', clientId)
+        .maybeSingle(),
+    ]);
 
-    if (serviceError || !service) {
+    if (serviceResult.error || !serviceResult.data) {
       throw new BadRequestException('Service not found for this salon');
     }
+    if (salonResult.error || !salonResult.data) {
+      throw new BadRequestException('Salon not found');
+    }
+
+    const duration = serviceResult.data.duration_minutes;
+    const isStaffOrOwner = salonResult.data.owner_id === clientId || !!staffResult.data;
 
     // 2. Calculate end_time from start_time + duration
-    const endTime = addMinutesToTime(dto.startTime, service.duration_minutes);
+    const endTime = addMinutesToTime(dto.startTime, duration);
 
     // Resolve staffId (salon_staff.id) and profileId (profiles.id) from dto.barberId
     let staffId: string | null = null;
@@ -120,6 +139,18 @@ export class ReservationsService {
         );
       }
       throw new Error(`Reservation failed: ${error.message}`);
+    }
+
+    // Auto-confirm the reservation if the creator is a staff member or salon owner
+    if (isStaffOrOwner) {
+      const { error: updateError } = await this.supabase.adminClient
+        .from('reservations')
+        .update({ status: 'Confirmed' })
+        .eq('id', data.id);
+      
+      if (!updateError) {
+        data.status = 'Confirmed';
+      }
     }
 
     // 4. Invalidate slot cache for this salon/date to reduce stale availability
@@ -276,31 +307,28 @@ export class ReservationsService {
     dto: UpdateReservationStatusDto,
     userId: string,
   ) {
-    // Fetch existing reservation
-    const { data: reservation } = await this.supabase.adminClient
-      .from('reservations')
-      .select('*, salons(owner_id)')
-      .eq('id', reservationId)
-      .single();
+    // Fetch existing reservation and check staff membership in parallel
+    const [reservationResult, staffResult] = await Promise.all([
+      this.supabase.adminClient
+        .from('reservations')
+        .select('*, salons(owner_id)')
+        .eq('id', reservationId)
+        .single(),
+      this.supabase.adminClient
+        .from('salon_staff')
+        .select('id, salon_id')
+        .eq('profile_id', userId),
+    ]);
 
-    if (!reservation) {
+    const reservation = reservationResult.data;
+    if (reservationResult.error || !reservation) {
       throw new NotFoundException('Reservation not found');
     }
 
     // Verify authorization
     const isClient = reservation.client_id === userId;
     const isBarber = (reservation as unknown as { salons?: { owner_id: string } }).salons?.owner_id === userId;
-
-    let isStaff = false;
-    if (!isClient && !isBarber) {
-      const { data: staff } = await this.supabase.adminClient
-        .from('salon_staff')
-        .select('id')
-        .eq('salon_id', reservation.salon_id)
-        .eq('profile_id', userId)
-        .maybeSingle();
-      isStaff = !!staff;
-    }
+    const isStaff = !!staffResult.data?.some(s => s.salon_id === reservation.salon_id);
 
     if (!isClient && !isBarber && !isStaff) {
       throw new ForbiddenException('You are not authorized to update this reservation');
@@ -420,11 +448,30 @@ export class ReservationsService {
     barberId?: string | null,
   ): Promise<void> {
     try {
+      // 1. Resolve staff information once outside the loop
+      let resolvedStaff: { id: string; profile_id: string | null } | null = null;
+      let staffList: { id: string; profile_id: string | null }[] | null = null;
+
+      if (barberId) {
+        const { data: staff } = await this.supabase.adminClient
+          .from('salon_staff')
+          .select('id, profile_id')
+          .or(`id.eq.${barberId},profile_id.eq.${barberId}`)
+          .maybeSingle();
+        resolvedStaff = staff;
+      } else {
+        const { data: list } = await this.supabase.adminClient
+          .from('salon_staff')
+          .select('id, profile_id')
+          .eq('salon_id', salonId);
+        staffList = list;
+      }
+
+      // 2. Fetch service IDs if not specified
       const servicesToInvalidate: string[] = [];
       if (serviceId) {
         servicesToInvalidate.push(serviceId);
       } else {
-        // Fetch all service IDs for this salon to invalidate their caches
         const { data: services } = await this.supabase.adminClient
           .from('services')
           .select('id')
@@ -434,46 +481,31 @@ export class ReservationsService {
         }
       }
 
+      // 3. Collect and run all deletion promises in parallel
+      const deletePromises: Promise<any>[] = [];
       for (const sId of servicesToInvalidate) {
         const cachePattern = `slots_v2:${salonId}:${sId}:${appointmentDate}`;
-        
-        // Invalidate 'any' coiffeur
-        await this.cacheManager.del(`${cachePattern}:any`);
-        
-        // Invalidate specific barber variants
-        if (barberId) {
-          await this.cacheManager.del(`${cachePattern}:${barberId}`);
-          
-          // Let's resolve the other representation (profile_id <-> staff_id)
-          const { data: staff } = await this.supabase.adminClient
-            .from('salon_staff')
-            .select('id, profile_id')
-            .or(`id.eq.${barberId},profile_id.eq.${barberId}`)
-            .maybeSingle();
+        deletePromises.push(this.cacheManager.del(`${cachePattern}:any`));
 
-          if (staff) {
-            await this.cacheManager.del(`${cachePattern}:${staff.id}`);
-            if (staff.profile_id) {
-              await this.cacheManager.del(`${cachePattern}:${staff.profile_id}`);
+        if (barberId) {
+          deletePromises.push(this.cacheManager.del(`${cachePattern}:${barberId}`));
+          if (resolvedStaff) {
+            deletePromises.push(this.cacheManager.del(`${resolvedStaff.id}`));
+            if (resolvedStaff.profile_id) {
+              deletePromises.push(this.cacheManager.del(`${resolvedStaff.profile_id}`));
             }
           }
-        } else {
-          // Invalidate for all staff members of the salon to be safe
-          const { data: staffList } = await this.supabase.adminClient
-            .from('salon_staff')
-            .select('id, profile_id')
-            .eq('salon_id', salonId);
-            
-          if (staffList) {
-            for (const staff of staffList) {
-              await this.cacheManager.del(`${cachePattern}:${staff.id}`);
-              if (staff.profile_id) {
-                await this.cacheManager.del(`${cachePattern}:${staff.profile_id}`);
-              }
+        } else if (staffList) {
+          for (const staff of staffList) {
+            deletePromises.push(this.cacheManager.del(`${cachePattern}:${staff.id}`));
+            if (staff.profile_id) {
+              deletePromises.push(this.cacheManager.del(`${cachePattern}:${staff.profile_id}`));
             }
           }
         }
       }
+
+      await Promise.all(deletePromises);
     } catch (err) {
       this.logger.warn(`Slot cache invalidation failed (non-fatal): ${err.message}`);
     }
