@@ -87,9 +87,11 @@ export function today(): string {
  */
 export function getNextDays(count: number = 14): string[] {
   const dates: string[] = [];
-  const now = new Date();
+  // Use Algeria timezone (UTC+1) as the base — consistent with today()
+  const algNow = new Date(Date.now() + 60 * 60 * 1000);
+  const baseDate = new Date(algNow.toISOString().split('T')[0] + 'T00:00:00');
   for (let i = 0; i < count; i++) {
-    const d = new Date(now);
+    const d = new Date(baseDate);
     d.setDate(d.getDate() + i);
     dates.push(d.toISOString().split('T')[0]);
   }
