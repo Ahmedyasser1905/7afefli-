@@ -313,7 +313,7 @@ export class ReservationsService {
 
     await this.supabase.adminClient
       .from('reservations')
-      .update({ status: 'Completed' })
+      .update({ status: 'Cancelled' })
       .eq('client_id', clientId)
       .in('status', ['Confirmed', 'Pending'])
       .not('notes', 'ilike', '%NEAU BLOQU%')
@@ -321,7 +321,7 @@ export class ReservationsService {
 
     await this.supabase.adminClient
       .from('reservations')
-      .update({ status: 'Completed' })
+      .update({ status: 'Cancelled' })
       .eq('client_id', clientId)
       .in('status', ['Confirmed', 'Pending'])
       .not('notes', 'ilike', '%NEAU BLOQU%')
@@ -385,7 +385,7 @@ export class ReservationsService {
     // 1. All confirmed/pending reservations from PREVIOUS days → Completed
     await this.supabase.adminClient
       .from('reservations')
-      .update({ status: 'Completed' })
+      .update({ status: 'Cancelled' })
       .eq('salon_id', salonId)
       .in('status', ['Confirmed', 'Pending'])
       .not('notes', 'ilike', '%NEAU BLOQU%')
@@ -394,7 +394,7 @@ export class ReservationsService {
     // 2. Today's reservations whose end_time has already passed → Completed
     await this.supabase.adminClient
       .from('reservations')
-      .update({ status: 'Completed' })
+      .update({ status: 'Cancelled' })
       .eq('salon_id', salonId)
       .in('status', ['Confirmed', 'Pending'])
       .not('notes', 'ilike', '%NEAU BLOQU%')
