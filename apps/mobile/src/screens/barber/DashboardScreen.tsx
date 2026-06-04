@@ -281,7 +281,7 @@ export function DashboardScreen() {
     ]);
   }, [updateStatus]);
 
-  const handleCancel  const handleConfirm = useCallback((id: string) => {
+  const handleCancel = useCallback((id: string) => {
     Alert.alert('Annuler la réservation ?', 'Cette action notifiera le client.', [
       { text: 'Non', style: 'cancel' },
       {
