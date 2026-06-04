@@ -34,13 +34,12 @@ export function MyAppointmentsScreen() {
     queryKey: ['my-reservations', user?.id],
     queryFn: async () => {
       if (!user) return [];
-      
-      // Removed insecure RPC call: auto_complete_reservations
-      
       const data = await apiClient.get<Record<string, unknown>[]>('/reservations/me');
       return data ?? [];
     },
     enabled: !!user,
+    staleTime: 0,
+    refetchInterval: 2 * 60 * 1000,
   });
 
   // Cancel reservation mutation
@@ -91,10 +90,24 @@ export function MyAppointmentsScreen() {
     const salon = item.salons;
     const service = item.services;
 
-    const isPending = item.status === 'Pending';
+    const isPending   = item.status === 'Pending';
     const isConfirmed = item.status === 'Confirmed';
     const isCancelled = item.status === 'Cancelled';
-    const isUpcoming = activeTab === 'upcoming';
+    const isCompleted = item.status === 'Completed';
+    const isUpcoming  = activeTab === 'upcoming';
+
+    const statusLabel: Record<string, string> = {
+      Pending:   'En attente',
+      Confirmed: 'Confirmé',
+      Cancelled: 'Annulé',
+      Completed: 'Terminé',
+    };
+
+    // Format date: "2026-06-04" → "04 juin 2026"
+    const formattedDate = new Date((item.appointment_date as string) + 'T00:00:00')
+      .toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+    // Format time: "22:40:00" → "22:40"
+    const formattedTime = (item.start_time as string)?.slice(0, 5) ?? '';
 
     const displayCover = salon?.image_url || DEFAULT_SALON_IMAGE;
 
@@ -117,16 +130,18 @@ export function MyAppointmentsScreen() {
           <View style={[
             styles.statusBadge,
             isConfirmed && styles.statusConfirmed,
-            isPending && styles.statusPending,
+            isPending   && styles.statusPending,
             isCancelled && styles.statusCancelled,
+            isCompleted && styles.statusCompleted,
           ]}>
             <Text style={[
               styles.statusText,
               isConfirmed && styles.statusConfirmedText,
-              isPending && styles.statusPendingText,
+              isPending   && styles.statusPendingText,
               isCancelled && styles.statusCancelledText,
+              isCompleted && styles.statusCompletedText,
             ]}>
-              {item.status}
+              {statusLabel[item.status as string] ?? item.status}
             </Text>
           </View>
         </View>
@@ -136,7 +151,7 @@ export function MyAppointmentsScreen() {
           <View style={styles.detailsRow}>
             <Ionicons name="calendar-outline" size={16} color={colors.amber} />
             <Text style={styles.detailsDateText}>
-              {item.appointment_date} à {item.start_time}
+              {formattedDate} à {formattedTime}
             </Text>
           </View>
           
@@ -423,6 +438,13 @@ const styles = StyleSheet.create({
   },
   statusCancelledText: {
     color: colors.error,
+  },
+  statusCompleted: {
+    backgroundColor: 'rgba(90, 90, 90, 0.15)',
+    borderColor: 'rgba(90, 90, 90, 0.3)',
+  },
+  statusCompletedText: {
+    color: colors.textMuted,
   },
   detailsBlock: {
     marginTop: spacing.md,
