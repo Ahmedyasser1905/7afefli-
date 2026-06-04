@@ -1,4 +1,4 @@
-// api/index.ts
+// services/api/api/index.ts
 // Vercel serverless entry point for NestJS API
 // Uses singleton bootstrap pattern to minimize cold starts.
 // express is loaded via require() to avoid TypeScript TS2349 type conflicts
@@ -15,8 +15,8 @@ import { nodeProfilingIntegration } from '@sentry/profiling-node';
 import { WinstonModule, utilities as nestWinstonModuleUtilities } from 'nest-winston';
 import * as winston from 'winston';
 import type { Request, Response, Application } from 'express';
-import { AppModule } from '../services/api/src/app.module';
-import { validateEnvironment } from '../services/api/src/config/env.validation';
+import { AppModule } from '../src/app.module';
+import { validateEnvironment } from '../src/config/env.validation';
 
 // Use require() to bypass TS2349 — express uses `export =` CommonJS syntax
 // which is not callable via namespace import in strict TS without esModuleInterop
@@ -89,9 +89,9 @@ async function bootstrap() {
     // ── Global validation pipe ──────────────────────────────────────────────
     app.useGlobalPipes(
       new ValidationPipe({
-        whitelist: true,            // Strip unknown properties
-        forbidNonWhitelisted: true, // Throw on unknown properties
-        transform: true,            // Auto-transform payloads to DTO instances
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
         transformOptions: {
           enableImplicitConversion: true,
         },
