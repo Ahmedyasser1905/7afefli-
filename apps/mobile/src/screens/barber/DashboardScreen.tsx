@@ -1,7 +1,7 @@
 // apps/mobile/src/screens/barber/DashboardScreen.tsx
 // Barber's first screen — today's stats + live booking feed
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -76,11 +76,19 @@ export function DashboardScreen() {
     );
   }, [todaysBookings]);
 
-  // Current Algeria time (UTC+1) in "HH:MM" — used to hide past reservations instantly
-  const nowTimeStr = useMemo(() => {
-    const algeriaTime = new Date(Date.now() + 60 * 60 * 1000);
-    return `${String(algeriaTime.getUTCHours()).padStart(2, '0')}:${String(algeriaTime.getUTCMinutes()).padStart(2, '0')}`;
-  }, []); // computed once on mount; dashboard is for TODAY so this is fine
+  // Current Algeria time (UTC+1) — updated every minute so past reservations auto-hide
+  const [nowTimeStr, setNowTimeStr] = useState(() => {
+    const t = new Date(Date.now() + 60 * 60 * 1000);
+    return `${String(t.getUTCHours()).padStart(2, '0')}:${String(t.getUTCMinutes()).padStart(2, '0')}`;
+  });
+  useEffect(() => {
+    const tick = () => {
+      const t = new Date(Date.now() + 60 * 60 * 1000);
+      setNowTimeStr(`${String(t.getUTCHours()).padStart(2, '0')}:${String(t.getUTCMinutes()).padStart(2, '0')}`);
+    };
+    const interval = setInterval(tick, 60_000); // refresh every minute
+    return () => clearInterval(interval);
+  }, []);
 
   const blockedItems = useMemo(
     () => allItems.filter((r) => (r as any).notes?.includes('CRÉNEAU BLOQUÉ')),
@@ -107,18 +115,20 @@ export function DashboardScreen() {
     ...blockedItems.map(item => ({ ...item, _type: 'blocked' as const })),
   ], [bookingItems, blockedItems]);
 
-  // Statistics — exclude blocks from counts
+  // Statistics — counts all today's real bookings (including past ones for revenue)
   const stats = useMemo(() => {
-    const active = bookingItems.filter((r) => r.status === 'Confirmed' || r.status === 'Pending');
-    const pending = bookingItems.filter((r) => r.status === 'Pending');
-    const revenue = bookingItems
-      .filter((r) => r.status === 'Completed' || r.status === 'Confirmed')
+    const realBookings = allItems.filter((r) => !(r as any).notes?.includes('CRÉNEAU BLOQUÉ'));
+    const active  = realBookings.filter((r) => r.status === 'Confirmed' || r.status === 'Pending');
+    const pending = realBookings.filter((r) => r.status === 'Pending');
+    // Revenue = Confirmed appointments today (past + future)
+    const revenue = realBookings
+      .filter((r) => r.status === 'Confirmed')
       .reduce((sum, r) => {
         const svc = (r as Record<string, unknown>).services as Record<string, unknown> | undefined;
         return sum + ((svc?.price as number) ?? 0);
       }, 0);
     return { total: active.length, pending: pending.length, revenue };
-  }, [bookingItems]);
+  }, [allItems]);
 
   // Update status mutation
   const updateStatus = useMutation({
