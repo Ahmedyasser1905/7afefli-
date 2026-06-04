@@ -77,7 +77,9 @@ export function formatRelativeTime(date: Date): string {
  * Get today's date as ISO string (YYYY-MM-DD).
  */
 export function today(): string {
-  return new Date().toISOString().split('T')[0];
+  // Use Algeria timezone (UTC+1) to avoid midnight edge case where UTC date != local date
+  const alg = new Date(Date.now() + 60 * 60 * 1000);
+  return alg.toISOString().split('T')[0];
 }
 
 /**

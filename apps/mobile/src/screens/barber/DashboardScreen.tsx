@@ -134,19 +134,21 @@ export function DashboardScreen() {
   const revenuePeriodLabel = viewMode === 'day' ? 'Jour' : viewMode === 'month' ? 'Mois' : 'Total';
 
   const bookingItems = useMemo(() => {
-    const nowStr = getNowStr();
+    const nowAlgBk = new Date(Date.now() + 60 * 60 * 1000); // UTC+1 Algeria
+    const nowStr = `${String(nowAlgBk.getUTCHours()).padStart(2, '0')}:${String(nowAlgBk.getUTCMinutes()).padStart(2, '0')}`;
+    // Use Algeria date (not UTC!) to avoid midnight edge case
+    const todayAlg = `${nowAlgBk.getUTCFullYear()}-${String(nowAlgBk.getUTCMonth()+1).padStart(2,'0')}-${String(nowAlgBk.getUTCDate()).padStart(2,'0')}`;
     return realBookings.filter((r) => {
       const endTime = (r.end_time ?? '').slice(0, 5);
       const apptDate = r.appointment_date as string ?? '';
-      const todayDate = today();
-      // Expired = past date OR (today + end_time has passed)
+      // Expired = past Algeria-date OR (today Algeria + end_time passed)
       const isExpiredConfirmed = r.status === 'Confirmed' && (
-        apptDate < todayDate ||
-        (apptDate === todayDate && endTime && endTime < nowStr)
+        apptDate < todayAlg ||
+        (apptDate === todayAlg && endTime && endTime < nowStr)
       );
       const isExpiredPending = r.status === 'Pending' && (
-        apptDate < todayDate ||
-        (apptDate === todayDate && endTime && endTime < nowStr)
+        apptDate < todayAlg ||
+        (apptDate === todayAlg && endTime && endTime < nowStr)
       );
 
       switch (selectedFilter) {
@@ -160,7 +162,7 @@ export function DashboardScreen() {
         case 'Cancelled':
           return r.status === 'Cancelled';
         case 'Completed':
-          return r.status === 'Completed' || isExpiredConfirmed;
+          return r.status === 'Completed' || isExpiredConfirmed || isExpiredPending;
         default:
           return true;
       }
@@ -505,15 +507,16 @@ export function DashboardScreen() {
     const client = item.profiles;
     const service = item.services;
 
-    // Client-side expired check — uses date too (fixes midnight edge case)
+    // Client-side expired check — Algeria date (UTC+1) to fix midnight edge case
     const nowAlg = new Date(Date.now() + 60 * 60 * 1000);
     const nowStr = `${String(nowAlg.getUTCHours()).padStart(2, '0')}:${String(nowAlg.getUTCMinutes()).padStart(2, '0')}`;
+    // Derive today's date in Algeria time (NOT UTC)
+    const todayAlg = `${nowAlg.getUTCFullYear()}-${String(nowAlg.getUTCMonth()+1).padStart(2,'0')}-${String(nowAlg.getUTCDate()).padStart(2,'0')}`;
     const endTime  = (item.end_time as string ?? '').slice(0, 5);
     const apptDate = (item.appointment_date as string ?? '');
-    const todayDate = today();
     const isExpired = (
-      apptDate < todayDate ||  // reservation is from a past date
-      (apptDate === todayDate && endTime && endTime < nowStr) // today + time passed
+      apptDate < todayAlg ||   // reservation is from a past Algeria-date
+      (apptDate === todayAlg && endTime && endTime < nowStr) // today + time passed
     );
     const isExpiredConfirmed = isExpired && item.status === 'Confirmed';
     const isExpiredPending   = isExpired && item.status === 'Pending';
