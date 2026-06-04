@@ -59,6 +59,7 @@ export function DashboardScreen() {
       return data;
     },
     enabled: !!salonId,
+    refetchInterval: 5 * 60 * 1000, // auto-refetch every 5 min → backend updates statuses
   });
 
   // Realtime subscription — invalidates cache automatically via useRealtimeBookings hook
@@ -85,8 +86,12 @@ export function DashboardScreen() {
     () =>
       allItems.filter((r) => {
         if ((r as any).notes?.includes('CRÉNEAU BLOQUÉ')) return false;
-        // Hide Completed and Cancelled — backend auto-updates these on fetch
         if (r.status === 'Completed' || r.status === 'Cancelled') return false;
+        // Client-side: if end_time has passed and was Confirmed, treat as Completed → hide
+        const endTime = (r.end_time ?? '').slice(0, 5);
+        const nowAlg = new Date(Date.now() + 60 * 60 * 1000);
+        const nowStr = `${String(nowAlg.getUTCHours()).padStart(2, '0')}:${String(nowAlg.getUTCMinutes()).padStart(2, '0')}`;
+        if (endTime && endTime < nowStr && r.status === 'Confirmed') return false;
         return true;
       }),
     [allItems],
