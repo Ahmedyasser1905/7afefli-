@@ -76,12 +76,12 @@ export function DashboardScreen() {
     },
   });
 
-  // Merge and sort
+  // Merge and sort: newest first (by created_at or start_time desc)
   const allItems = useMemo(() => {
     const map = new Map<string, Reservation>();
     [...todaysBookings, ...liveItems].forEach((r) => map.set(r.id, r));
     return Array.from(map.values()).sort((a, b) =>
-      a.start_time.localeCompare(b.start_time)
+      b.start_time.localeCompare(a.start_time)
     );
   }, [todaysBookings, liveItems]);
 
@@ -89,17 +89,13 @@ export function DashboardScreen() {
   const stats = useMemo(() => {
     const active = allItems.filter((r) => r.status === 'Confirmed' || r.status === 'Pending');
     const pending = allItems.filter((r) => r.status === 'Pending');
-    
-    // Sum completed revenue
     const revenue = allItems
       .filter((r) => r.status === 'Completed' || r.status === 'Confirmed')
-      .reduce((sum, r) => sum + ((r as Record<string, unknown>).services?.price ?? 0), 0);
-
-    return {
-      total: active.length,
-      pending: pending.length,
-      revenue,
-    };
+      .reduce((sum, r) => {
+        const svc = (r as Record<string, unknown>).services as Record<string, unknown> | undefined;
+        return sum + ((svc?.price as number) ?? 0);
+      }, 0);
+    return { total: active.length, pending: pending.length, revenue };
   }, [allItems]);
 
   // Update status mutation
@@ -116,8 +112,16 @@ export function DashboardScreen() {
   });
 
   const handleConfirm = useCallback((id: string) => {
-    updateStatus.mutate({ id, status: 'Confirmed' });
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Alert.alert('Confirmer ?', 'Voulez-vous accepter ce rendez-vous ?', [
+      { text: 'Non', style: 'cancel' },
+      {
+        text: 'Oui, confirmer',
+        onPress: () => {
+          updateStatus.mutate({ id, status: 'Confirmed' });
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        },
+      },
+    ]);
   }, [updateStatus]);
 
   const handleCancel = useCallback((id: string) => {
@@ -329,7 +333,7 @@ export function DashboardScreen() {
                 isCancelled && styles.textCancelled,
                 isCompleted && styles.textCompleted,
               ]}>
-                {item.status}
+                {isConfirmed ? 'Confirmé' : isCancelled ? 'Annulé' : isCompleted ? 'Terminé' : item.status}
               </Text>
             </View>
           )}
@@ -382,6 +386,7 @@ export function DashboardScreen() {
         onClose={() => setSelectedReservation(null)}
         reservation={selectedReservation}
         onCancel={handleCancel}
+        onConfirm={handleConfirm}
       />
 
       <BlockTimeModal
