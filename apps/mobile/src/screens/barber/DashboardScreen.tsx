@@ -491,7 +491,7 @@ export function DashboardScreen() {
     );
   };
 
-  const handleUnblock  const handleConfirm = useCallback((id: string) => {
+  const handleUnblock = useCallback((id: string) => {
     Alert.alert(
       '🔓 Débloquer ce créneau ?',
       'Le créneau redeviendra disponible pour les clients.',
