@@ -34,11 +34,10 @@ export class SlotsService {
     date: string,        // "2025-06-15"
     barberId?: string,
   ): Promise<TimeSlot[]> {
-    const cacheKey = `slots_v2:${salonId}:${serviceId}:${date}:${barberId || 'any'}`;
-    const cachedSlots = await this.cacheManager.get<TimeSlot[]>(cacheKey);
-    if (cachedSlots) {
-      return cachedSlots;
-    }
+    // NOTE: No server-side cache — Vercel serverless isolates each invocation
+    // in its own instance with separate memory, so in-memory cache is not shared
+    // across instances and invalidation after block creation would not propagate.
+    // Client-side React Query (30s stale time) provides sufficient caching.
 
     // 1. Fetch service duration, salon hours, staff members, and existing bookings in parallel
     const [serviceResult, salonResult, staffResult, bookedResult] = await Promise.all([
@@ -196,8 +195,6 @@ export class SlotsService {
 
       return { ...slot, isAvailable };
     });
-
-    await this.cacheManager.set(cacheKey, finalSlots, 30 * 1000); // Cache for 30 seconds
 
     return finalSlots;
   }
