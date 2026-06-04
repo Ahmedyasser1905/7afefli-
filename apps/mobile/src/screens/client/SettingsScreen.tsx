@@ -73,8 +73,8 @@ export function SettingsScreen() {
         setProfileData(data);
         if (data.wilaya) setSelectedWilaya(data.wilaya);
       }
-    } catch (err) {
-      console.warn('[Settings] Failed to load profile from Supabase:', err);
+    } catch {
+      // Profile load failed silently — UI shows default values
     }
   };
 
@@ -91,8 +91,9 @@ export function SettingsScreen() {
             try {
               await supabase.auth.signOut();
               clearAuth();
-            } catch (err) {
-              console.error(err);
+            } catch {
+              // Sign out error — clear local auth anyway
+              clearAuth();
             }
           },
         },
@@ -114,7 +115,7 @@ export function SettingsScreen() {
               await apiClient.delete('/auth/me');
               await supabase.auth.signOut();
             } catch (error: unknown) {
-              Alert.alert('Erreur', error.message || 'Impossible de supprimer le compte.');
+              Alert.alert('Erreur', (error as Error).message || 'Impossible de supprimer le compte.');
             }
           },
         },
@@ -130,13 +131,10 @@ export function SettingsScreen() {
     if (user) {
       setIsUpdating(true);
       try {
-        // Update wilaya directly in Supabase
-        await supabase
-          .from('profiles')
-          .update({ wilaya: wilayaName, updated_at: new Date().toISOString() })
-          .eq('id', user.id);
-      } catch (err) {
-        console.error('[Settings] Failed to update wilaya:', err);
+        // Update wilaya via API — not direct Supabase write
+        await apiClient.patch('/profiles/me', { wilaya: wilayaName });
+      } catch {
+        // Non-critical — setting will update on next profile load
       } finally {
         setIsUpdating(false);
       }

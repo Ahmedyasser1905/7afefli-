@@ -10,7 +10,6 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { colors, radius, spacing } from '../../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
@@ -32,41 +31,53 @@ export function LeaveReviewModal({ visible, onClose, reservation, onSuccess }: L
   const handleSubmit = async () => {
     if (!reservation) return;
 
+    // Guard against missing salon join — reservation must have salon data to submit
+    const salon = reservation.salons as Record<string, unknown> | null | undefined;
+    if (!salon?.id) {
+      Alert.alert('Erreur', 'Impossible de soumettre l\'avis: données du salon manquantes.');
+      return;
+    }
+
     setLoading(true);
     try {
       await apiClient.post('/reviews', {
         reservationId: reservation.id,
-        salonId: reservation.salons.id,
+        salonId: salon.id,
         rating,
         comment: comment.trim() || null,
       });
 
       Alert.alert('Merci !', 'Votre avis a été enregistré.');
       onSuccess();
+      // Reset state for next use
+      setRating(5);
+      setComment('');
       onClose();
     } catch (err: unknown) {
-      if (err.message && err.message.includes('42P01')) {
-        Alert.alert('Erreur', "La table 'reviews' n'existe pas dans la base de données. Veuillez exécuter le script SQL.");
-      } else if (err.message && err.message.includes('23505')) {
+      const errMsg = (err as Error).message || '';
+      if (errMsg.includes('23505')) {
+        // Duplicate review — not an error for the user
         Alert.alert('Info', 'Vous avez déjà laissé un avis pour ce rendez-vous.');
         onSuccess();
         onClose();
       } else {
-        Alert.alert('Erreur', err.message);
+        Alert.alert('Erreur', 'Impossible d\'enregistrer votre avis. Veuillez réessayer.');
       }
     } finally {
       setLoading(false);
     }
   };
 
-  if (!reservation) return null;
+  const salon = reservation?.salons as Record<string, unknown> | null | undefined;
 
   return (
     <Modal visible={visible} transparent animationType="slide">
       <View style={styles.overlay}>
         <View style={styles.content}>
           <Text style={styles.title}>Laisser un avis</Text>
-          <Text style={styles.subtitle}>Comment s'est passé votre rendez-vous chez {reservation.salons.name} ?</Text>
+          <Text style={styles.subtitle}>
+            Comment s'est passé votre rendez-vous{salon?.name ? ` chez ${salon.name}` : ''} ?
+          </Text>
           
           <View style={styles.starsContainer}>
             {[1, 2, 3, 4, 5].map((star) => (
@@ -87,6 +98,7 @@ export function LeaveReviewModal({ visible, onClose, reservation, onSuccess }: L
             placeholder="Écrivez votre avis ici..."
             placeholderTextColor={colors.textMuted}
             multiline
+            maxLength={500}
             value={comment}
             onChangeText={setComment}
           />

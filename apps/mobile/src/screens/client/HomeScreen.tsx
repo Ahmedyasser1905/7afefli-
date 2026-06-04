@@ -77,10 +77,9 @@ export function HomeScreen() {
             }
           }
         );
-      } catch (err: unknown) {
-        console.warn('Location error:', err.message);
+      } catch {
         setLocationError('Localisation indisponible');
-        // Fallback coordinates
+        // Fallback to Algiers
         setLocation({ latitude: 36.7538, longitude: 3.0588 });
       }
     })();

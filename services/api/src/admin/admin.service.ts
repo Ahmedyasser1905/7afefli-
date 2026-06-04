@@ -70,7 +70,7 @@ export class AdminService {
   async getAllUsers() {
     const { data, error } = await this.supabase.adminClient
       .from('profiles')
-      .select('id, full_name, phone_number, role, avatar_url, wilaya, is_phone_verified, created_at, updated_at')
+      .select('id, full_name, phone_number, role, avatar_url, wilaya, is_phone_verified, loyalty_points, created_at, updated_at')
       .order('created_at', { ascending: false });
     if (error) throw new Error(error.message);
     return data;

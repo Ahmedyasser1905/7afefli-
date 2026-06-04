@@ -54,18 +54,19 @@ export function useRealtimeBookings({
         async (payload) => {
           const reservation = payload.new as Reservation;
 
-          // 1. Optimistically prepend to the calendar cache
-          queryClient.setQueryData<Reservation[]>(
-            ['barber-reservations', salonId],
-            (old) => [reservation, ...(old ?? [])],
-          );
+          // 1. Invalidate all date-filtered caches for this salon (exact:false matches 3-key queries like [key, salonId, date])
+          queryClient.invalidateQueries({
+            queryKey: ['barber-reservations', salonId],
+            exact: false,
+          });
 
-          // 2. Invalidate to get fresh server data shortly after
+          // 2. Delayed re-invalidation to pick up server-side enriched data (profiles + services join)
           setTimeout(() => {
             queryClient.invalidateQueries({
               queryKey: ['barber-reservations', salonId],
+              exact: false,
             });
-          }, 2000);
+          }, 2500);
 
           // 3. Fetch client name + service for a rich notification
           let clientName = 'Un client';
@@ -103,14 +104,11 @@ export function useRealtimeBookings({
         (payload) => {
           const reservation = payload.new as Reservation;
 
-          // Patch in place — no full refetch needed
-          queryClient.setQueryData<Reservation[]>(
-            ['barber-reservations', salonId],
-            (old) =>
-              (old ?? []).map((r) =>
-                r.id === reservation.id ? reservation : r,
-              ),
-          );
+          // Invalidate all date-filtered caches so every visible day reflects the change
+          queryClient.invalidateQueries({
+            queryKey: ['barber-reservations', salonId],
+            exact: false,
+          });
 
           if (reservation.status === 'Cancelled') {
             onCancellation?.(reservation);
@@ -125,13 +123,8 @@ export function useRealtimeBookings({
           
         }
         if (status === 'CHANNEL_ERROR') {
-          // Prevent Red Box in React Native during hot-reloads
-          if (err && err.toString().includes('1000')) {
-            
-          } else {
-            console.error(`[Realtime] ❌ Channel error:`, err);
-          }
           // Reconnection is handled automatically by Supabase v2 client
+          // Suppress normal close code 1000 (clean disconnect during hot-reload)
         }
       });
 

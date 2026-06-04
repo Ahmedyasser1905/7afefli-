@@ -11,8 +11,7 @@ import {
   Alert,
   ScrollView,
 } from 'react-native';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '../../lib/supabase';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../../store/authStore';
 import { colors, radius, spacing } from '../../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
@@ -37,6 +36,7 @@ const getLocalDateString = () => {
 
 export function AddWalkInModal({ visible, onClose, salonId, onSuccess }: AddWalkInModalProps) {
   const user = useAuthStore((s) => s.user);
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     clientName: '',
@@ -88,7 +88,7 @@ export function AddWalkInModal({ visible, onClose, salonId, onSuccess }: AddWalk
   const selectedService = services.find(s => s.id === selectedServiceId);
   const todayStr = getLocalDateString();
 
-  // Query Available Slots
+  // Query Available Slots — isBarberMode=true so past slots today remain selectable
   const { data: slots = [], isLoading: isSlotsLoading } = useAvailableSlots({
     salonId,
     serviceId: selectedServiceId,
@@ -98,6 +98,7 @@ export function AddWalkInModal({ visible, onClose, salonId, onSuccess }: AddWalk
     closeTime: salon?.close_time ? salon.close_time.substring(0, 5) : '21:00',
     durationMin: selectedService?.duration_minutes || 30,
     workingDays: salon?.working_days || [1, 2, 3, 4, 5, 6],
+    isBarberMode: true,
   });
 
   const handleSubmit = async () => {
@@ -114,26 +115,47 @@ export function AddWalkInModal({ visible, onClose, salonId, onSuccess }: AddWalk
         appointmentDate: todayStr,
         startTime: selectedTimeSlot,
         barberId: selectedStaffId,
-        notes: `[Sans RDV] Client: ${form.clientName}${form.notes ? `\nNotes: ${form.notes}` : ''}`,
+        // Embed phone in notes so ClientsScreen CRM can parse it with the /Tel:\s*/ regex
+        notes: [
+          `[Sans RDV] Client: ${form.clientName}`,
+          form.phone?.trim() ? `Tel: ${form.phone.trim()}` : null,
+          form.notes?.trim() ? `Notes: ${form.notes.trim()}` : null,
+        ].filter(Boolean).join('\n'),
       };
 
-      if (form.phone && form.phone.trim().length > 0) {
+      // Also send as clientPhone for direct DB column storage
+      if (form.phone?.trim()) {
         payload.clientPhone = form.phone.trim();
       }
 
       await apiClient.post<Record<string, unknown>>('/reservations', payload);
-      
+
+      // Invalidate ALL barber caches so every screen refreshes immediately
+      // without requiring the barber to re-login
+      await Promise.all([
+        // Dashboard + Calendar reservations list
+        queryClient.invalidateQueries({ queryKey: ['barber-reservations'] }),
+        // Clients CRM screen
+        queryClient.invalidateQueries({ queryKey: ['barber-crm-reservations'] }),
+        // Slot availability (booked slot should disappear from the picker)
+        queryClient.invalidateQueries({ queryKey: ['slots', salonId] }),
+      ]);
+
+      // Parent-specific callback (e.g. show success alert in parent)
       onSuccess();
       setForm({ clientName: '', phone: '', notes: '' });
       setSelectedServiceId(null);
       setSelectedStaffId(null);
       setSelectedTimeSlot(null);
       onClose();
-    } catch (err: any) {
-      if (err.message && err.message.includes('booking_conflict')) {
-        Alert.alert('Erreur', 'Ce créneau est déjà réservé par un autre client ou bloqué.');
+    } catch (err: unknown) {
+      const msg = (err as Error).message || '';
+      if (msg.includes('no longer available') || msg.includes('booking_conflict') || msg.includes('booked')) {
+        Alert.alert('Créneau indisponible', 'Ce créneau est déjà réservé. Veuillez choisir un autre horaire.');
+      } else if (msg.includes('past')) {
+        Alert.alert('Erreur', 'Impossible de créer une réservation dans le passé.');
       } else {
-        Alert.alert('Erreur', err.message);
+        Alert.alert('Erreur', msg || 'Une erreur est survenue.');
       }
     } finally {
       setLoading(false);

@@ -3,7 +3,7 @@
 
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Text, View, StyleSheet } from 'react-native';
+import { Text, View, StyleSheet, ActivityIndicator } from 'react-native';
 import { DashboardScreen } from '../screens/barber/DashboardScreen';
 import { CalendarScreen } from '../screens/barber/CalendarScreen';
 import { SettingsScreen } from '../screens/client/SettingsScreen';
@@ -12,9 +12,8 @@ import { colors, typography } from '../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
 
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '../lib/supabase';
+import { apiClient } from '../lib/apiClient';
 import { useAuthStore } from '../store/authStore';
-import { ActivityIndicator } from 'react-native';
 import { SalonSetupScreen } from '../screens/barber/SalonSetupScreen';
 import { MySalonScreen } from '../screens/barber/MySalonScreen';
 
@@ -26,18 +25,16 @@ export function BarberTabNavigator() {
   const { data: salon, isLoading, refetch } = useQuery({
     queryKey: ['my-salon', user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('salons')
-        .select('*')
-        .eq('owner_id', user?.id)
-        .single();
-        
-      if (error && error.code !== 'PGRST116') {
-        throw error;
+      try {
+        return await apiClient.get('/salons/my-salon');
+      } catch (err: unknown) {
+        // 404 = barber doesn't have a salon yet — return null to show setup screen
+        if ((err as { status?: number }).status === 404) return null;
+        throw err;
       }
-      return data || null;
     },
     enabled: !!user,
+    retry: false, // Don't retry 404s
   });
 
   if (isLoading) {

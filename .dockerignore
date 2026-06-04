@@ -1,0 +1,30 @@
+# Exclude heavy directories from Docker build context
+# (Railway sends the full repo root as build context)
+
+# Dependencies — rebuilt inside Docker
+node_modules
+apps/mobile/node_modules
+packages/shared/node_modules
+services/api/node_modules
+
+# Build outputs
+dist
+services/api/dist
+services/api/coverage
+
+# Mobile app — not needed for API build
+apps/
+
+# Dev/test files
+*.md
+*.log
+.git
+.gitignore
+.env
+.env.*
+scratch/
+test_*.js
+
+# IDE
+.vscode
+.idea

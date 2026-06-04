@@ -20,8 +20,8 @@ export function useNearbySalons(location: Coords | null, radiusKm: number = 10) 
       try {
         const data = await apiClient.get<Salon[]>(`/salons/nearby?lat=${location.latitude}&lng=${location.longitude}&radius=${radiusKm}`);
         return data ?? [];
-      } catch (error) {
-        console.warn('[useNearbySalons] API error:', error);
+      } catch {
+        // Nearby search unavailable — return empty (non-critical feature)
         return [];
       }
     },

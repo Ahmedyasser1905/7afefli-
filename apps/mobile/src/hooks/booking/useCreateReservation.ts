@@ -1,7 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Alert } from 'react-native';
 import { apiClient } from '../../lib/apiClient';
-import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { useBookingStore } from '../../store/bookingStore';
 import type { Reservation } from '@barberdz/shared/types';
@@ -37,12 +36,11 @@ export function useCreateReservation() {
           clientPhone: params.clientPhone,
         });
         return data;
-      } catch (error: any) {
-        const errorStr = error.message || '';
+      } catch (error: unknown) {
+        const errorStr = (error as Error).message || '';
         
-        // If the stale backend rejected clientPhone because it is not whitelisted, retry without it
+        // If the backend rejected clientPhone because it is not whitelisted, retry without it
         if (errorStr.includes('clientPhone') && (errorStr.includes('should not exist') || errorStr.includes('non-whitelisted'))) {
-          console.log('[useCreateReservation] Production API rejected clientPhone, retrying without it...');
           try {
             const data = await apiClient.post<Reservation>('/reservations', {
               salonId: params.salonId,
@@ -53,17 +51,16 @@ export function useCreateReservation() {
               notes: params.notes,
             });
 
-            // Update user profile with phone number directly in Supabase
+            // Persist phone number via API (best-effort, non-blocking)
             if (params.clientPhone) {
-              await supabase
-                .from('profiles')
-                .update({ phone_number: params.clientPhone })
-                .eq('id', user.id);
+              apiClient.patch('/profiles/me', { phone_number: params.clientPhone }).catch(() => {
+                // Non-critical — phone save failure doesn't affect the reservation
+              });
             }
 
             return data;
-          } catch (retryError: any) {
-            const retryStr = retryError.message || '';
+          } catch (retryError: unknown) {
+            const retryStr = (retryError as Error).message || '';
             if (retryStr.includes('no longer available') || retryStr.includes('booked')) {
               throw new Error('Ce créneau n\'est plus disponible. Veuillez en choisir un autre.');
             }

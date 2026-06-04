@@ -164,4 +164,13 @@ export class SalonsController {
   ) {
     return this.salonsService.removePortfolioPhoto(id, photoId, user.id);
   }
+
+  /**
+   * GET /salons/:id/reviews
+   * Get all reviews for a salon (public).
+   */
+  @Get(':id/reviews')
+  getReviews(@Param('id') id: string) {
+    return this.salonsService.getReviews(id);
+  }
 }

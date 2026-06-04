@@ -10,7 +10,6 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { supabase } from '../../lib/supabase';
 import { colors, radius, spacing } from '../../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
 import { apiClient } from '../../lib/apiClient';

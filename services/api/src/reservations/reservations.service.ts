@@ -33,21 +33,8 @@ export class ReservationsService {
    * Handles BOOKING_CONFLICT from the PostgreSQL overlap trigger.
    */
   async create(dto: CreateReservationDto, clientId: string) {
-    // Validate that the slot is not in the past
-    const today = new Date();
-    const utc = today.getTime() + today.getTimezoneOffset() * 60000;
-    const algeriaTime = new Date(utc + 3600000);
-    const currentDateStr = `${algeriaTime.getFullYear()}-${String(algeriaTime.getMonth() + 1).padStart(2, '0')}-${String(algeriaTime.getDate()).padStart(2, '0')}`;
-    const currentTimeStr = `${String(algeriaTime.getHours()).padStart(2, '0')}:${String(algeriaTime.getMinutes()).padStart(2, '0')}`;
-
-    if (
-      dto.appointmentDate < currentDateStr ||
-      (dto.appointmentDate === currentDateStr && dto.startTime <= currentTimeStr)
-    ) {
-      throw new BadRequestException('Cannot book a time slot in the past');
-    }
-
     // 1. Fetch service, salon details, and staff membership in parallel
+    // (done first so we know isStaffOrOwner before the past-time guard)
     const [serviceResult, salonResult, staffResult] = await Promise.all([
       this.supabase.adminClient
         .from('services')
@@ -77,6 +64,23 @@ export class ReservationsService {
 
     const duration = serviceResult.data.duration_minutes;
     const isStaffOrOwner = salonResult.data.owner_id === clientId || !!staffResult.data;
+
+    // Validate that the slot is not in the past — only enforced for regular clients.
+    // Barbers and salon owners can freely add walk-ins for any time today.
+    if (!isStaffOrOwner) {
+      const today = new Date();
+      const utc = today.getTime() + today.getTimezoneOffset() * 60000;
+      const algeriaTime = new Date(utc + 3600000);
+      const currentDateStr = `${algeriaTime.getFullYear()}-${String(algeriaTime.getMonth() + 1).padStart(2, '0')}-${String(algeriaTime.getDate()).padStart(2, '0')}`;
+      const currentTimeStr = `${String(algeriaTime.getHours()).padStart(2, '0')}:${String(algeriaTime.getMinutes()).padStart(2, '0')}`;
+
+      if (
+        dto.appointmentDate < currentDateStr ||
+        (dto.appointmentDate === currentDateStr && dto.startTime < currentTimeStr)
+      ) {
+        throw new BadRequestException('Cannot book a time slot in the past');
+      }
+    }
 
     // 2. Calculate end_time from start_time + duration
     const endTime = addMinutesToTime(dto.startTime, duration);
@@ -482,20 +486,26 @@ export class ReservationsService {
       }
 
       // 3. Collect and run all deletion promises in parallel
-      const deletePromises: Promise<any>[] = [];
+      const deletePromises: Promise<unknown>[] = [];
       for (const sId of servicesToInvalidate) {
         const cachePattern = `slots_v2:${salonId}:${sId}:${appointmentDate}`;
+
+        // Always clear the "any barber" cache entry
         deletePromises.push(this.cacheManager.del(`${cachePattern}:any`));
 
         if (barberId) {
+          // Clear the specific barberId cache entry
           deletePromises.push(this.cacheManager.del(`${cachePattern}:${barberId}`));
           if (resolvedStaff) {
-            deletePromises.push(this.cacheManager.del(`${resolvedStaff.id}`));
+            // Clear by salon_staff.id
+            deletePromises.push(this.cacheManager.del(`${cachePattern}:${resolvedStaff.id}`));
+            // Clear by profile_id (the other key format used when booking)
             if (resolvedStaff.profile_id) {
-              deletePromises.push(this.cacheManager.del(`${resolvedStaff.profile_id}`));
+              deletePromises.push(this.cacheManager.del(`${cachePattern}:${resolvedStaff.profile_id}`));
             }
           }
         } else if (staffList) {
+          // No specific barber — clear cache for ALL barbers in the salon
           for (const staff of staffList) {
             deletePromises.push(this.cacheManager.del(`${cachePattern}:${staff.id}`));
             if (staff.profile_id) {
@@ -506,8 +516,8 @@ export class ReservationsService {
       }
 
       await Promise.all(deletePromises);
-    } catch (err) {
-      this.logger.warn(`Slot cache invalidation failed (non-fatal): ${err.message}`);
+    } catch (err: unknown) {
+      this.logger.warn(`Slot cache invalidation failed (non-fatal): ${(err as Error).message ?? err}`);
     }
   }
 

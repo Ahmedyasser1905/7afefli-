@@ -10,7 +10,6 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { supabase } from '../../lib/supabase';
 import { colors, radius, spacing } from '../../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
 import { apiClient } from '../../lib/apiClient';
@@ -36,19 +35,31 @@ export function ServiceModal({ visible, onClose, salonId, onSuccess }: ServiceMo
       return;
     }
 
+    const price = parseInt(form.price, 10);
+    const duration = parseInt(form.duration_minutes, 10);
+
+    if (isNaN(price) || price <= 0) {
+      Alert.alert('Erreur', 'Le prix doit être un nombre positif');
+      return;
+    }
+    if (isNaN(duration) || duration <= 0 || duration > 480) {
+      Alert.alert('Erreur', 'La durée doit être entre 1 et 480 minutes');
+      return;
+    }
+
     setLoading(true);
     try {
       await apiClient.post(`/salons/${salonId}/services`, {
         service_name: form.service_name,
-        price: parseInt(form.price),
-        duration_minutes: parseInt(form.duration_minutes),
+        price,
+        duration_minutes: duration,
       });
       
       onSuccess();
       setForm({ service_name: '', price: '', duration_minutes: '30' });
       onClose();
     } catch (err: unknown) {
-      Alert.alert('Erreur', err.message);
+      Alert.alert('Erreur', (err as Error).message || 'Une erreur est survenue');
     } finally {
       setLoading(false);
     }

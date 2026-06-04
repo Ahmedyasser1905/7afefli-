@@ -50,19 +50,14 @@ export function DashboardScreen() {
 
   const salonId = salon?.id ?? null;
 
-  // Fetch today's bookings
+  // Fetch today's bookings with server-side date filter
   const { data: todaysBookings = [], isLoading: isBookingsLoading, refetch } = useQuery<Reservation[]>({
     queryKey: ['barber-reservations', salonId, today()],
     queryFn: async () => {
       if (!salonId) return [];
-      
-      // Mark past reservations as completed automatically (Supabase RPC is fine here or move to backend)
-      // but the user wants 0 business data queries on mobile. We should move auto_complete to backend or just ignore it for now.
-      
-      const data = await apiClient.get<Reservation[]>(`/reservations/salon/${salonId}`);
-      
-      // Filter for today on the client side since the endpoint returns all future/current
-      return data.filter(r => r.appointment_date === today());
+      // Use server-side date filter to avoid downloading all reservations
+      const data = await apiClient.get<Reservation[]>(`/reservations/salon/${salonId}?date=${today()}`);
+      return data;
     },
     enabled: !!salonId,
   });
@@ -393,7 +388,6 @@ export function DashboardScreen() {
         visible={isBlockTimeModalVisible}
         onClose={() => setIsBlockTimeModalVisible(false)}
         salonId={salonId}
-        userId={user?.id || ''}
         onSuccess={() => {
           refetch();
           Alert.alert('Succès', 'Le créneau a été bloqué');

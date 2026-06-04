@@ -296,4 +296,18 @@ export class SalonsService {
     if (error) throw new Error(error.message);
     return { success: true };
   }
+
+  /**
+   * Get reviews for a salon (with client profile data).
+   */
+  async getReviews(salonId: string) {
+    const { data, error } = await this.supabase.adminClient
+      .from('reviews')
+      .select('*, profiles:client_id(full_name, avatar_url)')
+      .eq('salon_id', salonId)
+      .order('created_at', { ascending: false });
+
+    if (error && error.code !== '42P01') throw new Error(error.message);
+    return data || [];
+  }
 }

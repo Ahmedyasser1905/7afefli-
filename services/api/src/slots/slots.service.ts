@@ -89,16 +89,17 @@ export class SlotsService {
     }
 
     // Check if the requested date falls on a working day
-    const requestedDay = new Date(date).getDay(); // 0=Sun, 6=Sat
+    // Use UTC parsing to avoid server timezone offset causing wrong day-of-week
+    const requestedDay = new Date(date + 'T00:00:00Z').getUTCDay(); // 0=Sun, 6=Sat
     if (workingDays && !workingDays.includes(requestedDay)) {
       return []; // Salon is closed on this day
     }
 
     const staffList = staffResult.data;
-    const N = staffList?.length || 1;
-    const bookedSlots = bookedResult.data;
+    const N = Math.max(staffList?.length || 1, 1); // Total number of barbers in the salon
+    const bookedSlots = bookedResult.data ?? [];
 
-    // Resolve barberId to staff.id and profile_id if specified
+    // Resolve barberId to both salon_staff.id and profiles.id for robust matching
     let targetStaffId: string | null = null;
     let targetProfileId: string | null = null;
     if (barberId) {
@@ -107,47 +108,70 @@ export class SlotsService {
         targetStaffId = staff.id;
         targetProfileId = staff.profile_id;
       } else {
+        // barberId passed but not found in salon — treat as invalid, show no slots
         targetStaffId = barberId;
       }
     }
 
-    // 3. Generate all possible slots
+    // Helper: does a booked reservation overlap with a given slot?
+    const overlaps = (slotStart: number, slotEnd: number, bookedStart: number, bookedEnd: number): boolean => {
+      // Handle overnight bookings
+      const bs = bookedEnd <= bookedStart ? bookedEnd + 24 * 60 : bookedEnd;
+      const se = slotEnd <= slotStart ? slotEnd + 24 * 60 : slotEnd;
+      return slotStart < bs && se > bookedStart;
+    };
+
+    // 3. Generate all possible slots in service-duration increments
     const allSlots = this.generateTimeSlots(openTime, closeTime, duration);
 
-    // 4. Mark booked slots as unavailable based on capacity N
+    // 4. Mark each slot as available or not
     const finalSlots = allSlots.map(slot => {
-      // Find all overlapping bookings for this slot
-      const overlappingBookings = (bookedSlots ?? []).filter(booked => {
-        let slotStart = this.timeToMinutes(slot.startTime);
-        let slotEnd = this.timeToMinutes(slot.endTime);
-        if (slotEnd <= slotStart) slotEnd += 24 * 60;
+      const slotStart = this.timeToMinutes(slot.startTime);
+      const slotEnd   = this.timeToMinutes(slot.endTime);
 
-        let bookedStart = this.timeToMinutes(booked.start_time);
-        let bookedEnd = this.timeToMinutes(booked.end_time);
-        if (bookedEnd <= bookedStart) bookedEnd += 24 * 60;
-
-        return slotStart < bookedEnd && slotEnd > bookedStart;
+      // Find all reservations that overlap with this slot
+      const overlappingBookings = bookedSlots.filter(booked => {
+        const bookedStart = this.timeToMinutes(booked.start_time);
+        const bookedEnd   = this.timeToMinutes(booked.end_time);
+        return overlaps(slotStart, slotEnd, bookedStart, bookedEnd);
       });
 
+      // Total concurrent bookings at this time (including walk-ins with no staff assigned)
       const totalBookedCount = overlappingBookings.length;
+
       let isAvailable = true;
 
-      if (totalBookedCount >= N) {
-        // Capacity full
-        isAvailable = false;
-      } else if (barberId) {
-        // If query is for a specific barber, check if they are specifically busy
-        const isBarberBusy = overlappingBookings.some(booked => 
-          booked.staff_id === targetStaffId || 
+      if (barberId) {
+        // ── MODE A: Client selected a specific barber ──
+        //
+        // Rule 1: If that specific barber already has a reservation → blocked
+        const isBarberDirectlyBusy = overlappingBookings.some(booked =>
+          booked.staff_id === targetStaffId ||
           booked.barber_id === targetProfileId ||
+          // Also match by raw barberId in case the column stores the profile_id directly
           booked.staff_id === barberId ||
           booked.barber_id === barberId
         );
-        if (isBarberBusy) {
+
+        // Rule 2: If the salon is completely full (all N barbers occupied) → blocked
+        // This correctly handles unassigned (null staff_id) walk-ins consuming capacity
+        const isSalonFull = totalBookedCount >= N;
+
+        if (isBarberDirectlyBusy || isSalonFull) {
+          isAvailable = false;
+        }
+      } else {
+        // ── MODE B: No specific barber chosen (any available barber) ──
+        //
+        // Slot is unavailable when ALL barbers are simultaneously occupied.
+        // Each reservation (including unassigned walk-ins) consumes one barber slot.
+        // When totalBookedCount >= N → no free barber → slot blocked.
+        if (totalBookedCount >= N) {
           isAvailable = false;
         }
       }
 
+      // Always block slots that are in the past (for today only)
       if (isAvailable && date === currentDateStr && slot.startTime <= currentTimeStr) {
         isAvailable = false;
       }
@@ -159,19 +183,6 @@ export class SlotsService {
     });
 
     await this.cacheManager.set(cacheKey, finalSlots, 60 * 1000); // Cache for 60 seconds
-
-    console.log('[SlotsService] Generated slots:', {
-      salonId,
-      date,
-      openTime,
-      closeTime,
-      duration,
-      workingDays,
-      requestedDay,
-      allSlotsLength: allSlots.length,
-      finalSlotsLength: finalSlots.length,
-      staffCount: N,
-    });
 
     return finalSlots;
   }

@@ -19,7 +19,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '../../lib/supabase';
 import { apiClient } from '../../lib/apiClient';
 import { colors, spacing, radius, shadows } from '../../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
@@ -48,28 +47,11 @@ export function SalonDetailScreen() {
     staleTime: 3 * 60 * 1000, // 3 min — avoid re-fetching the heavy join
   });
 
-  // Fetch portfolio photos
+  // Fetch portfolio photos via API only — no Supabase fallback
   const { data: photos = [] } = useQuery<PortfolioPhoto[]>({
     queryKey: ['salon-portfolio', salonId],
     queryFn: async () => {
-      try {
-        return await apiClient.get<PortfolioPhoto[]>(`/salons/${salonId}/portfolio`);
-      } catch (err) {
-        console.log('Failed to fetch portfolio via API, trying direct Supabase query:', err);
-        const { data, error } = await supabase
-          .from('portfolio_photos')
-          .select('*')
-          .eq('salon_id', salonId)
-          .order('created_at', { ascending: false });
-        if (error) throw error;
-        
-        return (data || []).map((photo: Record<string, unknown>) => ({
-          ...photo,
-          url: supabase.storage
-            .from('portfolio')
-            .getPublicUrl(photo.storage_path as string).data.publicUrl,
-        })) as unknown as PortfolioPhoto[];
-      }
+      return apiClient.get<PortfolioPhoto[]>(`/salons/${salonId}/portfolio`);
     },
     staleTime: 3 * 60 * 1000,
   });
@@ -109,8 +91,8 @@ export function SalonDetailScreen() {
       await Share.share({
         message: `Découvrez le salon ${salon.name} sur 7afefli ! Réservez votre créneau en quelques clics.`,
       });
-    } catch (error) {
-      console.error(error);
+    } catch {
+      // Share dismissed or failed — no user-visible error needed
     }
   };
 

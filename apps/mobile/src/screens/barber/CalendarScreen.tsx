@@ -5,7 +5,6 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Image, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '../../lib/supabase';
 import { apiClient } from '../../lib/apiClient';
 import { colors, spacing, radius, shadows } from '../../theme';
 import { useRealtimeBookings } from '../../hooks/barber/useRealtimeBookings';

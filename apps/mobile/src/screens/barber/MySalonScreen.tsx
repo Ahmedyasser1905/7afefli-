@@ -12,9 +12,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
-import { colors, spacing, radius, typography } from '../../theme';
+import { colors, spacing, radius } from '../../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
 import * as ImagePicker from 'expo-image-picker';
 import { ServiceModal } from '../../components/barber/ServiceModal';
@@ -35,19 +34,14 @@ export function MySalonScreen() {
   const [isEditLocationVisible, setIsEditLocationVisible] = useState(false);
   const [uploading, setUploading] = useState(false);
 
-  // Fetch salon
+  // Fetch salon via API (consistent with other screens)
   const { data: salon, isLoading: isSalonLoading } = useQuery({
     queryKey: ['my-salon', user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('salons')
-        .select('*')
-        .eq('owner_id', user?.id)
-        .single();
-      if (error) throw error;
-      return data;
+      return apiClient.get('/salons/my-salon');
     },
     enabled: !!user,
+    retry: false, // 404 = no salon yet — don't retry indefinitely
   });
 
   // Fetch services
@@ -452,7 +446,8 @@ export function MySalonScreen() {
             onClose={() => setIsEditSalonVisible(false)}
             salon={salon}
             onSaved={() => {
-              queryClient.invalidateQueries({ queryKey: ['barber-salon'] });
+              // Invalidate using the same key used to fetch the salon
+              queryClient.invalidateQueries({ queryKey: ['my-salon', user?.id] });
             }}
           />
           <EditSalonLocationModal
@@ -460,7 +455,8 @@ export function MySalonScreen() {
             onClose={() => setIsEditLocationVisible(false)}
             salon={salon}
             onSaved={() => {
-              queryClient.invalidateQueries({ queryKey: ['barber-salon'] });
+              // Invalidate using the same key used to fetch the salon
+              queryClient.invalidateQueries({ queryKey: ['my-salon', user?.id] });
             }}
           />
         </>

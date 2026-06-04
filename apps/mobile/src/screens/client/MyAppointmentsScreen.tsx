@@ -14,7 +14,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '../../lib/supabase';
 import { apiClient } from '../../lib/apiClient';
 import { useAuthStore } from '../../store/authStore';
 import { colors, spacing, radius, shadows } from '../../theme';
@@ -28,7 +27,7 @@ export function MyAppointmentsScreen() {
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
   const user = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
-  const [reviewReservation, setReviewReservation] = useState<Record<string, unknown>>(null);
+  const [reviewReservation, setReviewReservation] = useState<Record<string, unknown> | null>(null);
 
   // Fetch client reservations
   const { data: reservations = [], isLoading, refetch } = useQuery({
@@ -50,7 +49,7 @@ export function MyAppointmentsScreen() {
       await apiClient.patch(`/reservations/${reservationId}/status`, { status: 'Cancelled' });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['my-reservations'] });
+      queryClient.invalidateQueries({ queryKey: ['my-reservations', user?.id] });
       Alert.alert('Succès', 'Votre rendez-vous a été annulé.');
     },
     onError: (err: Error) => {

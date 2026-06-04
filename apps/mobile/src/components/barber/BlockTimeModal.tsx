@@ -1,19 +1,23 @@
 import React, { useState } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Alert } from 'react-native';
-import { colors, radius, spacing, typography } from '../../theme';
+import { colors, radius, spacing } from '../../theme';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import { supabase } from '../../lib/supabase';
 import { apiClient } from '../../lib/apiClient';
 
 interface BlockTimeModalProps {
   visible: boolean;
   onClose: () => void;
   salonId: string;
-  userId: string;
   onSuccess: () => void;
 }
 
-export function BlockTimeModal({ visible, onClose, salonId, userId, onSuccess }: BlockTimeModalProps) {
+// Convert "H:MM" or "HH:MM" to minutes since midnight for accurate comparison
+function timeToMinutes(t: string): number {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
+
+export function BlockTimeModal({ visible, onClose, salonId, onSuccess }: BlockTimeModalProps) {
   const [time, setTime] = useState('15:00');
   const [endTime, setEndTime] = useState('16:00');
   const [loading, setLoading] = useState(false);
@@ -24,13 +28,14 @@ export function BlockTimeModal({ visible, onClose, salonId, userId, onSuccess }:
       return;
     }
     
-    // validate time format HH:MM
+    // validate time format HH:MM (also accept H:MM single digit hour)
     if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(time) || !/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(endTime)) {
       Alert.alert('Erreur', "Format d'heure invalide. Utilisez HH:MM (ex: 15:00)");
       return;
     }
 
-    if (time >= endTime) {
+    // Compare as minutes to avoid lexicographic bug (e.g. "9:00" > "10:00" is true as string)
+    if (timeToMinutes(time) >= timeToMinutes(endTime)) {
       Alert.alert('Erreur', "L'heure de fin doit être après l'heure de début.");
       return;
     }
@@ -50,10 +55,10 @@ export function BlockTimeModal({ visible, onClose, salonId, userId, onSuccess }:
       setEndTime('16:00');
       onClose();
     } catch (err: unknown) {
-      if (err.message && err.message.includes('booking_conflict')) {
+      if ((err as Error).message?.includes('booking_conflict')) {
         Alert.alert('Erreur', 'Il y a déjà une réservation pendant ce créneau.');
       } else {
-        Alert.alert('Erreur', err.message);
+        Alert.alert('Erreur', (err as Error).message || 'Une erreur est survenue');
       }
     } finally {
       setLoading(false);

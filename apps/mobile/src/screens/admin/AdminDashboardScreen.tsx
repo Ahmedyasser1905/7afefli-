@@ -18,82 +18,33 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
-import { useAuthStore } from '../../store/authStore';
 import { colors, spacing, radius, shadows } from '../../theme';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { apiClient } from '../../lib/apiClient';
 
 export function AdminDashboardScreen() {
-  const user = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'salons' | 'users'>('salons');
-  const [selectedUser, setSelectedUser] = useState<Record<string, unknown>>(null);
+  const [selectedUser, setSelectedUser] = useState<Record<string, unknown> | null>(null);
 
-  // Fetch all salons
-  const { data: salons = [], isLoading: salonsLoading, refetch: refetchSalons } = useQuery<any[]>({
+  // Fetch all salons via API only — Supabase bypasses backend auth guards
+  const { data: salons = [], isLoading: salonsLoading, isRefetching: salonsRefetching, refetch: refetchSalons } = useQuery<Record<string, unknown>[]>({
     queryKey: ['admin-salons'],
-    queryFn: async () => {
-      try {
-        return await apiClient.get<any[]>('/admin/salons');
-      } catch (err) {
-        console.log('[Admin] Failed to fetch salons via API, falling back to Supabase:', err);
-        const { data, error } = await supabase
-          .from('salons')
-          .select('*, profiles:owner_id(full_name, phone_number)')
-          .order('created_at', { ascending: false });
-        if (error) throw error;
-        return data || [];
-      }
-    },
+    queryFn: () => apiClient.get<Record<string, unknown>[]>('/admin/salons'),
     staleTime: 60 * 1000,
   });
 
-  // Fetch all users
-  const { data: users = [], isLoading: usersLoading, refetch: refetchUsers } = useQuery<any[]>({
+  // Fetch all users via API only
+  const { data: users = [], isLoading: usersLoading, isRefetching: usersRefetching, refetch: refetchUsers } = useQuery<Record<string, unknown>[]>({
     queryKey: ['admin-users'],
-    queryFn: async () => {
-      try {
-        return await apiClient.get<any[]>('/admin/users');
-      } catch (err) {
-        console.log('[Admin] Failed to fetch users via API, falling back to Supabase:', err);
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('id, full_name, phone_number, role, avatar_url, wilaya, is_phone_verified, created_at, updated_at')
-          .order('created_at', { ascending: false });
-        if (error) throw error;
-        return data || [];
-      }
-    },
+    queryFn: () => apiClient.get<Record<string, unknown>[]>('/admin/users'),
     staleTime: 60 * 1000,
   });
 
-  // Stats
-  const { data: statsData } = useQuery<any>({
+  // Stats via API
+  const { data: statsData } = useQuery<Record<string, unknown>>({
     queryKey: ['admin-stats'],
-    queryFn: async () => {
-      try {
-        return await apiClient.get<any>('/admin/stats');
-      } catch (err) {
-        console.log('[Admin] Failed to fetch stats via API, calculating locally:', err);
-        const [
-          { count: totalSalons },
-          { count: activeSalons },
-          { count: pendingSalons },
-          { count: totalUsers },
-        ] = await Promise.all([
-          supabase.from('salons').select('*', { count: 'exact', head: true }),
-          supabase.from('salons').select('*', { count: 'exact', head: true }).eq('is_approved', true),
-          supabase.from('salons').select('*', { count: 'exact', head: true }).eq('is_approved', false),
-          supabase.from('profiles').select('*', { count: 'exact', head: true }),
-        ]);
-        return {
-          totalSalons: totalSalons || 0,
-          activeSalons: activeSalons || 0,
-          pendingSalons: pendingSalons || 0,
-          totalUsers: totalUsers || 0,
-        };
-      }
-    },
+    queryFn: () => apiClient.get<Record<string, unknown>>('/admin/stats'),
     staleTime: 60 * 1000,
   });
 
@@ -109,9 +60,8 @@ export function AdminDashboardScreen() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-salons'] });
-      refetchSalons();
     },
-    onError: (err: Error) => Alert.alert('Erreur', err.message),
+    onError: (err: unknown) => Alert.alert('Erreur', (err as Error).message || 'Une erreur est survenue'),
   });
 
   // Change user role
@@ -122,10 +72,8 @@ export function AdminDashboardScreen() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       queryClient.invalidateQueries({ queryKey: ['admin-salons'] });
-      refetchUsers();
-      refetchSalons();
     },
-    onError: (err: Error) => Alert.alert('Erreur', err.message),
+    onError: (err: unknown) => Alert.alert('Erreur', (err as Error).message || 'Une erreur est survenue'),
   });
 
   const confirmRoleChange = (userId: string, currentRole: string) => {
@@ -157,9 +105,10 @@ export function AdminDashboardScreen() {
     }
   };
 
-  // Delete salon
+  // Delete salon — uses mutation pattern for proper loading/error states
   const deleteSalon = useCallback((salonId: string, name: string) => {
-    Alert.alert('Supprimer le salon', `Voulez-vous vraiment supprimer "${name}" ?`, [
+    if (!salonId) return;
+    Alert.alert('Supprimer le salon', `Voulez-vous vraiment supprimer "${name ?? 'ce salon'}" ?`, [
       { text: 'Annuler', style: 'cancel' },
       {
         text: 'Supprimer',
@@ -167,7 +116,8 @@ export function AdminDashboardScreen() {
         onPress: async () => {
           try {
             await apiClient.delete(`/admin/salons/${salonId}`);
-            refetchSalons();
+            queryClient.invalidateQueries({ queryKey: ['admin-salons'] });
+            queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
           } catch (error: unknown) {
             const msg = error instanceof Error ? error.message : 'Erreur inconnue';
             Alert.alert('Erreur', msg);
@@ -175,11 +125,18 @@ export function AdminDashboardScreen() {
         },
       },
     ]);
-  }, [refetchSalons]);
+  }, [queryClient]);
 
-  // Logout
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
+  // Logout with confirmation
+  const handleLogout = () => {
+    Alert.alert(
+      'Déconnexion',
+      'Êtes-vous sûr de vouloir vous déconnecter ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        { text: 'Déconnexion', style: 'destructive', onPress: () => supabase.auth.signOut() },
+      ]
+    );
   };
 
   const renderSalonItem = ({ item }: { item: Record<string, unknown> }) => (
@@ -201,7 +158,9 @@ export function AdminDashboardScreen() {
       <View style={styles.cardMeta}>
         <View style={styles.metaItem}>
           <Ionicons name="star" size={14} color={colors.amber} />
-          <Text style={styles.metaText}>{item.average_rating?.toFixed(1) || '—'}</Text>
+          <Text style={styles.metaText}>
+            {item.average_rating != null ? Number(item.average_rating).toFixed(1) : '—'}
+          </Text>
         </View>
         <View style={styles.metaItem}>
           <Ionicons name="time-outline" size={14} color={colors.textSecondary} />
@@ -334,9 +293,14 @@ export function AdminDashboardScreen() {
           <Text style={styles.statLabel}>Approuvés</Text>
         </View>
         <View style={styles.statCard}>
-          <Ionicons name="people" size={22} color="#4A90D9" />
+          <Ionicons name="people" size={22} color={colors.amber} />
           <Text style={styles.statNumber}>{totalUsers}</Text>
           <Text style={styles.statLabel}>Utilisateurs</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Ionicons name="time-outline" size={22} color={colors.error} />
+          <Text style={styles.statNumber}>{pendingSalons}</Text>
+          <Text style={styles.statLabel}>En attente</Text>
         </View>
       </View>
 
@@ -372,7 +336,7 @@ export function AdminDashboardScreen() {
             keyExtractor={(item: Record<string, unknown>) => item.id}
             renderItem={renderSalonItem}
             contentContainerStyle={styles.list}
-            refreshControl={<RefreshControl refreshing={false} onRefresh={refetchSalons} tintColor={colors.amber} />}
+            refreshControl={<RefreshControl refreshing={salonsRefetching} onRefresh={refetchSalons} tintColor={colors.amber} />}
             ListEmptyComponent={
               <Text style={styles.emptyText}>Aucun salon enregistré</Text>
             }
@@ -387,7 +351,7 @@ export function AdminDashboardScreen() {
             keyExtractor={(item: Record<string, unknown>) => item.id}
             renderItem={renderUserItem}
             contentContainerStyle={styles.list}
-            refreshControl={<RefreshControl refreshing={false} onRefresh={refetchUsers} tintColor={colors.amber} />}
+            refreshControl={<RefreshControl refreshing={usersRefetching} onRefresh={refetchUsers} tintColor={colors.amber} />}
             ListEmptyComponent={
               <Text style={styles.emptyText}>Aucun utilisateur</Text>
             }

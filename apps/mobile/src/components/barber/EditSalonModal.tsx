@@ -31,9 +31,17 @@ interface EditSalonModalProps {
   onSaved: () => void;
 }
 
+// All 58 Algerian wilayas
 const WILAYAS = [
-  'Alger', 'Oran', 'Constantine', 'Blida', 'Sétif', 'Annaba', 'Batna',
-  'Tlemcen', 'Béjaïa', 'Tizi Ouzou', 'Djelfa', 'Biskra', 'Chlef', 'Médéa',
+  'Adrar', 'Chlef', 'Laghouat', 'Oum El Bouaghi', 'Batna', 'Béjaïa', 'Biskra',
+  'Béchar', 'Blida', 'Bouira', 'Tamanrasset', 'Tébessa', 'Tlemcen', 'Tiaret',
+  'Tizi Ouzou', 'Alger', 'Djelfa', 'Jijel', 'Sétif', 'Saïda', 'Skikda',
+  'Sidi Bel Abbès', 'Annaba', 'Guelma', 'Constantine', 'Médéa', 'Mostaganem',
+  'M\'Sila', 'Mascara', 'Ouargla', 'Oran', 'El Bayadh', 'Illizi', 'Bordj Bou Arréridj',
+  'Boumerdès', 'El Tarf', 'Tindouf', 'Tissemsilt', 'El Oued', 'Khenchela',
+  'Souk Ahras', 'Tipaza', 'Mila', 'Aïn Defla', 'Naâma', 'Aïn Témouchent',
+  'Ghardaïa', 'Relizane', 'Timimoun', 'Bordj Badji Mokhtar', 'Ouled Djellal',
+  'Béni Abbès', 'In Salah', 'In Guezzam', 'Touggourt', 'Djanet', 'El M\'Ghair', 'El Meniaa',
 ];
 
 export function EditSalonModal({ visible, onClose, salon, onSaved }: EditSalonModalProps) {
@@ -87,7 +95,7 @@ export function EditSalonModal({ visible, onClose, salon, onSaved }: EditSalonMo
       onSaved();
       onClose();
     } catch (err: unknown) {
-      Alert.alert('Erreur', err.message);
+      Alert.alert('Erreur', (err as Error).message || 'Une erreur est survenue');
     } finally {
       setSaving(false);
     }
@@ -107,7 +115,6 @@ export function EditSalonModal({ visible, onClose, salon, onSaved }: EditSalonMo
         await uploadImage(result.assets[0].base64);
       }
     } catch (error) {
-      console.error('ImagePicker Error:', error);
       Alert.alert('Erreur', 'Impossible de sélectionner la photo');
     }
   };
@@ -119,7 +126,7 @@ export function EditSalonModal({ visible, onClose, salon, onSaved }: EditSalonMo
       const filePath = `${user.id}/salons/${salon.id}_cover_${Date.now()}.jpg`;
 
       const { data, error } = await supabase.storage
-        .from('avatars') // Using avatars bucket as it's already configured public
+        .from('salons') // Salon covers go into the 'salons' bucket
         .upload(filePath, decode(base64String), {
           contentType: 'image/jpeg',
           upsert: true,
@@ -128,12 +135,11 @@ export function EditSalonModal({ visible, onClose, salon, onSaved }: EditSalonMo
       if (error) throw error;
 
       const { data: publicUrlData } = supabase.storage
-        .from('avatars')
+        .from('salons')
         .getPublicUrl(data.path);
 
       setImageUrl(publicUrlData.publicUrl);
     } catch (err: unknown) {
-      console.error('Upload Error:', err);
       Alert.alert('Erreur', "L'upload de l'image a échoué.");
     } finally {
       setUploadingImage(false);

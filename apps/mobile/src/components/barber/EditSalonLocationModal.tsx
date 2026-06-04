@@ -1,6 +1,3 @@
-// apps/mobile/src/components/barber/EditSalonLocationModal.tsx
-// Modal with interactive map to reposition salon location
-
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -12,7 +9,6 @@ import {
   Alert,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
-import { supabase } from '../../lib/supabase';
 import { colors, spacing, radius } from '../../theme';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { apiClient } from '../../lib/apiClient';
@@ -155,7 +151,7 @@ export function EditSalonLocationModal({ visible, onClose, salon, onSaved }: Edi
             window.ReactNativeWebView.postMessage(JSON.stringify({ lat: loc[0], lng: loc[1] }));
           }
         })
-        .catch(err => 
+        .catch(function() { /* Search failed silently */ });
     }
 
     document.getElementById('searchInput').addEventListener('keypress', function(e) {
@@ -165,10 +161,11 @@ export function EditSalonLocationModal({ visible, onClose, salon, onSaved }: Edi
 </body>
 </html>`;
 
-  const handleMessage = (event: unknown) => {
+  const handleMessage = (event: { nativeEvent: { data: string } }) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
-      if (data.lat && data.lng) {
+      // Use explicit undefined check to allow 0,0 (null island) coordinates
+      if (data.lat !== undefined && data.lng !== undefined) {
         setLat(data.lat);
         setLng(data.lng);
       }

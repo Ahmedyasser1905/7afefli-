@@ -11,7 +11,6 @@ import {
   ActivityIndicator,
   TextInput,
   Keyboard,
-  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -80,9 +79,8 @@ export function ExploreScreen() {
           // Algiers fallback
           setLocation({ latitude: 36.7538, longitude: 3.0588 });
         }
-      } catch (err: unknown) {
-        console.warn('Location error:', err.message);
-        // Algiers fallback
+      } catch {
+        // Location unavailable — fallback to Algiers
         setLocation({ latitude: 36.7538, longitude: 3.0588 });
       }
     })();
