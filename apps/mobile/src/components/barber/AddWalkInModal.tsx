@@ -1,5 +1,5 @@
 // apps/mobile/src/components/barber/AddWalkInModal.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -18,6 +18,7 @@ import { colors, radius, spacing } from '../../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
 import { formatDZD } from '@barberdz/shared/utils/formatters';
 import { apiClient } from '../../lib/apiClient';
+import { useAvailableSlots } from '../../hooks/booking/useAvailableSlots';
 
 interface AddWalkInModalProps {
   visible: boolean;
@@ -26,17 +27,45 @@ interface AddWalkInModalProps {
   onSuccess: () => void;
 }
 
+const getLocalDateString = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export function AddWalkInModal({ visible, onClose, salonId, onSuccess }: AddWalkInModalProps) {
   const user = useAuthStore((s) => s.user);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     clientName: '',
     phone: '',
-    time: '10:00',
     notes: '',
   });
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
+  const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState<string | null>(null);
 
+  // Fetch salon details
+  const { data: salon } = useQuery<any>({
+    queryKey: ['barber-salon-details', salonId],
+    queryFn: async () => {
+      return apiClient.get<any>(`/salons/${salonId}`);
+    },
+    enabled: visible && !!salonId,
+  });
+
+  // Fetch staff list
+  const { data: staffList = [] } = useQuery<any[]>({
+    queryKey: ['salon-staff', salonId],
+    queryFn: async () => {
+      return apiClient.get<any[]>(`/salons/${salonId}/staff`);
+    },
+    enabled: visible && !!salonId,
+  });
+
+  // Fetch services
   const { data: services = [] } = useQuery({
     queryKey: ['salon-services', salonId],
     queryFn: async () => {
@@ -46,9 +75,34 @@ export function AddWalkInModal({ visible, onClose, salonId, onSuccess }: AddWalk
     enabled: visible && !!salonId,
   });
 
+  // Pre-select the current user in the staff list if they are in it
+  useEffect(() => {
+    if (staffList.length > 0 && !selectedStaffId && user?.id) {
+      const currentBarber = staffList.find(s => s.profile_id === user.id);
+      if (currentBarber) {
+        setSelectedStaffId(currentBarber.id);
+      }
+    }
+  }, [staffList, user?.id, selectedStaffId]);
+
+  const selectedService = services.find(s => s.id === selectedServiceId);
+  const todayStr = getLocalDateString();
+
+  // Query Available Slots
+  const { data: slots = [], isLoading: isSlotsLoading } = useAvailableSlots({
+    salonId,
+    serviceId: selectedServiceId,
+    date: todayStr,
+    staffId: selectedStaffId,
+    openTime: salon?.open_time ? salon.open_time.substring(0, 5) : '09:00',
+    closeTime: salon?.close_time ? salon.close_time.substring(0, 5) : '21:00',
+    durationMin: selectedService?.duration_minutes || 30,
+    workingDays: salon?.working_days || [1, 2, 3, 4, 5, 6],
+  });
+
   const handleSubmit = async () => {
-    if (!form.clientName || !form.time || !selectedServiceId) {
-      Alert.alert('Erreur', 'Veuillez remplir le nom, choisir un service et indiquer l\'heure');
+    if (!form.clientName || !selectedTimeSlot || !selectedServiceId || !selectedStaffId) {
+      Alert.alert('Erreur', 'Veuillez remplir le nom, choisir un service, un coiffeur et indiquer l\'heure');
       return;
     }
 
@@ -57,8 +111,9 @@ export function AddWalkInModal({ visible, onClose, salonId, onSuccess }: AddWalk
       const payload: Record<string, unknown> = {
         salonId,
         serviceId: selectedServiceId,
-        appointmentDate: new Date().toISOString().split('T')[0],
-        startTime: form.time,
+        appointmentDate: todayStr,
+        startTime: selectedTimeSlot,
+        barberId: selectedStaffId,
         notes: `[Sans RDV] Client: ${form.clientName}${form.notes ? `\nNotes: ${form.notes}` : ''}`,
       };
 
@@ -70,10 +125,12 @@ export function AddWalkInModal({ visible, onClose, salonId, onSuccess }: AddWalk
       await apiClient.patch(`/reservations/${res.id}/status`, { status: 'Confirmed' });
       
       onSuccess();
-      setForm({ clientName: '', phone: '', time: '10:00', notes: '' });
+      setForm({ clientName: '', phone: '', notes: '' });
       setSelectedServiceId(null);
+      setSelectedStaffId(null);
+      setSelectedTimeSlot(null);
       onClose();
-    } catch (err: unknown) {
+    } catch (err: any) {
       if (err.message && err.message.includes('booking_conflict')) {
         Alert.alert('Erreur', 'Ce créneau est déjà réservé par un autre client ou bloqué.');
       } else {
@@ -124,7 +181,10 @@ export function AddWalkInModal({ visible, onClose, salonId, onSuccess }: AddWalk
                     styles.serviceChip,
                     selectedServiceId === service.id && styles.serviceChipSelected
                   ]}
-                  onPress={() => setSelectedServiceId(service.id)}
+                  onPress={() => {
+                    setSelectedServiceId(service.id);
+                    setSelectedTimeSlot(null); // Clear selected slot when service changes
+                  }}
                   activeOpacity={0.8}
                 >
                   <Text style={[
@@ -143,14 +203,79 @@ export function AddWalkInModal({ visible, onClose, salonId, onSuccess }: AddWalk
               ))}
             </ScrollView>
 
-            <Text style={styles.label}>Heure</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Ex: 14:30"
-              placeholderTextColor={colors.textMuted}
-              value={form.time}
-              onChangeText={(t) => setForm({ ...form, time: t })}
-            />
+            <Text style={styles.label}>Coiffeur (Barbier)</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.servicesScroll}>
+              {staffList.map(staff => {
+                const isSelected = selectedStaffId === staff.id;
+                const displayName = staff.custom_name || staff.profiles?.full_name || 'Barbier';
+                return (
+                  <TouchableOpacity
+                    key={staff.id}
+                    style={[
+                      styles.serviceChip,
+                      isSelected && styles.serviceChipSelected
+                    ]}
+                    onPress={() => {
+                      setSelectedStaffId(staff.id);
+                      setSelectedTimeSlot(null); // Clear selected slot when staff changes
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[
+                      styles.serviceName,
+                      isSelected && styles.textInk
+                    ]}>
+                      {displayName}
+                    </Text>
+                    <Text style={[
+                      styles.servicePrice,
+                      isSelected && styles.textInk
+                    ]}>
+                      {staff.role || 'Coiffeur'}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            <Text style={styles.label}>Heures disponibles</Text>
+            {isSlotsLoading ? (
+              <ActivityIndicator color={colors.amber} style={{ marginVertical: spacing.md }} />
+            ) : !selectedServiceId ? (
+              <Text style={styles.emptyText}>Veuillez d'abord choisir un service</Text>
+            ) : !selectedStaffId ? (
+              <Text style={styles.emptyText}>Veuillez d'abord choisir un coiffeur</Text>
+            ) : slots.length === 0 ? (
+              <Text style={styles.emptyText}>Aucun créneau disponible pour aujourd'hui</Text>
+            ) : (
+              <View style={styles.slotsGrid}>
+                {slots.map(slot => {
+                  const isSelected = selectedTimeSlot === slot.startTime;
+                  const isAvailable = slot.isAvailable;
+                  return (
+                    <TouchableOpacity
+                      key={slot.startTime}
+                      style={[
+                        styles.slotButton,
+                        !isAvailable && styles.slotButtonDisabled,
+                        isSelected && styles.slotButtonSelected
+                      ]}
+                      disabled={!isAvailable}
+                      onPress={() => setSelectedTimeSlot(slot.startTime)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[
+                        styles.slotText,
+                        !isAvailable && styles.slotTextDisabled,
+                        isSelected && styles.textInk
+                      ]}>
+                        {slot.startTime}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
 
             <Text style={styles.label}>Notes (Optionnel)</Text>
             <TextInput
@@ -251,6 +376,47 @@ const styles = StyleSheet.create({
   },
   textInk: {
     color: colors.ink,
+  },
+  slotsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+    marginBottom: spacing.md,
+  },
+  slotButton: {
+    width: '22%',
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.carbon,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  slotButtonSelected: {
+    backgroundColor: colors.amber,
+    borderColor: colors.amber,
+  },
+  slotButtonDisabled: {
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    borderColor: 'transparent',
+    opacity: 0.3,
+  },
+  slotText: {
+    fontFamily: 'DMSans_700Bold',
+    fontSize: 14,
+    color: colors.textPrimary,
+  },
+  slotTextDisabled: {
+    color: colors.textMuted,
+    textDecorationLine: 'line-through',
+  },
+  emptyText: {
+    fontFamily: 'DMSans_400Regular',
+    fontSize: 14,
+    color: colors.textMuted,
+    marginVertical: spacing.sm,
   },
   buttons: {
     marginTop: spacing.xl,
