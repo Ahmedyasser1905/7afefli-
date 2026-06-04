@@ -28,8 +28,8 @@ export function EditSalonLocationModal({ visible, onClose, salon, onSaved }: Edi
 
   useEffect(() => {
     if (salon && visible) {
-      setLat(salon.latitude || 36.7538);
-      setLng(salon.longitude || 3.0588);
+      setLat((salon.latitude as number) ?? 36.7538);
+      setLng((salon.longitude as number) ?? 3.0588);
     }
   }, [salon, visible]);
 
@@ -46,7 +46,7 @@ export function EditSalonLocationModal({ visible, onClose, salon, onSaved }: Edi
       onSaved();
       onClose();
     } catch (err: unknown) {
-      Alert.alert('Erreur', err.message);
+      Alert.alert('Erreur', (err as Error).message || 'Impossible de sauvegarder l\'emplacement');
     } finally {
       setSaving(false);
     }

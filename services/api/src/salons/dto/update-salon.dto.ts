@@ -5,6 +5,7 @@ import {
   IsNumber,
   IsOptional,
   IsArray,
+  IsBoolean,
   Min,
   Max,
   Matches,
@@ -53,4 +54,12 @@ export class UpdateSalonDto {
   @IsNumber({}, { each: true })
   @IsOptional()
   working_days?: number[];
+
+  @IsString()
+  @IsOptional()
+  image_url?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  force_closed?: boolean;
 }

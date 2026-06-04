@@ -86,8 +86,8 @@ export function EditSalonModal({ visible, onClose, salon, onSaved }: EditSalonMo
         description: description.trim() || null,
         wilaya: wilaya.trim(),
         address: address.trim(),
-        open_time: openTime + ':00',
-        close_time: closeTime + ':00',
+        open_time: openTime,
+        close_time: closeTime,
         image_url: imageUrl,
       });
 

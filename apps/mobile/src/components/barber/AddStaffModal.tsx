@@ -46,7 +46,7 @@ export function AddStaffModal({ visible, onClose, salonId, onSuccess }: AddStaff
       setLastName('');
       onClose();
     } catch (err: unknown) {
-      Alert.alert('Erreur', err.message);
+      Alert.alert('Erreur', (err as Error).message || 'Impossible d\'ajouter ce barbier');
     } finally {
       setLoading(false);
     }
