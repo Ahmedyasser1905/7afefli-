@@ -26,12 +26,10 @@ interface AddWalkInModalProps {
   onSuccess: () => void;
 }
 
-const getLocalDateString = () => {
-  const d = new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+// Always returns today's date in Algeria time (UTC+1)
+const getAlgeriaTodayStr = () => {
+  const alg = new Date(Date.now() + 60 * 60 * 1000);
+  return alg.toISOString().split('T')[0];
 };
 
 export function AddWalkInModal({ visible, onClose, salonId, onSuccess }: AddWalkInModalProps) {
@@ -86,7 +84,11 @@ export function AddWalkInModal({ visible, onClose, salonId, onSuccess }: AddWalk
   }, [staffList, user?.id, selectedStaffId]);
 
   const selectedService = services.find(s => s.id === selectedServiceId);
-  const todayStr = getLocalDateString();
+  const todayStr = getAlgeriaTodayStr();
+  // Friendly display of today
+  const todayDisplay = new Date(todayStr + 'T00:00:00').toLocaleDateString('fr-FR', {
+    weekday: 'long', day: 'numeric', month: 'long',
+  });
 
   // Query Available Slots — isBarberMode=true so past slots today remain selectable
   const { data: slots = [], isLoading: isSlotsLoading } = useAvailableSlots({

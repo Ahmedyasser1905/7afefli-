@@ -169,14 +169,16 @@ export function DashboardScreen() {
     });
   }, [realBookings, selectedFilter]);
 
-  // Combine for FlatList: bookings first, then blocked slots (only on 'all' tab)
+  // Combine for FlatList: bookings first, then blocked slots
+  // Blocked slots only appear in Jour mode (irrelevant in month/all historical views)
+  const showBlocks = selectedFilter === 'all' && viewMode === 'day';
   const listData = useMemo(() => [
     ...bookingItems.map(item => ({ ...item, _type: 'booking' as const })),
-    ...(selectedFilter === 'all' && blockedItems.length > 0
+    ...(showBlocks && blockedItems.length > 0
       ? [{ _type: 'blocked-header' as const, id: '__blocked_header__' }]
       : []),
-    ...(selectedFilter === 'all' ? blockedItems.map(item => ({ ...item, _type: 'blocked' as const })) : []),
-  ], [bookingItems, blockedItems, selectedFilter]);
+    ...(showBlocks ? blockedItems.map(item => ({ ...item, _type: 'blocked' as const })) : []),
+  ], [bookingItems, blockedItems, showBlocks]);
 
   // Statistics — always derived from periodItems (period-aware)
   const stats = useMemo(() => {
@@ -238,6 +240,34 @@ export function DashboardScreen() {
     },
   });
 
+  // Auto-delete expired blocked slots (silently in the background)
+  useEffect(() => {
+    if (!salonId || allItems.length === 0) return;
+    const nowAlg  = new Date(Date.now() + 60 * 60 * 1000);
+    const nowStr  = `${String(nowAlg.getUTCHours()).padStart(2,'0')}:${String(nowAlg.getUTCMinutes()).padStart(2,'0')}`;
+    const todayAlg = nowAlg.toISOString().split('T')[0];
+
+    const expiredBlocks = allItems.filter((r) => {
+      if (!(r as any).notes?.includes('CR\u00c9NEAU BLOQU\u00c9')) return false;
+      const apptDate = (r.appointment_date as string) ?? '';
+      const endTime  = (r.end_time ?? '').slice(0, 5);
+      return apptDate < todayAlg || (apptDate === todayAlg && !!endTime && endTime < nowStr);
+    });
+
+    if (expiredBlocks.length === 0) return;
+
+    // Fire-and-forget: delete each expired block from DB
+    Promise.all(
+      expiredBlocks.map((block) =>
+        apiClient.delete(`/reservations/block/${block.id}`).catch(() => {})
+      )
+    ).then(() => {
+      // Refresh cache after cleanup
+      queryClient.invalidateQueries({ queryKey: ['barber-reservations'] });
+      queryClient.invalidateQueries({ queryKey: ['slots'] });
+    });
+  }, [allItems, salonId]);
+
   const handleConfirm = useCallback((id: string) => {
     Alert.alert('Confirmer ?', 'Voulez-vous accepter ce rendez-vous ?', [
       { text: 'Non', style: 'cancel' },
@@ -251,7 +281,7 @@ export function DashboardScreen() {
     ]);
   }, [updateStatus]);
 
-  const handleCancel = useCallback((id: string) => {
+  const handleCancel  const handleConfirm = useCallback((id: string) => {
     Alert.alert('Annuler la réservation ?', 'Cette action notifiera le client.', [
       { text: 'Non', style: 'cancel' },
       {
@@ -461,7 +491,7 @@ export function DashboardScreen() {
     );
   };
 
-  const handleUnblock = useCallback((id: string) => {
+  const handleUnblock  const handleConfirm = useCallback((id: string) => {
     Alert.alert(
       '🔓 Débloquer ce créneau ?',
       'Le créneau redeviendra disponible pour les clients.',
