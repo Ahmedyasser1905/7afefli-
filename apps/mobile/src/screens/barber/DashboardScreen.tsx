@@ -82,7 +82,12 @@ export function DashboardScreen() {
   );
 
   const bookingItems = useMemo(
-    () => allItems.filter((r) => !(r as any).notes?.includes('CRÉNEAU BLOQUÉ')),
+    () =>
+      allItems.filter(
+        (r) =>
+          !(r as any).notes?.includes('CRÉNEAU BLOQUÉ') &&
+          r.status !== 'Completed', // hide completed — they're done, no action needed
+      ),
     [allItems],
   );
 
