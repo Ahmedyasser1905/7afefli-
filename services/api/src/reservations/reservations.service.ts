@@ -123,16 +123,7 @@ export class ReservationsService {
     }
 
     // 4. Invalidate slot cache for this salon/date to reduce stale availability
-    // NOTE: prefix must match the one in slots.service.ts (slots_v2)
-    const cachePattern = `slots_v2:${dto.salonId}:${dto.serviceId}:${dto.appointmentDate}`;
-    try {
-      // Wildcard invalidation — delete all barber variants for this date
-      await this.cacheManager.del(`${cachePattern}:any`);
-      if (dto.barberId) await this.cacheManager.del(`${cachePattern}:${dto.barberId}`);
-    } catch {
-      // Cache invalidation failure is non-fatal
-      this.logger.warn('Slot cache invalidation failed (non-fatal)');
-    }
+    await this.invalidateSlotsCache(dto.salonId, dto.serviceId, dto.appointmentDate, dto.barberId);
 
     // 5. Fetch the enriched data
     const { data: enrichedData } = await this.supabase.adminClient
@@ -198,6 +189,9 @@ export class ReservationsService {
       .from('reservations')
       .update({ status: 'Confirmed' })
       .eq('id', data.id);
+
+    // Invalidate slot cache for all services in the salon at this date/barber
+    await this.invalidateSlotsCache(salonId, null, appointmentDate, barberId);
 
     return data;
   }
@@ -337,6 +331,15 @@ export class ReservationsService {
       .single();
 
     if (error) throw new Error(`Failed to update reservation: ${error.message}`);
+
+    // Invalidate slot cache since reservation status changed (e.g. cancelled)
+    await this.invalidateSlotsCache(
+      reservation.salon_id,
+      reservation.service_id,
+      reservation.appointment_date,
+      reservation.barber_id,
+    );
+
     return data;
   }
 
@@ -399,6 +402,75 @@ export class ReservationsService {
     }
 
     return data;
+  }
+
+  /**
+   * Helper to invalidate all potential slot caches for a salon, service, and date.
+   */
+  private async invalidateSlotsCache(
+    salonId: string,
+    serviceId: string | null,
+    appointmentDate: string,
+    barberId?: string | null,
+  ): Promise<void> {
+    try {
+      const servicesToInvalidate: string[] = [];
+      if (serviceId) {
+        servicesToInvalidate.push(serviceId);
+      } else {
+        // Fetch all service IDs for this salon to invalidate their caches
+        const { data: services } = await this.supabase.adminClient
+          .from('services')
+          .select('id')
+          .eq('salon_id', salonId);
+        if (services) {
+          services.forEach(s => servicesToInvalidate.push(s.id));
+        }
+      }
+
+      for (const sId of servicesToInvalidate) {
+        const cachePattern = `slots_v2:${salonId}:${sId}:${appointmentDate}`;
+        
+        // Invalidate 'any' coiffeur
+        await this.cacheManager.del(`${cachePattern}:any`);
+        
+        // Invalidate specific barber variants
+        if (barberId) {
+          await this.cacheManager.del(`${cachePattern}:${barberId}`);
+          
+          // Let's resolve the other representation (profile_id <-> staff_id)
+          const { data: staff } = await this.supabase.adminClient
+            .from('salon_staff')
+            .select('id, profile_id')
+            .or(`id.eq.${barberId},profile_id.eq.${barberId}`)
+            .maybeSingle();
+
+          if (staff) {
+            await this.cacheManager.del(`${cachePattern}:${staff.id}`);
+            if (staff.profile_id) {
+              await this.cacheManager.del(`${cachePattern}:${staff.profile_id}`);
+            }
+          }
+        } else {
+          // Invalidate for all staff members of the salon to be safe
+          const { data: staffList } = await this.supabase.adminClient
+            .from('salon_staff')
+            .select('id, profile_id')
+            .eq('salon_id', salonId);
+            
+          if (staffList) {
+            for (const staff of staffList) {
+              await this.cacheManager.del(`${cachePattern}:${staff.id}`);
+              if (staff.profile_id) {
+                await this.cacheManager.del(`${cachePattern}:${staff.profile_id}`);
+              }
+            }
+          }
+        }
+      }
+    } catch (err) {
+      this.logger.warn(`Slot cache invalidation failed (non-fatal): ${err.message}`);
+    }
   }
 
 }
