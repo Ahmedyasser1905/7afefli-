@@ -71,29 +71,41 @@ export function MyAppointmentsScreen() {
     );
   };
 
-  // Filter reservations based on active tab
+  // Filter reservations based on active tab — Algeria time (UTC+1)
   const filteredReservations = React.useMemo(() => {
-    const todayStr = new Date().toISOString().split('T')[0];
-    
+    const algNow = new Date(Date.now() + 60 * 60 * 1000);
+    const todayAlg = algNow.toISOString().split('T')[0];
+    const nowStr = `${String(algNow.getUTCHours()).padStart(2,'0')}:${String(algNow.getUTCMinutes()).padStart(2,'0')}`;
+
     return reservations.filter((r: Record<string, unknown>) => {
-      const isUpcoming = r.status !== 'Cancelled' && r.status !== 'Completed' && r.appointment_date >= todayStr;
-      
-      if (activeTab === 'upcoming') {
-        return isUpcoming;
-      } else {
-        return !isUpcoming;
-      }
+      const apptDate = r.appointment_date as string ?? '';
+      const endTime  = (r.end_time as string ?? '').slice(0, 5);
+      const isExpired = apptDate < todayAlg || (apptDate === todayAlg && !!endTime && endTime < nowStr);
+      // Past = cancelled, completed, OR still-Confirmed/Pending but time has passed
+      const effectivelyPast = r.status === 'Cancelled' || r.status === 'Completed' || isExpired;
+      return activeTab === 'upcoming' ? !effectivelyPast : effectivelyPast;
     });
   }, [reservations, activeTab]);
 
   const renderItem = ({ item }: { item: Record<string, unknown> }) => {
-    const salon = item.salons;
+    const salon   = item.salons;
     const service = item.services;
 
-    const isPending   = item.status === 'Pending';
-    const isConfirmed = item.status === 'Confirmed';
-    const isCancelled = item.status === 'Cancelled';
-    const isCompleted = item.status === 'Completed';
+    // Visual override: expired Confirmed → Terminé, expired Pending → Annulé
+    const algNow   = new Date(Date.now() + 60 * 60 * 1000);
+    const nowStr   = `${String(algNow.getUTCHours()).padStart(2,'0')}:${String(algNow.getUTCMinutes()).padStart(2,'0')}`;
+    const todayAlg = algNow.toISOString().split('T')[0];
+    const apptDate = item.appointment_date as string ?? '';
+    const endTime  = (item.end_time as string ?? '').slice(0, 5);
+    const isExpired = apptDate < todayAlg || (apptDate === todayAlg && !!endTime && endTime < nowStr);
+    const effectiveStatus = isExpired && item.status === 'Confirmed' ? 'Completed'
+      : isExpired && item.status === 'Pending' ? 'Cancelled'
+      : item.status as string;
+
+    const isPending   = effectiveStatus === 'Pending';
+    const isConfirmed = effectiveStatus === 'Confirmed';
+    const isCancelled = effectiveStatus === 'Cancelled';
+    const isCompleted = effectiveStatus === 'Completed';
     const isUpcoming  = activeTab === 'upcoming';
 
     const statusLabel: Record<string, string> = {
@@ -141,7 +153,7 @@ export function MyAppointmentsScreen() {
               isCancelled && styles.statusCancelledText,
               isCompleted && styles.statusCompletedText,
             ]}>
-              {statusLabel[item.status as string] ?? item.status}
+              {statusLabel[effectiveStatus] ?? effectiveStatus}
             </Text>
           </View>
         </View>
@@ -195,7 +207,7 @@ export function MyAppointmentsScreen() {
               <Text style={styles.cancelBtnText}>Annuler</Text>
             </TouchableOpacity>
           )}
-          {!isUpcoming && item.status === 'Completed' && (!item.reviews || item.reviews.length === 0 || Object.keys(item.reviews).length === 0) && (
+          {!isUpcoming && effectiveStatus === 'Completed' && (!item.reviews || item.reviews.length === 0 || Object.keys(item.reviews).length === 0) && (
             <TouchableOpacity
               style={styles.reviewBtn}
               onPress={() => setReviewReservation(item)}
