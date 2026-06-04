@@ -84,42 +84,75 @@ export class SlotsService {
       return []; // Salon is closed on this day
     }
 
-    // 2. Fetch all booked slots for that date
-    let query = this.supabase.adminClient
+    // 2. Fetch all staff members of the salon to determine total capacity N
+    const { data: staffList } = await this.supabase.adminClient
+      .from('salon_staff')
+      .select('id, profile_id')
+      .eq('salon_id', salonId);
+    const N = staffList?.length || 1;
+
+    // Fetch all booked slots for that date
+    const { data: bookedSlots } = await this.supabase.adminClient
       .from('reservations')
-      .select('start_time, end_time')
+      .select('start_time, end_time, staff_id, barber_id')
       .eq('salon_id', salonId)
       .eq('appointment_date', date)
       .in('status', ['Pending', 'Confirmed']);
 
+    // Resolve barberId to staff.id and profile_id if specified
+    let targetStaffId: string | null = null;
+    let targetProfileId: string | null = null;
     if (barberId) {
-      // Find the staff row to check if barberId is a staff.id or profile_id
-      const { data: staff } = await this.supabase.adminClient
-        .from('salon_staff')
-        .select('id, profile_id')
-        .or(`id.eq.${barberId},profile_id.eq.${barberId}`)
-        .maybeSingle();
-
+      const staff = staffList?.find(s => s.id === barberId || s.profile_id === barberId);
       if (staff) {
-        // Query reservations where staff_id is staff.id or barber_id is staff.profile_id
-        query = query.or(`staff_id.eq.${staff.id}${staff.profile_id ? `,barber_id.eq.${staff.profile_id}` : ''}`);
+        targetStaffId = staff.id;
+        targetProfileId = staff.profile_id;
       } else {
-        // Fallback: check both anyway
-        query = query.or(`staff_id.eq.${barberId},barber_id.eq.${barberId}`);
+        targetStaffId = barberId;
       }
     }
-
-    const { data: bookedSlots } = await query;
 
     // 3. Generate all possible slots
     const allSlots = this.generateTimeSlots(openTime, closeTime, duration);
 
-    // 4. Mark booked slots as unavailable
+    // 4. Mark booked slots as unavailable based on capacity N
     const finalSlots = allSlots.map(slot => {
-      let isAvailable = !this.isSlotBooked(slot, bookedSlots ?? []);
+      // Find all overlapping bookings for this slot
+      const overlappingBookings = (bookedSlots ?? []).filter(booked => {
+        let slotStart = this.timeToMinutes(slot.startTime);
+        let slotEnd = this.timeToMinutes(slot.endTime);
+        if (slotEnd <= slotStart) slotEnd += 24 * 60;
+
+        let bookedStart = this.timeToMinutes(booked.start_time);
+        let bookedEnd = this.timeToMinutes(booked.end_time);
+        if (bookedEnd <= bookedStart) bookedEnd += 24 * 60;
+
+        return slotStart < bookedEnd && slotEnd > bookedStart;
+      });
+
+      const totalBookedCount = overlappingBookings.length;
+      let isAvailable = true;
+
+      if (totalBookedCount >= N) {
+        // Capacity full
+        isAvailable = false;
+      } else if (barberId) {
+        // If query is for a specific barber, check if they are specifically busy
+        const isBarberBusy = overlappingBookings.some(booked => 
+          booked.staff_id === targetStaffId || 
+          booked.barber_id === targetProfileId ||
+          booked.staff_id === barberId ||
+          booked.barber_id === barberId
+        );
+        if (isBarberBusy) {
+          isAvailable = false;
+        }
+      }
+
       if (isAvailable && date === currentDateStr && slot.startTime <= currentTimeStr) {
         isAvailable = false;
       }
+
       return {
         ...slot,
         isAvailable,
@@ -138,6 +171,7 @@ export class SlotsService {
       requestedDay,
       allSlotsLength: allSlots.length,
       finalSlotsLength: finalSlots.length,
+      staffCount: N,
     });
 
     return finalSlots;
@@ -173,26 +207,6 @@ export class SlotsService {
   }
 
   /**
-   * Check if a slot overlaps with any booked reservation.
-   * Uses standard interval overlap formula: A_start < B_end AND A_end > B_start
-   */
-  private isSlotBooked(
-    slot: { startTime: string; endTime: string },
-    bookedSlots: { start_time: string; end_time: string }[],
-  ): boolean {
-    let slotStart = this.timeToMinutes(slot.startTime);
-    let slotEnd = this.timeToMinutes(slot.endTime);
-    if (slotEnd <= slotStart) slotEnd += 24 * 60;
-
-    return bookedSlots.some(booked => {
-      let bookedStart = this.timeToMinutes(booked.start_time);
-      let bookedEnd = this.timeToMinutes(booked.end_time);
-      if (bookedEnd <= bookedStart) bookedEnd += 24 * 60;
-      return slotStart < bookedEnd && slotEnd > bookedStart;
-    });
-  }
-
-  /**
    * Convert "HH:MM" or "HH:MM:SS" time string to minutes since midnight.
    */
   private timeToMinutes(time: string): number {
@@ -210,3 +224,4 @@ export class SlotsService {
     return `${h}:${m}`;
   }
 }
+

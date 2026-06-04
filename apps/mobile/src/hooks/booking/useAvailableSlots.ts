@@ -4,7 +4,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../lib/apiClient';
 import { supabase } from '../../lib/supabase';
-import { generateTimeSlots, isSlotBooked } from '@barberdz/shared/utils/timeSlots';
+import { generateTimeSlots } from '@barberdz/shared/utils/timeSlots';
 import type { TimeSlot } from '@barberdz/shared/types';
 
 interface UseSlotsParams {
@@ -95,41 +95,80 @@ export function useAvailableSlots({
         }
 
         try {
-          // 2. Fetch booked reservations from Supabase directly
-          let query = supabase
+          // Fetch salon staff list to determine capacity N
+          const { data: staffList, error: staffErr } = await supabase
+            .from('salon_staff')
+            .select('id, profile_id')
+            .eq('salon_id', salonId!);
+          if (staffErr) throw staffErr;
+          const N = staffList?.length || 1;
+
+          // Fetch all booked reservations for that date
+          const { data: bookedReservations, error: resErr } = await supabase
             .from('reservations')
-            .select('start_time, end_time')
+            .select('start_time, end_time, staff_id, barber_id')
             .eq('salon_id', salonId!)
             .eq('appointment_date', date!)
             .in('status', ['Pending', 'Confirmed']);
+          if (resErr) throw resErr;
 
+          // Resolve staffId / profile_id
+          let targetStaffId: string | null = null;
+          let targetProfileId: string | null = null;
           if (staffId) {
-            // Find the staff row to check if staffId is a staff.id or profile_id
-            const { data: staff } = await supabase
-              .from('salon_staff')
-              .select('id, profile_id')
-              .or(`id.eq.${staffId},profile_id.eq.${staffId}`)
-              .maybeSingle();
-
+            const staff = staffList?.find(s => s.id === staffId || s.profile_id === staffId);
             if (staff) {
-              query = query.or(`staff_id.eq.${staff.id}${staff.profile_id ? `,barber_id.eq.${staff.profile_id}` : ''}`);
+              targetStaffId = staff.id;
+              targetProfileId = staff.profile_id;
             } else {
-              query = query.or(`staff_id.eq.${staffId},barber_id.eq.${staffId}`);
+              targetStaffId = staffId;
             }
           }
 
-          const { data: bookedReservations, error } = await query;
-          if (error) throw error;
-
-          // 3. Generate slots using the shared logic (handles midnight correctly)
+          // 3. Generate slots using the shared logic
           const rawSlots = generateTimeSlots(openTime, closeTime, durationMin);
+
+          // helper to parse time to minutes
+          const timeToMinutes = (t: string) => {
+            const [h, m] = t.split(':').map(Number);
+            return h * 60 + m;
+          };
           
-          // 4. Mark booked slots as unavailable
+          // 4. Mark booked slots as unavailable based on capacity N
           const localSlots = rawSlots.map((slot) => {
-            let isAvailable = !isSlotBooked(slot, bookedReservations || []);
+            let slotStart = timeToMinutes(slot.startTime);
+            let slotEnd = timeToMinutes(slot.endTime);
+            if (slotEnd <= slotStart) slotEnd += 24 * 60;
+
+            // Find overlapping reservations
+            const overlapping = (bookedReservations || []).filter(booked => {
+              let bookedStart = timeToMinutes(booked.start_time);
+              let bookedEnd = timeToMinutes(booked.end_time);
+              if (bookedEnd <= bookedStart) bookedEnd += 24 * 60;
+              return slotStart < bookedEnd && slotEnd > bookedStart;
+            });
+
+            const totalBookedCount = overlapping.length;
+            let isAvailable = true;
+
+            if (totalBookedCount >= N) {
+              isAvailable = false;
+            } else if (staffId) {
+              const isBarberBusy = overlapping.some(booked => 
+                booked.staff_id === targetStaffId || 
+                booked.barber_id === targetProfileId ||
+                booked.staff_id === staffId ||
+                booked.barber_id === staffId
+              );
+              if (isBarberBusy) {
+                isAvailable = false;
+              }
+            }
+
             if (isAvailable && date === currentDateStr && slot.startTime <= currentTimeStr) {
               isAvailable = false;
             }
+
             return {
               ...slot,
               isAvailable,
