@@ -305,25 +305,48 @@ export class ReservationsService {
    * Get all reservations for the authenticated client.
    */
   async findByClient(clientId: string) {
-    // Auto-complete past reservations for this client (Algeria UTC+1)
+    // Auto-update expired reservations for this client (Algeria UTC+1)
+    // - Pending expiré  → Annulé  (jamais confirmé par le coiffeur)
+    // - Confirmed expiré → Completed (rendez-vous effectué)
     const algeriaOffset = 60;
     const nowAlgeria  = new Date(Date.now() + algeriaOffset * 60 * 1000);
     const todayStr    = nowAlgeria.toISOString().split('T')[0];
     const currentTime = `${String(nowAlgeria.getUTCHours()).padStart(2, '0')}:${String(nowAlgeria.getUTCMinutes()).padStart(2, '0')}`;
 
+    // Pending des jours passés → Annulé
     await this.supabase.adminClient
       .from('reservations')
       .update({ status: 'Cancelled' })
       .eq('client_id', clientId)
-      .in('status', ['Confirmed', 'Pending'])
+      .eq('status', 'Pending')
       .not('notes', 'ilike', '%NEAU BLOQU%')
       .lt('appointment_date', todayStr);
 
+    // Pending d'aujourd'hui dont l'heure est passée → Annulé
     await this.supabase.adminClient
       .from('reservations')
       .update({ status: 'Cancelled' })
       .eq('client_id', clientId)
-      .in('status', ['Confirmed', 'Pending'])
+      .eq('status', 'Pending')
+      .not('notes', 'ilike', '%NEAU BLOQU%')
+      .eq('appointment_date', todayStr)
+      .lt('end_time', currentTime);
+
+    // Confirmed des jours passés → Completed
+    await this.supabase.adminClient
+      .from('reservations')
+      .update({ status: 'Completed' })
+      .eq('client_id', clientId)
+      .eq('status', 'Confirmed')
+      .not('notes', 'ilike', '%NEAU BLOQU%')
+      .lt('appointment_date', todayStr);
+
+    // Confirmed d'aujourd'hui dont l'heure est passée → Completed
+    await this.supabase.adminClient
+      .from('reservations')
+      .update({ status: 'Completed' })
+      .eq('client_id', clientId)
+      .eq('status', 'Confirmed')
       .not('notes', 'ilike', '%NEAU BLOQU%')
       .eq('appointment_date', todayStr)
       .lt('end_time', currentTime);
@@ -374,29 +397,48 @@ export class ReservationsService {
       }
     }
 
-    // ── Auto-complete past reservations ──────────────────────────────────────
-    // Any real reservation (not a CRÉNEAU BLOQUÉ) whose end_time has passed
-    // is automatically moved to 'Completed'. Algeria is UTC+1.
-    const algeriaOffset = 60; // minutes
+    // ── Auto-update réservations expirées ────────────────────────────────────
+    // - Pending expiré  → Annulé   (jamais confirmé par le coiffeur)
+    // - Confirmed expiré → Completed (rendez-vous effectué)
+    const algeriaOffset = 60;
     const nowAlgeria = new Date(Date.now() + algeriaOffset * 60 * 1000);
     const todayStr   = nowAlgeria.toISOString().split('T')[0];
     const currentTime = `${String(nowAlgeria.getUTCHours()).padStart(2, '0')}:${String(nowAlgeria.getUTCMinutes()).padStart(2, '0')}`;
 
-    // 1. All confirmed/pending reservations from PREVIOUS days → Completed
+    // Pending des jours passés → Annulé
     await this.supabase.adminClient
       .from('reservations')
       .update({ status: 'Cancelled' })
       .eq('salon_id', salonId)
-      .in('status', ['Confirmed', 'Pending'])
+      .eq('status', 'Pending')
       .not('notes', 'ilike', '%NEAU BLOQU%')
       .lt('appointment_date', todayStr);
 
-    // 2. Today's reservations whose end_time has already passed → Completed
+    // Pending d'aujourd'hui dont l'heure est passée → Annulé
     await this.supabase.adminClient
       .from('reservations')
       .update({ status: 'Cancelled' })
       .eq('salon_id', salonId)
-      .in('status', ['Confirmed', 'Pending'])
+      .eq('status', 'Pending')
+      .not('notes', 'ilike', '%NEAU BLOQU%')
+      .eq('appointment_date', todayStr)
+      .lt('end_time', currentTime);
+
+    // Confirmed des jours passés → Completed
+    await this.supabase.adminClient
+      .from('reservations')
+      .update({ status: 'Completed' })
+      .eq('salon_id', salonId)
+      .eq('status', 'Confirmed')
+      .not('notes', 'ilike', '%NEAU BLOQU%')
+      .lt('appointment_date', todayStr);
+
+    // Confirmed d'aujourd'hui dont l'heure est passée → Completed
+    await this.supabase.adminClient
+      .from('reservations')
+      .update({ status: 'Completed' })
+      .eq('salon_id', salonId)
+      .eq('status', 'Confirmed')
       .not('notes', 'ilike', '%NEAU BLOQU%')
       .eq('appointment_date', todayStr)
       .lt('end_time', currentTime);
