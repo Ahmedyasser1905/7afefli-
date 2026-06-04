@@ -69,25 +69,42 @@ export function DashboardScreen() {
     },
   });
 
-  // Sort: latest start_time first so newest bookings appear at top
+  // Separate blocks from real reservations
   const allItems = useMemo(() => {
     return [...todaysBookings].sort((a, b) =>
       b.start_time.localeCompare(a.start_time)
     );
   }, [todaysBookings]);
 
-  // Statistics calculation
+  const blockedItems = useMemo(
+    () => allItems.filter((r) => (r as any).notes?.includes('CRÉNEAU BLOQUÉ')),
+    [allItems],
+  );
+
+  const bookingItems = useMemo(
+    () => allItems.filter((r) => !(r as any).notes?.includes('CRÉNEAU BLOQUÉ')),
+    [allItems],
+  );
+
+  // Combine for FlatList: real bookings first, then blocked slots at the bottom
+  const listData = useMemo(() => [
+    ...bookingItems.map(item => ({ ...item, _type: 'booking' as const })),
+    ...(blockedItems.length > 0 ? [{ _type: 'blocked-header' as const, id: '__blocked_header__' }] : []),
+    ...blockedItems.map(item => ({ ...item, _type: 'blocked' as const })),
+  ], [bookingItems, blockedItems]);
+
+  // Statistics — exclude blocks from counts
   const stats = useMemo(() => {
-    const active = allItems.filter((r) => r.status === 'Confirmed' || r.status === 'Pending');
-    const pending = allItems.filter((r) => r.status === 'Pending');
-    const revenue = allItems
+    const active = bookingItems.filter((r) => r.status === 'Confirmed' || r.status === 'Pending');
+    const pending = bookingItems.filter((r) => r.status === 'Pending');
+    const revenue = bookingItems
       .filter((r) => r.status === 'Completed' || r.status === 'Confirmed')
       .reduce((sum, r) => {
         const svc = (r as Record<string, unknown>).services as Record<string, unknown> | undefined;
         return sum + ((svc?.price as number) ?? 0);
       }, 0);
     return { total: active.length, pending: pending.length, revenue };
-  }, [allItems]);
+  }, [bookingItems]);
 
   // Update status mutation
   const updateStatus = useMutation({
@@ -100,6 +117,21 @@ export function DashboardScreen() {
     onError: (error: any) => {
       Alert.alert('Erreur', error.message || 'Impossible d\'annuler la réservation');
     }
+  });
+
+  // Unblock time mutation
+  const unblockTime = useMutation({
+    mutationFn: async (id: string) => {
+      await apiClient.delete(`/reservations/block/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['barber-reservations'] });
+      queryClient.invalidateQueries({ queryKey: ['slots'] });
+      Alert.alert('Succès', 'Le créneau a été débloqué ✅');
+    },
+    onError: (error: any) => {
+      Alert.alert('Erreur', error.message || 'Impossible de débloquer ce créneau');
+    },
   });
 
   const handleConfirm = useCallback((id: string) => {
@@ -245,6 +277,53 @@ export function DashboardScreen() {
     );
   };
 
+  const handleUnblock = useCallback((id: string) => {
+    Alert.alert(
+      '🔓 Débloquer ce créneau ?',
+      'Le créneau redeviendra disponible pour les clients.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Débloquer',
+          style: 'destructive',
+          onPress: () => unblockTime.mutate(id),
+        },
+      ]
+    );
+  }, [unblockTime]);
+
+  // Render a CRÉNEAU BLOQUÉ item as a distinct locked card
+  const renderBlockedItem = ({ item }: { item: Record<string, unknown> }) => (
+    <View style={styles.blockedCard}>
+      <View style={styles.blockedLeft}>
+        <View style={styles.blockedIconWrap}>
+          <Ionicons name="lock-closed" size={20} color={colors.amber} />
+        </View>
+        <View>
+          <Text style={styles.blockedLabel}>Créneau bloqué</Text>
+          <Text style={styles.blockedTime}>
+            {formatTime(item.start_time as string)} – {formatTime(item.end_time as string)}
+          </Text>
+        </View>
+      </View>
+      <TouchableOpacity
+        style={styles.unblockBtn}
+        onPress={() => handleUnblock(item.id as string)}
+        activeOpacity={0.8}
+        disabled={unblockTime.isPending}
+      >
+        {unblockTime.isPending ? (
+          <ActivityIndicator size="small" color={colors.ink} />
+        ) : (
+          <>
+            <Ionicons name="lock-open-outline" size={14} color={colors.ink} />
+            <Text style={styles.unblockBtnText}>Débloquer</Text>
+          </>
+        )}
+      </TouchableOpacity>
+    </View>
+  );
+
   const renderBookingItem = ({ item }: { item: Record<string, unknown> }) => {
     const client = item.profiles;
     const service = item.services;
@@ -344,9 +423,20 @@ export function DashboardScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <FlatList
-        data={allItems}
+        data={listData as any[]}
         keyExtractor={(item) => item.id}
-        renderItem={renderBookingItem}
+        renderItem={({ item }) => {
+          if (item._type === 'blocked-header') {
+            return (
+              <View style={styles.blockedSectionHeader}>
+                <Ionicons name="lock-closed" size={14} color={colors.amber} />
+                <Text style={styles.blockedSectionTitle}>Créneaux bloqués</Text>
+              </View>
+            );
+          }
+          if (item._type === 'blocked') return renderBlockedItem({ item });
+          return renderBookingItem({ item });
+        }}
         ListHeaderComponent={renderHeader}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
@@ -675,5 +765,75 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: spacing.xs,
     paddingHorizontal: spacing.xl,
+  },
+  // ── Blocked time slot card ───────────────────────────────────────────────
+  blockedSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    marginTop: spacing.md,
+  },
+  blockedSectionTitle: {
+    fontFamily: 'DMSans_600SemiBold',
+    fontSize: 12,
+    color: colors.amber,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  blockedCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    backgroundColor: 'rgba(232, 160, 32, 0.06)',
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(232, 160, 32, 0.2)',
+    borderLeftWidth: 3,
+    borderLeftColor: colors.amber,
+  },
+  blockedLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    flex: 1,
+  },
+  blockedIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.md,
+    backgroundColor: 'rgba(232, 160, 32, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  blockedLabel: {
+    fontFamily: 'DMSans_600SemiBold',
+    fontSize: 13,
+    color: colors.amber,
+    marginBottom: 2,
+  },
+  blockedTime: {
+    fontFamily: 'Syne_700Bold',
+    fontSize: 15,
+    color: colors.textPrimary,
+  },
+  unblockBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: colors.error,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 7,
+    borderRadius: radius.sm,
+  },
+  unblockBtnText: {
+    fontFamily: 'DMSans_700Bold',
+    fontSize: 12,
+    color: colors.ink,
   },
 });

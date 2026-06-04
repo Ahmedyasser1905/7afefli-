@@ -244,6 +244,40 @@ export class ReservationsService {
   }
 
   /**
+   * Unblock a time slot — deletes the CRÉNEAU BLOQUÉ reservation.
+   * Only the barber who created the block (barber_id === userId) can delete it.
+   */
+  async unblockTime(reservationId: string, userId: string) {
+    const { data: reservation, error: fetchErr } = await this.supabase.adminClient
+      .from('reservations')
+      .select('id, notes, barber_id, client_id, salon_id, appointment_date')
+      .eq('id', reservationId)
+      .maybeSingle();
+
+    if (fetchErr || !reservation) throw new NotFoundException('Créneau introuvable');
+
+    if (!reservation.notes?.includes('CRÉNEAU BLOQUÉ')) {
+      throw new BadRequestException("Ce n'est pas un créneau bloqué");
+    }
+
+    if (reservation.barber_id !== userId && reservation.client_id !== userId) {
+      throw new ForbiddenException('Vous ne pouvez débloquer que vos propres créneaux');
+    }
+
+    const { error } = await this.supabase.adminClient
+      .from('reservations')
+      .delete()
+      .eq('id', reservationId);
+
+    if (error) throw new Error(`Impossible de débloquer: ${error.message}`);
+
+    // Invalidate slot cache so the freed slot becomes available again
+    await this.invalidateSlotsCache(reservation.salon_id, null, reservation.appointment_date, userId);
+
+    return { success: true, message: 'Créneau débloqué avec succès' };
+  }
+
+  /**
    * Get all reservations for the authenticated client.
    */
   async findByClient(clientId: string) {

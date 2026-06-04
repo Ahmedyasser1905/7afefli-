@@ -5,6 +5,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Param,
   Body,
   Query,
@@ -57,6 +58,20 @@ export class ReservationsController {
       dto.startTime,
       dto.endTime,
     );
+  }
+
+  /**
+   * DELETE /reservations/block/:id
+   * Unblock a time slot (Coiffeur only — can only delete own blocks).
+   */
+  @Delete('block/:id')
+  @UseGuards(RolesGuard)
+  @Roles('Coiffeur')
+  unblockTime(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.reservationsService.unblockTime(id, user.id);
   }
 
   /**
