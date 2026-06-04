@@ -55,13 +55,14 @@ export function DashboardScreen() {
     queryKey: ['barber-reservations', salonId, today()],
     queryFn: async () => {
       if (!salonId) return [];
-      // Use server-side date filter to avoid downloading all reservations
       const data = await apiClient.get<Reservation[]>(`/reservations/salon/${salonId}?date=${today()}`);
       return data;
     },
     enabled: !!salonId,
-    refetchInterval: 5 * 60 * 1000, // auto-refetch every 5 min → backend updates statuses
+    staleTime: 0,                    // always refetch on focus
+    refetchInterval: 2 * 60 * 1000, // background refresh every 2 min
   });
+
 
   // Realtime subscription — invalidates cache automatically via useRealtimeBookings hook
   useRealtimeBookings({
