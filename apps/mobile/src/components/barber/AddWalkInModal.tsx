@@ -130,14 +130,14 @@ export function AddWalkInModal({ visible, onClose, salonId, onSuccess }: AddWalk
 
       await apiClient.post<Record<string, unknown>>('/reservations', payload);
 
+      // Wait 800ms for backend auto-confirm UPDATE to propagate before refetching
+      await new Promise((resolve) => setTimeout(resolve, 800));
+
       // Invalidate ALL barber caches so every screen refreshes immediately
-      // without requiring the barber to re-login
       await Promise.all([
-        // Dashboard + Calendar reservations list
         queryClient.invalidateQueries({ queryKey: ['barber-reservations'] }),
-        // Clients CRM screen
         queryClient.invalidateQueries({ queryKey: ['barber-crm-reservations'] }),
-        // Slot availability (booked slot should disappear from the picker)
+        queryClient.invalidateQueries({ queryKey: ['barber-pending'] }),
         queryClient.invalidateQueries({ queryKey: ['slots', salonId] }),
       ]);
 

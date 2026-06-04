@@ -60,13 +60,17 @@ export function useRealtimeBookings({
             exact: false,
           });
 
-          // 2. Delayed re-invalidation to pick up server-side enriched data (profiles + services join)
+          // 2. Delayed re-invalidation to pick up auto-confirm status update (backend takes ~300ms)
           setTimeout(() => {
             queryClient.invalidateQueries({
               queryKey: ['barber-reservations', salonId],
               exact: false,
             });
-          }, 2500);
+            queryClient.invalidateQueries({
+              queryKey: ['barber-pending'],
+              exact: false,
+            });
+          }, 1000);
 
           // 3. Fetch client name + service for a rich notification
           let clientName = 'Un client';

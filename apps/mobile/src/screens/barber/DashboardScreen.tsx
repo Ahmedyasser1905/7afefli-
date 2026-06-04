@@ -32,7 +32,6 @@ const DEFAULT_AVATAR = 'https://lh3.googleusercontent.com/aida-public/AB6AXuDqBw
 export function DashboardScreen() {
   const user = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
-  const [liveItems, setLiveItems] = useState<Reservation[]>([]);
   const [isWalkInModalVisible, setIsWalkInModalVisible] = useState(false);
   const [isBlockTimeModalVisible, setIsBlockTimeModalVisible] = useState(false);
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
@@ -62,28 +61,20 @@ export function DashboardScreen() {
     enabled: !!salonId,
   });
 
-  // Realtime subscription layer
+  // Realtime subscription — invalidates cache automatically via useRealtimeBookings hook
   useRealtimeBookings({
     salonId,
-    onNewBooking: (reservation) => {
-      setLiveItems((prev) => [reservation, ...prev]);
+    onNewBooking: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    },
-    onStatusChange: (reservation) => {
-      setLiveItems((prev) =>
-        prev.map((r) => (r.id === reservation.id ? reservation : r))
-      );
     },
   });
 
-  // Merge and sort: newest first (by created_at or start_time desc)
+  // Sort: latest start_time first so newest bookings appear at top
   const allItems = useMemo(() => {
-    const map = new Map<string, Reservation>();
-    [...todaysBookings, ...liveItems].forEach((r) => map.set(r.id, r));
-    return Array.from(map.values()).sort((a, b) =>
+    return [...todaysBookings].sort((a, b) =>
       b.start_time.localeCompare(a.start_time)
     );
-  }, [todaysBookings, liveItems]);
+  }, [todaysBookings]);
 
   // Statistics calculation
   const stats = useMemo(() => {
