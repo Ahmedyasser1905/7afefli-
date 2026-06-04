@@ -178,31 +178,36 @@ export function DashboardScreen() {
     ...(selectedFilter === 'all' ? blockedItems.map(item => ({ ...item, _type: 'blocked' as const })) : []),
   ], [bookingItems, blockedItems, selectedFilter]);
 
-  // Statistics — counts all today's real bookings (including past ones for revenue)
+  // Statistics — always derived from periodItems (period-aware)
   const stats = useMemo(() => {
-    const realBookings = allItems.filter((r) => !(r as any).notes?.includes('CRÉNEAU BLOQUÉ'));
-    const nowAlgS = new Date(Date.now() + 60 * 60 * 1000);
-    const nowStrS = `${String(nowAlgS.getUTCHours()).padStart(2, '0')}:${String(nowAlgS.getUTCMinutes()).padStart(2, '0')}`;
+    const periodRealBookings = periodItems.filter((r) => !(r as any).notes?.includes('CRÉNEAU BLOQUÉ'));
 
-    // Active = Pending + Confirmed not yet expired
-    const active = realBookings.filter((r) => {
-      if (r.status === 'Pending') return true;
-      if (r.status === 'Confirmed') {
-        const et = (r.end_time ?? '').slice(0, 5);
-        return !et || et >= nowStrS; // not yet expired
-      }
-      return false;
-    });
-    const pending = realBookings.filter((r) => r.status === 'Pending');
-    // Revenue = Completed + Confirmed (all served clients today)
-    const revenue = realBookings
+    const nowAlgS  = new Date(Date.now() + 60 * 60 * 1000);
+    const nowStrS  = `${String(nowAlgS.getUTCHours()).padStart(2, '0')}:${String(nowAlgS.getUTCMinutes()).padStart(2, '0')}`;
+    const todayAlg = `${nowAlgS.getUTCFullYear()}-${String(nowAlgS.getUTCMonth()+1).padStart(2,'0')}-${String(nowAlgS.getUTCDate()).padStart(2,'0')}`;
+
+    // Total = all non-cancelled reservations in the period
+    const total = periodRealBookings.filter((r) => r.status !== 'Cancelled').length;
+
+    // En attente = Pending (not yet expired) in the period
+    const pending = periodRealBookings.filter((r) => {
+      if (r.status !== 'Pending') return false;
+      const apptDate = (r.appointment_date as string) ?? '';
+      const endTime  = (r.end_time ?? '').slice(0, 5);
+      const isExpired = apptDate < todayAlg || (apptDate === todayAlg && !!endTime && endTime < nowStrS);
+      return !isExpired;
+    }).length;
+
+    // Revenue = Completed + Confirmed in the period (revenue already earned or committed)
+    const revenue = periodRealBookings
       .filter((r) => r.status === 'Completed' || r.status === 'Confirmed')
       .reduce((sum, r) => {
         const svc = (r as Record<string, unknown>).services as Record<string, unknown> | undefined;
         return sum + ((svc?.price as number) ?? 0);
       }, 0);
-    return { total: active.length, pending: pending.length, revenue };
-  }, [allItems]);
+
+    return { total, pending, revenue };
+  }, [periodItems]);
 
 
   // Update status mutation
