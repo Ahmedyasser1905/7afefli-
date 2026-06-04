@@ -36,6 +36,10 @@ export function DashboardScreen() {
   const [isBlockTimeModalVisible, setIsBlockTimeModalVisible] = useState(false);
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'Confirmed' | 'Pending' | 'Cancelled' | 'Completed'>('all');
+  // Period view
+  const [viewMode, setViewMode] = useState<'day' | 'month' | 'all'>('day');
+  const [viewDate, setViewDate]   = useState(today());
+  const [viewMonth, setViewMonth] = useState(today().slice(0, 7)); // YYYY-MM
 
   // Fetch barber's salon
   const { data: salon, isLoading: isSalonLoading } = useQuery({
@@ -50,17 +54,19 @@ export function DashboardScreen() {
 
   const salonId = salon?.id ?? null;
 
-  // Fetch today's bookings with server-side date filter
-  const { data: todaysBookings = [], isLoading: isBookingsLoading, refetch } = useQuery<Reservation[]>({
-    queryKey: ['barber-reservations', salonId, today()],
+  // Fetch bookings — day mode uses ?date=, month/all fetch everything
+  const { data: bookingsRaw = [], isLoading: isBookingsLoading, refetch } = useQuery<Reservation[]>({
+    queryKey: ['barber-reservations', salonId, viewMode === 'day' ? viewDate : viewMode],
     queryFn: async () => {
       if (!salonId) return [];
-      const data = await apiClient.get<Reservation[]>(`/reservations/salon/${salonId}?date=${today()}`);
-      return data;
+      const url = viewMode === 'day'
+        ? `/reservations/salon/${salonId}?date=${viewDate}`
+        : `/reservations/salon/${salonId}`;
+      return apiClient.get<Reservation[]>(url);
     },
     enabled: !!salonId,
-    staleTime: 0,                    // always refetch on focus
-    refetchInterval: 2 * 60 * 1000, // background refresh every 2 min
+    staleTime: 0,
+    refetchInterval: 2 * 60 * 1000,
   });
 
 
@@ -72,22 +78,31 @@ export function DashboardScreen() {
     },
   });
 
-  // Separate blocks from real reservations
+  // Sort all raw bookings
   const allItems = useMemo(() => {
-    return [...todaysBookings].sort((a, b) =>
-      b.start_time.localeCompare(a.start_time)
-    );
-  }, [todaysBookings]);
+    return [...bookingsRaw].sort((a, b) => {
+      if (a.appointment_date !== b.appointment_date)
+        return b.appointment_date.localeCompare(a.appointment_date);
+      return b.start_time.localeCompare(a.start_time);
+    });
+  }, [bookingsRaw]);
+
+  // Filter by selected period (month view = client-side)
+  const periodItems = useMemo(() => {
+    if (viewMode === 'day')   return allItems;
+    if (viewMode === 'month') return allItems.filter(r => (r.appointment_date as string)?.startsWith(viewMonth));
+    return allItems;
+  }, [allItems, viewMode, viewMonth]);
 
   const blockedItems = useMemo(
-    () => allItems.filter((r) => (r as any).notes?.includes('CRÉNEAU BLOQUÉ')),
-    [allItems],
+    () => periodItems.filter((r) => (r as any).notes?.includes('CRÉNEAU BLOQUÉ')),
+    [periodItems],
   );
 
   // All real bookings (no blocks) — used for filter tabs
   const realBookings = useMemo(
-    () => allItems.filter((r) => !(r as any).notes?.includes('CRÉNEAU BLOQUÉ')),
-    [allItems],
+    () => periodItems.filter((r) => !(r as any).notes?.includes('CRÉNEAU BLOQUÉ')),
+    [periodItems],
   );
 
   // Algeria time helper
@@ -95,6 +110,28 @@ export function DashboardScreen() {
     const t = new Date(Date.now() + 60 * 60 * 1000);
     return `${String(t.getUTCHours()).padStart(2, '0')}:${String(t.getUTCMinutes()).padStart(2, '0')}`;
   };
+
+  // Period navigation helpers
+  const goToPrevDay  = () => { const d = new Date(viewDate + 'T00:00:00'); d.setDate(d.getDate() - 1); setViewDate(d.toISOString().split('T')[0]); };
+  const goToNextDay  = () => { const d = new Date(viewDate + 'T00:00:00'); d.setDate(d.getDate() + 1); setViewDate(d.toISOString().split('T')[0]); };
+  const goToPrevMonth = () => { const [y, m] = viewMonth.split('-').map(Number); const d = new Date(y, m - 2, 1); setViewMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`); };
+  const goToNextMonth = () => { const [y, m] = viewMonth.split('-').map(Number); const d = new Date(y, m, 1); setViewMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`); };
+
+  // Human-readable period label
+  const periodLabel = useMemo(() => {
+    if (viewMode === 'day') {
+      const d = new Date(viewDate + 'T00:00:00');
+      if (viewDate === today()) return "Aujourd'hui";
+      return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    }
+    if (viewMode === 'month') {
+      const [y, m] = viewMonth.split('-').map(Number);
+      return new Date(y, m - 1, 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+    }
+    return 'Tout le temps';
+  }, [viewMode, viewDate, viewMonth]);
+
+  const revenuePeriodLabel = viewMode === 'day' ? 'Jour' : viewMode === 'month' ? 'Mois' : 'Total';
 
   const bookingItems = useMemo(() => {
     const nowStr = getNowStr();
@@ -291,7 +328,7 @@ export function DashboardScreen() {
           <View style={styles.bentoWideItem}>
             <Ionicons name="wallet" size={26} color={colors.success} style={styles.bentoIconWide} />
             <View>
-              <Text style={styles.bentoLabel}>Revenus estimés (Jour)</Text>
+              <Text style={styles.bentoLabel}>Revenus estimés ({revenuePeriodLabel})</Text>
               <Text style={[styles.bentoValue, { color: colors.success }]}>
                 {formatDZD(stats.revenue)}
               </Text>
@@ -322,7 +359,65 @@ export function DashboardScreen() {
           </View>
         </View>
 
-        <Text style={styles.sectionHeaderTitle}>Réservations du Jour</Text>
+        {/* Period mode selector */}
+        <View style={styles.periodModeRow}>
+          {(['day', 'month', 'all'] as const).map((mode) => {
+            const label = mode === 'day' ? 'Jour' : mode === 'month' ? 'Mois' : 'Tout';
+            return (
+              <TouchableOpacity
+                key={mode}
+                style={[styles.periodModeBtn, viewMode === mode && styles.periodModeBtnActive]}
+                onPress={() => setViewMode(mode)}
+                activeOpacity={0.75}
+              >
+                <Text style={[styles.periodModeBtnText, viewMode === mode && styles.periodModeBtnTextActive]}>
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* Date / Month navigation */}
+        {viewMode === 'day' && (
+          <View style={styles.dateNavRow}>
+            <TouchableOpacity style={styles.navArrowBtn} onPress={goToPrevDay} activeOpacity={0.7}>
+              <Ionicons name="chevron-back" size={18} color={colors.textPrimary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.dateNavLabel}
+              onPress={() => setViewDate(today())}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.dateNavLabelText}>{periodLabel}</Text>
+              {viewDate !== today() && (
+                <Text style={styles.dateNavReturnHint}>Appuyez pour revenir à aujourd'hui</Text>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.navArrowBtn} onPress={goToNextDay} activeOpacity={0.7}>
+              <Ionicons name="chevron-forward" size={18} color={colors.textPrimary} />
+            </TouchableOpacity>
+          </View>
+        )}
+        {viewMode === 'month' && (
+          <View style={styles.dateNavRow}>
+            <TouchableOpacity style={styles.navArrowBtn} onPress={goToPrevMonth} activeOpacity={0.7}>
+              <Ionicons name="chevron-back" size={18} color={colors.textPrimary} />
+            </TouchableOpacity>
+            <View style={styles.dateNavLabel}>
+              <Text style={styles.dateNavLabelText}>{periodLabel}</Text>
+            </View>
+            <TouchableOpacity style={styles.navArrowBtn} onPress={goToNextMonth} activeOpacity={0.7}>
+              <Ionicons name="chevron-forward" size={18} color={colors.textPrimary} />
+            </TouchableOpacity>
+          </View>
+        )}
+        {viewMode === 'all' && (
+          <View style={styles.dateNavRowCenter}>
+            <Text style={styles.dateNavLabelText}>Tout l'historique du salon</Text>
+          </View>
+        )}
+
         <View style={styles.filterRow}>
           {(
             [
@@ -944,5 +1039,71 @@ const styles = StyleSheet.create({
     fontFamily: 'DMSans_700Bold',
     fontSize: 12,
     color: colors.ink,
+  },
+  // ── Period mode selector ─────────────────────────────────────────────────
+  periodModeRow: {
+    flexDirection: 'row',
+    backgroundColor: colors.carbon,
+    borderRadius: radius.md,
+    padding: 3,
+    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  periodModeBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center' as const,
+    borderRadius: radius.sm,
+  },
+  periodModeBtnActive: {
+    backgroundColor: colors.amber,
+  },
+  periodModeBtnText: {
+    fontFamily: 'DMSans_600SemiBold',
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  periodModeBtnTextActive: {
+    color: colors.ink,
+  },
+  // ── Date / Month navigation ──────────────────────────────────────────────
+  dateNavRow: {
+    flexDirection: 'row',
+    alignItems: 'center' as const,
+    marginBottom: spacing.md,
+    gap: spacing.sm,
+  },
+  dateNavRowCenter: {
+    alignItems: 'center' as const,
+    marginBottom: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  navArrowBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.sm,
+    backgroundColor: colors.carbon,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.07)',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  dateNavLabel: {
+    flex: 1,
+    alignItems: 'center' as const,
+    paddingVertical: spacing.xs,
+  },
+  dateNavLabelText: {
+    fontFamily: 'Syne_700Bold',
+    fontSize: 14,
+    color: colors.textPrimary,
+    textTransform: 'capitalize' as const,
+  },
+  dateNavReturnHint: {
+    fontFamily: 'DMSans_400Regular',
+    fontSize: 10,
+    color: colors.amber,
+    marginTop: 2,
   },
 });
