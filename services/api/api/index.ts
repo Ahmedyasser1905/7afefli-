@@ -2,6 +2,7 @@
 // Vercel serverless entry point for NestJS API
 // Uses singleton bootstrap pattern to minimize cold starts.
 
+import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { ExpressAdapter } from '@nestjs/platform-express';
 import { ValidationPipe } from '@nestjs/common';
