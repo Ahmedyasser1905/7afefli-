@@ -1,7 +1,7 @@
 // apps/mobile/src/screens/barber/DashboardScreen.tsx
 // Barber's first screen — today's stats + live booking feed
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
