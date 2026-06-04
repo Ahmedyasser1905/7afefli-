@@ -35,6 +35,7 @@ export function DashboardScreen() {
   const [isWalkInModalVisible, setIsWalkInModalVisible] = useState(false);
   const [isBlockTimeModalVisible, setIsBlockTimeModalVisible] = useState(false);
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
+  const [selectedFilter, setSelectedFilter] = useState<'all' | 'Confirmed' | 'Pending' | 'Cancelled' | 'Completed'>('all');
 
   // Fetch barber's salon
   const { data: salon, isLoading: isSalonLoading } = useQuery({
@@ -82,27 +83,53 @@ export function DashboardScreen() {
     [allItems],
   );
 
-  const bookingItems = useMemo(
-    () =>
-      allItems.filter((r) => {
-        if ((r as any).notes?.includes('CRÉNEAU BLOQUÉ')) return false;
-        if (r.status === 'Completed' || r.status === 'Cancelled') return false;
-        // Client-side: if end_time has passed and was Confirmed, treat as Completed → hide
-        const endTime = (r.end_time ?? '').slice(0, 5);
-        const nowAlg = new Date(Date.now() + 60 * 60 * 1000);
-        const nowStr = `${String(nowAlg.getUTCHours()).padStart(2, '0')}:${String(nowAlg.getUTCMinutes()).padStart(2, '0')}`;
-        if (endTime && endTime < nowStr && r.status === 'Confirmed') return false;
-        return true;
-      }),
+  // All real bookings (no blocks) — used for filter tabs
+  const realBookings = useMemo(
+    () => allItems.filter((r) => !(r as any).notes?.includes('CRÉNEAU BLOQUÉ')),
     [allItems],
   );
 
-  // Combine for FlatList: active bookings first, then blocked slots at the bottom
+  // Algeria time helper
+  const getNowStr = () => {
+    const t = new Date(Date.now() + 60 * 60 * 1000);
+    return `${String(t.getUTCHours()).padStart(2, '0')}:${String(t.getUTCMinutes()).padStart(2, '0')}`;
+  };
+
+  const bookingItems = useMemo(() => {
+    const nowStr = getNowStr();
+    return realBookings.filter((r) => {
+      const endTime = (r.end_time ?? '').slice(0, 5);
+      const isExpiredConfirmed = endTime && endTime < nowStr && r.status === 'Confirmed';
+
+      switch (selectedFilter) {
+        case 'all':
+          // Active upcoming only: Pending + Confirmed not expired
+          if (r.status === 'Cancelled' || r.status === 'Completed') return false;
+          if (isExpiredConfirmed) return false;
+          return true;
+        case 'Confirmed':
+          return r.status === 'Confirmed' && !isExpiredConfirmed;
+        case 'Pending':
+          return r.status === 'Pending';
+        case 'Cancelled':
+          return r.status === 'Cancelled';
+        case 'Completed':
+          // Show DB-Completed + client-side expired Confirmed
+          return r.status === 'Completed' || isExpiredConfirmed;
+        default:
+          return true;
+      }
+    });
+  }, [realBookings, selectedFilter]);
+
+  // Combine for FlatList: bookings first, then blocked slots (only on 'all' tab)
   const listData = useMemo(() => [
     ...bookingItems.map(item => ({ ...item, _type: 'booking' as const })),
-    ...(blockedItems.length > 0 ? [{ _type: 'blocked-header' as const, id: '__blocked_header__' }] : []),
-    ...blockedItems.map(item => ({ ...item, _type: 'blocked' as const })),
-  ], [bookingItems, blockedItems]);
+    ...(selectedFilter === 'all' && blockedItems.length > 0
+      ? [{ _type: 'blocked-header' as const, id: '__blocked_header__' }]
+      : []),
+    ...(selectedFilter === 'all' ? blockedItems.map(item => ({ ...item, _type: 'blocked' as const })) : []),
+  ], [bookingItems, blockedItems, selectedFilter]);
 
   // Statistics — counts all today's real bookings (including past ones for revenue)
   const stats = useMemo(() => {
@@ -287,6 +314,28 @@ export function DashboardScreen() {
         </View>
 
         <Text style={styles.sectionHeaderTitle}>Réservations du Jour</Text>
+        <View style={styles.filterRow}>
+          {(
+            [
+              { key: 'all',       label: 'Tous' },
+              { key: 'Confirmed', label: 'Confirmé' },
+              { key: 'Pending',   label: 'En attente' },
+              { key: 'Completed', label: 'Terminé' },
+              { key: 'Cancelled', label: 'Annulé' },
+            ] as const
+          ).map(({ key, label }) => (
+            <TouchableOpacity
+              key={key}
+              style={[styles.filterBtn, selectedFilter === key && styles.filterBtnActive]}
+              onPress={() => setSelectedFilter(key)}
+              activeOpacity={0.75}
+            >
+              <Text style={[styles.filterBtnText, selectedFilter === key && styles.filterBtnTextActive]}>
+                {label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
     );
   };
@@ -779,6 +828,34 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: spacing.xs,
     paddingHorizontal: spacing.xl,
+  },
+  // ── Filter buttons ────────────────────────────────────────────────────────
+  filterRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    marginBottom: spacing.md,
+  },
+  filterBtn: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: colors.carbon,
+  },
+  filterBtnActive: {
+    backgroundColor: colors.amber,
+    borderColor: colors.amber,
+  },
+  filterBtnText: {
+    fontFamily: 'DMSans_500Medium',
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  filterBtnTextActive: {
+    color: colors.ink,
+    fontFamily: 'DMSans_700Bold',
   },
   // ── Blocked time slot card ───────────────────────────────────────────────
   blockedSectionHeader: {
