@@ -290,8 +290,8 @@ export class ReservationsService {
         salon_staff:staff_id(custom_name, profiles!profile_id(full_name))
       `)
       .eq('salon_id', salonId)
-      .order('appointment_date', { ascending: true })
-      .order('start_time', { ascending: true });
+      .order('appointment_date', { ascending: false })
+      .order('start_time', { ascending: false });
 
     if (date) {
       query = query.eq('appointment_date', date);
@@ -300,6 +300,58 @@ export class ReservationsService {
     const { data, error } = await query;
 
     if (error) throw new Error(`Failed to fetch salon reservations: ${error.message}`);
+    return data;
+  }
+
+  /**
+   * Get all PENDING reservations for a salon across all dates (barber/owner view).
+   * Used to show the "pending approval" list on the calendar screen.
+   */
+  async findPendingBySalon(salonId: string, userId: string) {
+    // Verify the user owns the salon or is staff
+    const { data: salon } = await this.supabase.adminClient
+      .from('salons')
+      .select('owner_id')
+      .eq('id', salonId)
+      .single();
+
+    if (!salon) throw new NotFoundException('Salon not found');
+
+    const isOwner = salon.owner_id === userId;
+
+    if (!isOwner) {
+      const { data: staff } = await this.supabase.adminClient
+        .from('salon_staff')
+        .select('id')
+        .eq('salon_id', salonId)
+        .eq('profile_id', userId)
+        .single();
+
+      if (!staff) {
+        throw new ForbiddenException('You are not authorized to view this salon\'s reservations');
+      }
+    }
+
+    const today = new Date();
+    const utc = today.getTime() + today.getTimezoneOffset() * 60000;
+    const algeriaTime = new Date(utc + 3600000);
+    const todayStr = `${algeriaTime.getFullYear()}-${String(algeriaTime.getMonth() + 1).padStart(2, '0')}-${String(algeriaTime.getDate()).padStart(2, '0')}`;
+
+    const { data, error } = await this.supabase.adminClient
+      .from('reservations')
+      .select(`
+        *,
+        profiles!reservations_client_id_fkey(full_name, phone_number, avatar_url),
+        services(service_name, price, duration_minutes),
+        salon_staff:staff_id(custom_name, profiles!profile_id(full_name))
+      `)
+      .eq('salon_id', salonId)
+      .eq('status', 'Pending')
+      .gte('appointment_date', todayStr)
+      .order('appointment_date', { ascending: true })
+      .order('start_time', { ascending: true });
+
+    if (error) throw new Error(`Failed to fetch pending reservations: ${error.message}`);
     return data;
   }
 

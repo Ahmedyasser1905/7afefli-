@@ -69,6 +69,20 @@ export class ReservationsController {
   }
 
   /**
+   * GET /reservations/salon/:salonId/pending
+   * Get all PENDING reservations for a salon across ALL dates.
+   */
+  @Get('salon/:salonId/pending')
+  @UseGuards(RolesGuard)
+  @Roles('Coiffeur', 'Admin')
+  findPendingBySalon(
+    @Param('salonId') salonId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.reservationsService.findPendingBySalon(salonId, user.id);
+  }
+
+  /**
    * GET /reservations/salon/:salonId
    * Get all reservations for a salon (barber/owner view).
    */
