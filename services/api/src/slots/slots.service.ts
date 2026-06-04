@@ -94,21 +94,37 @@ export class SlotsService {
       return []; // Salon is closed on this day
     }
 
-    const staffList = staffResult.data;
-    const N = Math.max(staffList?.length || 1, 1); // Total number of barbers in the salon
+    const staffList = staffResult.data ?? [];
+    // N = total number of staff members in the salon.
+    // If the owner is not in salon_staff, N could be 0 → use 1 as minimum so
+    // at least "one barber" is assumed even if the table is empty.
+    const N = Math.max(staffList.length, 1);
     const bookedSlots = bookedResult.data ?? [];
 
-    // Resolve barberId to both salon_staff.id and profiles.id for robust matching
+    // Pre-filter CRÉNEAU BLOQUÉ records (done once, not inside the slot loop)
+    const blockedSlots = bookedSlots.filter(
+      (b) =>
+        typeof (b as Record<string, unknown>).notes === 'string' &&
+        ((b as Record<string, unknown>).notes as string).includes('NEAU BLOQU'),
+    );
+
+    // Resolve barberId to both salon_staff.id and profiles.id for robust matching.
+    // barberId from the client might be salon_staff.id OR profile_id — handle both.
     let targetStaffId: string | null = null;
     let targetProfileId: string | null = null;
+    let resolvedBarberId: string | null = null; // the raw ID passed by the client
+
     if (barberId) {
-      const staff = staffList?.find(s => s.id === barberId || s.profile_id === barberId);
+      resolvedBarberId = barberId;
+      const staff = staffList.find(s => s.id === barberId || s.profile_id === barberId);
       if (staff) {
-        targetStaffId = staff.id;
+        targetStaffId   = staff.id;
         targetProfileId = staff.profile_id;
       } else {
-        // barberId passed but not found in salon — treat as invalid, show no slots
-        targetStaffId = barberId;
+        // barberId not found in salon_staff — could be the owner's profile_id
+        // Keep it as targetProfileId so barber_id matching still works
+        targetProfileId = barberId;
+        targetStaffId   = barberId; // also check staff_id just in case
       }
     }
 
@@ -130,24 +146,15 @@ export class SlotsService {
       };
 
       // Helper: does a reservation belong to the target barber?
+      // Checks staff_id (salon_staff.id) OR barber_id (profile_id) — handles both cases
+      // including when the barber is the owner and not in salon_staff table.
       const isTargetBarber = (booked: { staff_id: string | null; barber_id: string | null }) =>
         (targetStaffId   && booked.staff_id  === targetStaffId)  ||
         (targetProfileId && booked.barber_id === targetProfileId) ||
-        booked.staff_id  === barberId ||
-        booked.barber_id === barberId;
+        booked.staff_id  === resolvedBarberId ||
+        booked.barber_id === resolvedBarberId;
 
       let isAvailable = true;
-
-      // ── PRIORITY RULE: CRÉNEAU BLOQUÉ ──
-      // A blocked time created by the barber overrides everything.
-      // In Mode A: blocked for the exact barber → slot unavailable.
-      // In Mode B: if ANY barber in the salon has a block here,
-      //            reduce available capacity by one (same counting as a regular booking).
-      const blockedSlots = bookedSlots.filter(
-        (b): b is typeof b & { notes: string } =>
-          typeof (b as Record<string, unknown>).notes === 'string' &&
-          ((b as Record<string, unknown>).notes as string).includes('CRÉNEAU BLOQUÉ')
-      );
 
       if (barberId) {
         // ── MODE A: Client chose a specific barber ──
@@ -163,7 +170,6 @@ export class SlotsService {
       } else {
         // ── MODE B: No specific barber (any available barber) ──
         // Count distinct barbers occupied at this slot.
-        // CRÉNEAU BLOQUÉ counts as that barber being fully occupied.
         const busyBarbers = new Set<string>();
         for (const booked of bookedSlots) {
           if (!doesOverlap(booked)) continue;
@@ -172,15 +178,15 @@ export class SlotsService {
           } else if (booked.barber_id) {
             busyBarbers.add(booked.barber_id);
           } else {
-            // Unassigned reservation — still consumes one barber slot
             busyBarbers.add(`unassigned-${booked.start_time}`);
           }
         }
-        // Also add any blocked barbers (they are fully unavailable during their block)
+        // CRÉNEAU BLOQUÉ: explicitly add blocked barbers (already in bookedSlots above
+        // but make sure blocks are counted even with null staff_id)
         for (const blocked of blockedSlots) {
           if (!doesOverlap(blocked)) continue;
           if (blocked.staff_id) busyBarbers.add(blocked.staff_id);
-          else if (blocked.barber_id) busyBarbers.add(blocked.barber_id);
+          else if (blocked.barber_id) busyBarbers.add((blocked as Record<string, unknown>).barber_id as string);
         }
 
         if (busyBarbers.size >= N) {
