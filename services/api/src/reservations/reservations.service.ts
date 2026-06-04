@@ -201,15 +201,24 @@ export class ReservationsService {
 
     const staffId = staff?.id || null;
 
-    // Direct INSERT — bypasses the advisory-lock RPC so existing reservations
-    // during this window are left intact. The admin client uses the service role
-    // which can always write to the table.
+    // Resolve any service_id from this salon as a fallback in case service_id
+    // column has a NOT NULL constraint. The 'CRÉNEAU BLOQUÉ' note identifies this
+    // as a block regardless of which service_id is stored.
+    let fallbackServiceId: string | null = null;
+    const { data: anyService } = await this.supabase.adminClient
+      .from('services')
+      .select('id')
+      .eq('salon_id', salonId)
+      .limit(1)
+      .maybeSingle();
+    fallbackServiceId = anyService?.id ?? null;
+
     const { data, error } = await this.supabase.adminClient
       .from('reservations')
       .insert({
         client_id:        barberId,
         salon_id:         salonId,
-        service_id:       null,
+        service_id:       fallbackServiceId,   // null if salon has no services yet
         barber_id:        barberId,
         staff_id:         staffId,
         appointment_date: appointmentDate,
@@ -270,13 +279,13 @@ export class ReservationsService {
     const isOwner = salon.owner_id === userId;
 
     if (!isOwner) {
-      // Check if user is salon staff
+      // Check if user is salon staff — maybeSingle() avoids 500 when not found
       const { data: staff } = await this.supabase.adminClient
         .from('salon_staff')
         .select('id')
         .eq('salon_id', salonId)
         .eq('profile_id', userId)
-        .single();
+        .maybeSingle();
 
       if (!staff) {
         throw new ForbiddenException('You are not authorized to view this salon\'s reservations');
@@ -327,7 +336,7 @@ export class ReservationsService {
         .select('id')
         .eq('salon_id', salonId)
         .eq('profile_id', userId)
-        .single();
+        .maybeSingle();  // maybeSingle avoids 500 when user is not in salon_staff
 
       if (!staff) {
         throw new ForbiddenException('You are not authorized to view this salon\'s reservations');
