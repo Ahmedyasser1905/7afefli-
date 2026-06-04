@@ -237,6 +237,26 @@ describe('ReservationsService', () => {
       expect(res.status).toBe('Cancelled');
     });
 
+    it('should allow client to cancel confirmed reservation', async () => {
+      mockQuery.single.mockResolvedValueOnce({
+        data: { client_id: clientUser.id, salons: { owner_id: barberUser.id }, status: 'Confirmed' },
+      });
+      mockQuery.single.mockResolvedValueOnce({ data: { id: 'r1', status: 'Cancelled' }, error: null });
+
+      const res = await service.updateStatus('r1', { status: 'Cancelled' }, clientUser.id);
+      expect(res.status).toBe('Cancelled');
+    });
+
+    it('should clear cancellation metadata when updating status to Confirmed', async () => {
+      mockQuery.single.mockResolvedValueOnce({
+        data: { client_id: clientUser.id, salons: { owner_id: barberUser.id }, status: 'Cancelled', cancelled_by: 'u1' },
+      });
+      mockQuery.single.mockResolvedValueOnce({ data: { id: 'r1', status: 'Confirmed', cancelled_by: null, cancel_reason: null }, error: null });
+
+      const res = await service.updateStatus('r1', { status: 'Confirmed' }, barberUser.id);
+      expect(res.status).toBe('Confirmed');
+    });
+
     it('should NOT allow client to cancel already-cancelled reservation', async () => {
       mockQuery.single.mockResolvedValueOnce({
         data: { client_id: clientUser.id, salons: { owner_id: barberUser.id }, status: 'Cancelled' },

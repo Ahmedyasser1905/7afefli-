@@ -115,6 +115,9 @@ export function DashboardScreen() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['barber-reservations'] });
     },
+    onError: (error: any) => {
+      Alert.alert('Erreur', error.message || 'Impossible d\'annuler la réservation');
+    }
   });
 
   const handleConfirm = useCallback((id: string) => {

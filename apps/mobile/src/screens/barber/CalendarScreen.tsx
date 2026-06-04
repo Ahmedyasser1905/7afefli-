@@ -4,7 +4,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Image, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { apiClient } from '../../lib/apiClient';
 import { colors, spacing, radius, shadows } from '../../theme';
@@ -43,10 +43,35 @@ const DEFAULT_AVATAR = 'https://lh3.googleusercontent.com/aida-public/AB6AXuDqBw
 
 export function CalendarScreen() {
   const user = useAuthStore((s) => s.user);
+  const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState(today());
   const [isWalkInModalVisible, setIsWalkInModalVisible] = useState(false);
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
   const dates = getNextDays(14); // Extended to 14 days for more planning options
+
+  // Update status mutation
+  const updateStatus = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      await apiClient.patch(`/reservations/${id}/status`, { status });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['barber-reservations'] });
+    },
+    onError: (error: any) => {
+      Alert.alert('Erreur', error.message || 'Impossible d\'annuler la réservation');
+    }
+  });
+
+  const handleCancel = (id: string) => {
+    Alert.alert('Annuler la réservation ?', 'Cette action notifiera le client.', [
+      { text: 'Non', style: 'cancel' },
+      {
+        text: 'Oui, annuler',
+        style: 'destructive',
+        onPress: () => updateStatus.mutate({ id, status: 'Cancelled' }),
+      },
+    ]);
+  };
 
   // Fetch barber's salon
   const { data: salon } = useQuery({
@@ -288,6 +313,7 @@ export function CalendarScreen() {
         visible={!!selectedReservation}
         onClose={() => setSelectedReservation(null)}
         reservation={selectedReservation}
+        onCancel={handleCancel}
       />
     </SafeAreaView>
   );

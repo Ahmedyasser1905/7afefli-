@@ -10,9 +10,18 @@ const mockCacheManager = {
 };
 
 const mockSupabaseAdminClient = {
-  from: jest.fn().mockReturnThis(),
+  _from: '',
+  from: jest.fn().mockImplementation(function(table) {
+    this._from = table;
+    return this;
+  }),
   select: jest.fn().mockReturnThis(),
-  eq: jest.fn().mockReturnThis(),
+  eq: jest.fn().mockImplementation(function(key, val) {
+    if (this._from === 'salon_staff') {
+      return Promise.resolve({ data: [{ id: 'staff1', profile_id: 'barber1' }], error: null });
+    }
+    return this;
+  }),
   in: jest.fn().mockReturnThis(),
   or: jest.fn().mockReturnThis(),
   single: jest.fn(),

@@ -298,7 +298,7 @@ export class ReservationsService {
         .select('id')
         .eq('salon_id', reservation.salon_id)
         .eq('profile_id', userId)
-        .single();
+        .maybeSingle();
       isStaff = !!staff;
     }
 
@@ -307,12 +307,15 @@ export class ReservationsService {
     }
 
     // Clients can only cancel their own pending reservations
+    // Clients can only cancel their own pending or confirmed reservations
     if (isClient && !isBarber && !isStaff) {
       if (dto.status !== 'Cancelled') {
         throw new ForbiddenException('Clients can only cancel reservations');
       }
-      if (reservation.status !== 'Pending') {
-        throw new BadRequestException('Only pending reservations can be cancelled by clients');
+      if (reservation.status !== 'Pending' && reservation.status !== 'Confirmed') {
+        throw new BadRequestException(
+          'Only pending or confirmed reservations can be cancelled by clients',
+        );
       }
     }
 
@@ -321,6 +324,9 @@ export class ReservationsService {
     if (dto.status === 'Cancelled') {
       updateData.cancelled_by = userId;
       updateData.cancel_reason = dto.cancel_reason ?? null;
+    } else {
+      updateData.cancelled_by = null;
+      updateData.cancel_reason = null;
     }
 
     const { data, error } = await this.supabase.adminClient
