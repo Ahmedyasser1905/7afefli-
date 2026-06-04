@@ -11,7 +11,7 @@ import * as Sentry from '@sentry/node';
 import { nodeProfilingIntegration } from '@sentry/profiling-node';
 import { WinstonModule, utilities as nestWinstonModuleUtilities } from 'nest-winston';
 import * as winston from 'winston';
-import express from 'express';
+import * as express from 'express';
 import { AppModule } from '../src/app.module';
 import { validateEnvironment } from '../src/config/env.validation';
 
