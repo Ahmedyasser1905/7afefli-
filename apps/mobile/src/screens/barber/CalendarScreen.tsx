@@ -109,7 +109,12 @@ export function CalendarScreen() {
         `/reservations/salon/${salonId}?date=${selectedDate}`,
       );
       // Sort: newest created_at first for list, but timeline uses start_time (positional)
-      return data.filter((r) => ['Pending', 'Confirmed', 'Completed'].includes(r.status));
+      // Exclude CRÉNEAU BLOQUÉ — these are internal blocks, not client appointments
+      return data.filter(
+        (r) =>
+          ['Pending', 'Confirmed', 'Completed'].includes(r.status) &&
+          !(r as Record<string, unknown>).notes?.toString().includes('CRÉNEAU BLOQUÉ'),
+      );
     },
     enabled: !!salonId,
   });

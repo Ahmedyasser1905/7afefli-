@@ -23,6 +23,7 @@ import { EditSalonLocationModal } from '../../components/barber/EditSalonLocatio
 import { formatDZD } from '@barberdz/shared/utils/formatters';
 import { decode } from 'base64-arraybuffer';
 import { apiClient } from '../../lib/apiClient';
+import { supabase } from '../../lib/supabase';
 
 export function MySalonScreen() {
   const user = useAuthStore((s) => s.user);
@@ -91,7 +92,7 @@ export function MySalonScreen() {
             await apiClient.delete(`/salons/${salon?.id}/staff/${staffId}`);
             refetchStaff();
           } catch (err: unknown) {
-            Alert.alert('Erreur', err.message);
+            Alert.alert('Erreur', (err as Error).message || 'Impossible de retirer ce barbier');
           }
         },
       },
@@ -145,7 +146,7 @@ export function MySalonScreen() {
       Alert.alert('Succès', 'Photo ajoutée au portfolio');
       refetchPortfolio();
     } catch (err: unknown) {
-      Alert.alert('Erreur', err.message);
+      Alert.alert('Erreur', (err as Error).message || 'Erreur upload portfolio');
     } finally {
       setUploading(false);
     }
@@ -165,7 +166,7 @@ export function MySalonScreen() {
             await apiClient.delete(`/salons/${salon?.id}/portfolio/${photoId}`);
             refetchPortfolio();
           } catch (err: unknown) {
-            Alert.alert('Erreur', err.message);
+            Alert.alert('Erreur', (err as Error).message || 'Impossible de supprimer');
           }
         },
       },
@@ -219,7 +220,7 @@ export function MySalonScreen() {
 
       refetchStaff();
     } catch (err: unknown) {
-      Alert.alert('Erreur', err.message);
+      Alert.alert('Erreur', (err as Error).message || 'Erreur upload avatar');
     } finally {
       setUploading(false);
     }
@@ -236,7 +237,7 @@ export function MySalonScreen() {
             await apiClient.delete(`/salons/${salon?.id}/services/${id}`);
             refetchServices();
           } catch (err: unknown) {
-            Alert.alert('Erreur', err.message);
+            Alert.alert('Erreur', (err as Error).message || 'Impossible de supprimer');
           }
         }
       }
