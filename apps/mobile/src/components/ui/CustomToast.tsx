@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { BaseToastProps } from 'react-native-toast-message';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@react-native-vector-icons/ionicons';
 import { colors } from '../../theme/colors';
 
 interface CustomToastProps extends BaseToastProps {
