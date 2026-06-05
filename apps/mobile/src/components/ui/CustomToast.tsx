@@ -1,18 +1,21 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, Platform } from 'react-native';
 import { BaseToastProps } from 'react-native-toast-message';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import { colors } from '../../theme/colors';
+import { colors, radius, shadows, spacing } from '../../theme';
 
 interface CustomToastProps extends BaseToastProps {
   text1?: string;
   text2?: string;
 }
 
+const { width } = Dimensions.get('window');
+
 export const toastConfig = {
   success: (props: CustomToastProps) => (
-    <View style={[styles.container, styles.successContainer]}>
-      <View style={styles.iconContainer}>
+    <View style={styles.container}>
+      <View style={styles.successIndicator} />
+      <View style={[styles.iconContainer, { backgroundColor: 'rgba(46, 204, 113, 0.15)' }]}>
         <Ionicons name="checkmark-circle" size={24} color={colors.success} />
       </View>
       <View style={styles.textContainer}>
@@ -22,9 +25,10 @@ export const toastConfig = {
     </View>
   ),
   error: (props: CustomToastProps) => (
-    <View style={[styles.container, styles.errorContainer]}>
-      <View style={styles.iconContainer}>
-        <Ionicons name="alert-circle" size={24} color={colors.danger} />
+    <View style={styles.container}>
+      <View style={styles.errorIndicator} />
+      <View style={[styles.iconContainer, { backgroundColor: 'rgba(231, 76, 60, 0.15)' }]}>
+        <Ionicons name="alert-circle" size={24} color={colors.error} />
       </View>
       <View style={styles.textContainer}>
         {props.text1 ? <Text style={styles.title}>{props.text1}</Text> : null}
@@ -33,9 +37,10 @@ export const toastConfig = {
     </View>
   ),
   info: (props: CustomToastProps) => (
-    <View style={[styles.container, styles.infoContainer]}>
-      <View style={styles.iconContainer}>
-        <Ionicons name="information-circle" size={24} color={colors.primary} />
+    <View style={styles.container}>
+      <View style={styles.infoIndicator} />
+      <View style={[styles.iconContainer, { backgroundColor: 'rgba(232, 160, 32, 0.15)' }]}>
+        <Ionicons name="information-circle" size={24} color={colors.amber} />
       </View>
       <View style={styles.textContainer}>
         {props.text1 ? <Text style={styles.title}>{props.text1}</Text> : null}
@@ -48,47 +53,68 @@ export const toastConfig = {
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    width: '90%',
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
-    borderLeftWidth: 6,
+    width: width - spacing.xl * 2,
+    backgroundColor: colors.carbon,
+    borderRadius: radius.lg,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
     alignItems: 'center',
-    marginTop: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 8,
+    marginTop: Platform.OS === 'ios' ? 0 : spacing.sm,
+    overflow: 'hidden',
   },
-  successContainer: {
-    borderLeftColor: colors.success,
+  successIndicator: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
+    backgroundColor: colors.success,
   },
-  errorContainer: {
-    borderLeftColor: colors.danger,
+  errorIndicator: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
+    backgroundColor: colors.error,
   },
-  infoContainer: {
-    borderLeftColor: colors.primary,
+  infoIndicator: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
+    backgroundColor: colors.amber,
   },
   iconContainer: {
-    marginRight: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
   },
   textContainer: {
     flex: 1,
     justifyContent: 'center',
   },
   title: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 4,
+    fontSize: 15,
+    fontFamily: 'Syne_700Bold',
+    color: colors.textPrimary,
+    marginBottom: 2,
   },
   message: {
-    fontSize: 14,
+    fontSize: 13,
+    fontFamily: 'DMSans_400Regular',
     color: colors.textSecondary,
-    lineHeight: 20,
+    lineHeight: 18,
   },
 });
