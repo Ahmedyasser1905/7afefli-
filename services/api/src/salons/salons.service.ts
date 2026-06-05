@@ -48,7 +48,7 @@ export class SalonsService {
 
     if (error) throw new Error(`Failed to fetch salons: ${error.message}`);
 
-    return { data, total: count, limit, offset };
+    return data;
   }
 
   /**

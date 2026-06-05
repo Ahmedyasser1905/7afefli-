@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import { ActivityIndicator, View, StyleSheet, Text, ScrollView, LogBox } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -14,6 +14,31 @@ import * as ExpoSplashScreen from 'expo-splash-screen';
 
 // Keep the native splash screen visible while we fetch resources
 ExpoSplashScreen.preventAutoHideAsync();
+
+// ── Error Boundary to capture stack trace ──
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: Error | null }> {
+  state = { error: null as Error | null };
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error('🔴 ErrorBoundary caught:', error.message);
+    console.error('🔴 Stack:', error.stack);
+    console.error('🔴 Component stack:', info.componentStack);
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <View style={{ flex: 1, backgroundColor: '#111', padding: 20, paddingTop: 60 }}>
+          <Text style={{ color: '#EF4444', fontSize: 18, fontWeight: 'bold', marginBottom: 12 }}>App Error</Text>
+          <Text style={{ color: '#F5F5F5', fontSize: 14, marginBottom: 8 }}>{this.state.error.message}</Text>
+          <ScrollView>
+            <Text style={{ color: '#888', fontSize: 11 }}>{this.state.error.stack}</Text>
+          </ScrollView>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -35,12 +60,14 @@ export default function App() {
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <SafeAreaProvider>
-        <StatusBar style="light" />
-        <AppNavigator />
-      </SafeAreaProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <SafeAreaProvider>
+          <StatusBar style="light" />
+          <AppNavigator />
+        </SafeAreaProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 
