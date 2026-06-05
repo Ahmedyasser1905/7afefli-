@@ -27,12 +27,14 @@ export function useSlotLock(): UseSlotLockReturn {
   const locksRef = useRef(locks);
   locksRef.current = locks;
 
-  // Force re-render every second for countdown display
+  // Force re-render every second for countdown display — only when a lock is active
   const [, forceUpdate] = useState(0);
+  const hasActiveLock = locks.size > 0;
   useEffect(() => {
+    if (!hasActiveLock) return;
     const interval = setInterval(() => forceUpdate((n) => n + 1), 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [hasActiveLock]);
 
   const lockSlot = useCallback((startTime: string) => {
     // Release any other existing lock (single lock at a time)

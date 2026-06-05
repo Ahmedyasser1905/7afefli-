@@ -56,7 +56,7 @@ export function SalonMapView({
       .map((s) => ({
         id: s.id,
         name: s.name.replace(/\\/g, '').replace(/'/g, "\\'").replace(/"/g, '\\"'),
-        rating: s.average_rating?.toFixed(1) || '5.0',
+        rating: s.average_rating?.toFixed(1) || 'Nouveau',
         wilaya: s.wilaya || '',
         lng: s.longitude,
         lat: s.latitude,

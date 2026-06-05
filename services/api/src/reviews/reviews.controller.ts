@@ -2,12 +2,10 @@
 
 import {
   Controller,
-  Get,
   Post,
   Patch,
   Param,
   Body,
-  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ReviewsService } from './reviews.service';
@@ -34,19 +32,6 @@ export class ReviewsController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.reviewsService.create(dto, user.id);
-  }
-
-  /**
-   * GET /salons/:salonId/reviews
-   * Get reviews for a salon (public).
-   */
-  @Get('salons/:salonId/reviews')
-  findBySalon(
-    @Param('salonId') salonId: string,
-    @Query('limit') limit?: number,
-    @Query('offset') offset?: number,
-  ) {
-    return this.reviewsService.findBySalon(salonId, limit, offset);
   }
 
   /**

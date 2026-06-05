@@ -82,7 +82,7 @@ export function SubscriptionScreen() {
   const user = useAuthStore((s) => s.user);
   const [processingPlan, setProcessingPlan] = useState<string | null>(null);
 
-  // Fetch available plans directly from Supabase (public RLS policy)
+  // Fetch available plans from backend API (single source of truth)
   const {
     data: plans = [],
     isLoading: plansLoading,
@@ -90,13 +90,8 @@ export function SubscriptionScreen() {
   } = useQuery<PlanItem[]>({
     queryKey: ['subscription-plans'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('plans')
-        .select('*')
-        .eq('is_active', true)
-        .order('sort_order', { ascending: true });
-      if (error) throw error;
-      return (data ?? []) as PlanItem[];
+      const data = await apiClient.get<PlanItem[]>('/subscriptions/plans');
+      return data ?? [];
     },
     staleTime: 5 * 60_000,
   });

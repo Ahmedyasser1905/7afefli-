@@ -57,7 +57,7 @@ export const SalonCard = React.memo(function SalonCard({ salon, onPress }: Salon
           </View>
           <View style={styles.heroRatingContainer}>
             <Ionicons name="star" size={14} color={colors.amber} style={{ marginRight: 2 }} />
-            <Text style={styles.ratingText}>{salon.average_rating ? salon.average_rating.toFixed(1) : '5.0'}</Text>
+            <Text style={styles.ratingText}>{salon.average_rating ? salon.average_rating.toFixed(1) : 'Nouveau'}</Text>
           </View>
         </View>
       </TouchableOpacity>
@@ -81,7 +81,7 @@ export const SalonCard = React.memo(function SalonCard({ salon, onPress }: Salon
           <View style={styles.regularRatingRow}>
             <Ionicons name="star" size={12} color={colors.amber} />
             <Text style={styles.regularRatingText}>
-              {salon.average_rating ? salon.average_rating.toFixed(1) : '5.0'}
+              {salon.average_rating ? salon.average_rating.toFixed(1) : 'Nouveau'}
             </Text>
           </View>
         </View>

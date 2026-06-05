@@ -1,6 +1,6 @@
 // services/api/src/salons/salons.service.ts
 
-import { Injectable, NotFoundException, ForbiddenException, ConflictException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, ConflictException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { CreateSalonDto } from './dto/create-salon.dto';
 import { UpdateSalonDto } from './dto/update-salon.dto';
@@ -46,7 +46,7 @@ export class SalonsService {
 
     const { data, error, count } = await query;
 
-    if (error) throw new Error(`Failed to fetch salons: ${error.message}`);
+    if (error) throw new InternalServerErrorException(`Failed to fetch salons: ${error.message}`);
 
     return data;
   }
@@ -74,7 +74,7 @@ export class SalonsService {
         .order('average_rating', { ascending: false })
         .limit(limit);
 
-      if (fallbackError) throw new Error(`Failed to fetch nearby salons: ${fallbackError.message}`);
+      if (fallbackError) throw new InternalServerErrorException(`Failed to fetch nearby salons: ${fallbackError.message}`);
       return fallbackData;
     }
 
@@ -143,7 +143,7 @@ export class SalonsService {
       .select()
       .single();
 
-    if (error) throw new Error(`Failed to create salon: ${error.message}`);
+    if (error) throw new InternalServerErrorException(`Failed to create salon: ${error.message}`);
     return data;
   }
 
@@ -168,7 +168,7 @@ export class SalonsService {
       .select()
       .single();
 
-    if (error) throw new Error(`Failed to update salon: ${error.message}`);
+    if (error) throw new InternalServerErrorException(`Failed to update salon: ${error.message}`);
     return data;
   }
 
@@ -225,7 +225,7 @@ export class SalonsService {
       .select()
       .single();
 
-    if (error) throw new Error(`Failed to add staff: ${error.message}`);
+    if (error) throw new InternalServerErrorException(`Failed to add staff: ${error.message}`);
     return data;
   }
 
@@ -234,7 +234,7 @@ export class SalonsService {
       .from('salon_staff')
       .select('*, profiles:profile_id(full_name, avatar_url, phone_number)')
       .eq('salon_id', salonId);
-    if (error) throw new Error(error.message);
+    if (error) throw new InternalServerErrorException(error.message);
     return data;
   }
 
@@ -251,7 +251,7 @@ export class SalonsService {
       .delete()
       .eq('id', staffId)
       .eq('salon_id', salonId);
-    if (error) throw new Error(error.message);
+    if (error) throw new InternalServerErrorException(error.message);
     return { success: true };
   }
 
@@ -268,7 +268,7 @@ export class SalonsService {
       .update({ avatar_url: avatarUrl })
       .eq('id', staffId)
       .eq('salon_id', salonId);
-    if (error) throw new Error(error.message);
+    if (error) throw new InternalServerErrorException(error.message);
     return { success: true };
   }
 
@@ -278,7 +278,7 @@ export class SalonsService {
       .select('*')
       .eq('salon_id', salonId)
       .order('created_at', { ascending: false });
-    if (error && error.code !== '42P01') throw new Error(error.message);
+    if (error && error.code !== '42P01') throw new InternalServerErrorException(error.message);
     
     return (data || []).map((photo: { id: string; url: string; salon_id: string; created_at: string; storage_path: string }) => ({
       ...photo,
@@ -318,7 +318,7 @@ export class SalonsService {
       .insert({ salon_id: salonId, uploader_id: userId, storage_path: storagePath })
       .select()
       .single();
-    if (error) throw new Error(error.message);
+    if (error) throw new InternalServerErrorException(error.message);
     return data;
   }
 
@@ -335,7 +335,7 @@ export class SalonsService {
       .delete()
       .eq('id', photoId)
       .eq('salon_id', salonId);
-    if (error) throw new Error(error.message);
+    if (error) throw new InternalServerErrorException(error.message);
     return { success: true };
   }
 
@@ -349,7 +349,7 @@ export class SalonsService {
       .eq('salon_id', salonId)
       .order('created_at', { ascending: false });
 
-    if (error && error.code !== '42P01') throw new Error(error.message);
+    if (error && error.code !== '42P01') throw new InternalServerErrorException(error.message);
     return data || [];
   }
 

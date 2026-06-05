@@ -220,7 +220,7 @@ export function BookingScreen() {
               >
                 <View style={styles.serviceTextCol}>
                   <Text style={styles.serviceName}>{service.service_name}</Text>
-                  <Text style={styles.serviceDesc}>Soin avec serviette chaude & massage</Text>
+                  <Text style={styles.serviceDesc}>{service.duration_minutes} min</Text>
                 </View>
                 <Text style={styles.servicePrice}>{service.price} DZD</Text>
               </TouchableOpacity>
@@ -279,7 +279,7 @@ export function BookingScreen() {
                 />
                 <View style={styles.barberInfo}>
                   <Text style={styles.barberName}>{s.custom_name || s.profiles?.full_name || 'Barbier'}</Text>
-                  <Text style={styles.barberRole}>Expert Fade & Taille de barbe</Text>
+                  <Text style={styles.barberRole}>Coiffeur professionnel</Text>
                 </View>
                 <View style={styles.selectionDot}>
                   {selectedBarberId === s.id && <View style={styles.innerDot} />}

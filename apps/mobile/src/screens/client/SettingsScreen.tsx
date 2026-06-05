@@ -57,7 +57,7 @@ export function SettingsScreen() {
     w.toLowerCase().includes(wilayaSearch.toLowerCase())
   );
 
-  // Load profile directly from Supabase (faster, no backend round-trip needed)
+  // Load profile from backend API (single source of truth)
   useEffect(() => {
     loadProfile();
   }, [user]);
@@ -79,15 +79,10 @@ export function SettingsScreen() {
   const loadProfile = async () => {
     if (!user) return;
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, phone_number, role, avatar_url, wilaya, loyalty_points, is_phone_verified')
-        .eq('id', user.id)
-        .maybeSingle();
-      if (error) throw error;
+      const data = await apiClient.get<Record<string, unknown>>('/auth/profiles/me');
       if (data) {
         setProfileData(data);
-        if (data.wilaya) setSelectedWilaya(data.wilaya);
+        if (data.wilaya) setSelectedWilaya(data.wilaya as string);
       }
     } catch {
       // Profile load failed silently — UI shows default values
@@ -132,10 +127,10 @@ export function SettingsScreen() {
               await supabase.auth.signOut();
             } catch (error: unknown) {
               Toast.show({
-        type: 'error',
-        text1: 'Erreur',
-        text2: (error as Error).message || 'Impossible de supprimer le compte.'
-      });
+                type: 'error',
+                text1: 'Erreur',
+                text2: (error as Error).message || 'Impossible de supprimer le compte.'
+              });
             }
           },
         },
@@ -245,10 +240,10 @@ export function SettingsScreen() {
                 setDarkModeEnabled(val);
                 if (!val) {
                   Toast.show({
-        type: 'error',
-        text1: 'Mode clair indisponible',
-        text2: 'L\'esthétique 7afefli est optimisée pour le thème sombre.'
-      });
+                    type: 'error',
+                    text1: 'Mode clair indisponible',
+                    text2: 'L\'esthétique 7afefli est optimisée pour le thème sombre.'
+                  });
                   setDarkModeEnabled(true);
                 }
               }}

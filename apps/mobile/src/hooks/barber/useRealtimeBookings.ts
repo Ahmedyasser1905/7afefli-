@@ -25,6 +25,15 @@ export function useRealtimeBookings({
   const queryClient = useQueryClient();
   const channelRef = useRef<RealtimeChannel | null>(null);
 
+  // Store callbacks in refs to avoid re-subscribing the Realtime channel
+  // when parent component re-renders with new function references
+  const onNewBookingRef = useRef(onNewBooking);
+  const onStatusChangeRef = useRef(onStatusChange);
+  const onCancellationRef = useRef(onCancellation);
+  onNewBookingRef.current = onNewBooking;
+  onStatusChangeRef.current = onStatusChange;
+  onCancellationRef.current = onCancellation;
+
   useEffect(() => {
     if (!salonId) return;
 
@@ -92,7 +101,7 @@ export function useRealtimeBookings({
             data: { screen: 'Calendar', reservationId: reservation.id },
           });
 
-          onNewBooking?.(reservation);
+          onNewBookingRef.current?.(reservation);
         },
       )
 
@@ -115,9 +124,9 @@ export function useRealtimeBookings({
           });
 
           if (reservation.status === 'Cancelled') {
-            onCancellation?.(reservation);
+            onCancellationRef.current?.(reservation);
           } else {
-            onStatusChange?.(reservation);
+            onStatusChangeRef.current?.(reservation);
           }
         },
       )
@@ -142,5 +151,5 @@ export function useRealtimeBookings({
         channelRef.current = null;
       }
     };
-  }, [salonId, queryClient, onNewBooking, onStatusChange, onCancellation]);
+  }, [salonId, queryClient]);
 }

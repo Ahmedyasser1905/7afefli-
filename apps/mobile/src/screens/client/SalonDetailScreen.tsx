@@ -195,7 +195,7 @@ export function SalonDetailScreen() {
               <View style={styles.metaItem}>
                 <Ionicons name="star" size={16} color={colors.amber} />
                 <Text style={styles.metaTextBold}>
-                  {salon.average_rating ? salon.average_rating.toFixed(1) : '5.0'}
+                  {salon.average_rating ? salon.average_rating.toFixed(1) : 'Nouveau'}
                 </Text>
                 <Text style={styles.metaTextSecondary}>({salon.total_reviews || 0} avis)</Text>
               </View>

@@ -101,7 +101,7 @@ export function EditProfileModal({ visible, onClose, profileData, onSaved }: Edi
 
     setSaving(true);
     try {
-      const updates: unknown = {
+      const updates: Record<string, unknown> = {
         full_name: fullName.trim(),
         phone_number: phone.trim() || null,
         updated_at: new Date().toISOString(),

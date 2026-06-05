@@ -71,7 +71,7 @@ export class AuthController {
 
     if (error) {
       this.logger.error(`Profile verification failed for user ${user.id}: ${error.message}`);
-      throw new Error(`Verification failed: ${error.message}`);
+      throw new InternalServerErrorException(`Verification failed: ${error.message}`);
     }
 
     this.logger.log(`Profile verified for user ${user.id}`);
@@ -175,7 +175,7 @@ export class AuthController {
     const { error } = await this.supabase.adminClient.auth.admin.deleteUser(user.id);
     if (error) {
       this.logger.error(`Account deletion failed for user ${user.id}: ${error.message}`);
-      throw new Error(`Account deletion failed: ${error.message}`);
+      throw new InternalServerErrorException(`Account deletion failed: ${error.message}`);
     }
 
     this.logger.log(`Account deleted for user ${user.id}`);
