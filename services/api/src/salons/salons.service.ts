@@ -23,6 +23,8 @@ export class SalonsService {
       .from('salons')
       .select('*, services(*)', { count: 'exact' })
       .eq('is_approved', true)
+      // Subscription enforcement: expired salons are hidden from public search
+      .neq('subscription_status', 'Expired')
       .order('is_sponsored', { ascending: false })
       .order('average_rating', { ascending: false });
 

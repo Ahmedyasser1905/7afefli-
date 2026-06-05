@@ -252,7 +252,7 @@ export function SettingsScreen() {
         {/* Settings Group 3: Help / About */}
         <Text style={styles.sectionHeaderTitle}>À propos</Text>
         <View style={styles.settingsGroup}>
-          <TouchableOpacity style={styles.settingsRow}>
+          <TouchableOpacity style={styles.settingsRow} onPress={() => Alert.alert('Politique de confidentialité', '7afefli respecte votre vie privée. Vos données personnelles sont stockées de manière sécurisée sur des serveurs européens (Supabase) et ne sont jamais partagées avec des tiers sans votre consentement.\n\nDonnées collectées :\n• Nom, téléphone, e-mail\n• Localisation (pour trouver des salons proches)\n• Historique de réservations\n\nVous pouvez demander la suppression de vos données à tout moment depuis les paramètres.\n\nContact : contact@7afefli.com')}>
             <View style={styles.rowLeftCol}>
               <Ionicons name="shield-checkmark-outline" size={20} color={colors.textSecondary} />
               <Text style={styles.rowLabel}>Politique de confidentialité</Text>
@@ -260,7 +260,7 @@ export function SettingsScreen() {
             <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.settingsRow}>
+          <TouchableOpacity style={styles.settingsRow} onPress={() => Alert.alert('Conditions d\'utilisation', 'En utilisant 7afefli, vous acceptez les conditions suivantes :\n\n1. L\'application est destinée à la réservation de services de coiffure en Algérie.\n2. Les utilisateurs doivent fournir des informations exactes.\n3. Les annulations doivent être effectuées au moins 2 heures avant le rendez-vous.\n4. 7afefli n\'est pas responsable des litiges entre clients et salons.\n5. Tout comportement abusif pourra entraîner la suspension du compte.\n\nContact : contact@7afefli.com')}>
             <View style={styles.rowLeftCol}>
               <Ionicons name="document-text-outline" size={20} color={colors.textSecondary} />
               <Text style={styles.rowLabel}>Conditions d'utilisation</Text>

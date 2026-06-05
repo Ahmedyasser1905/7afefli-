@@ -239,4 +239,28 @@ export class AuthController {
     this.logger.log(`Password updated for user ${user.id}`);
     return { message: 'Mot de passe mis à jour' };
   }
+
+  /**
+   * POST /auth/resend-verification
+   * Resend the email verification link (public — no auth required).
+   */
+  @Post('resend-verification')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Resend email verification link' })
+  async resendVerification(@Body('email') email: string) {
+    if (!email) {
+      throw new BadRequestException('Email is required');
+    }
+
+    try {
+      await this.supabase.adminClient.auth.resend({
+        type: 'signup',
+        email,
+      });
+    } catch {
+      // Don't reveal whether the email exists
+    }
+
+    return { message: 'Email de vérification envoyé' };
+  }
 }

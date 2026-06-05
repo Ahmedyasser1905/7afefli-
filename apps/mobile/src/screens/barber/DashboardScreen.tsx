@@ -26,6 +26,7 @@ import type { Reservation } from '@barberdz/shared/types';
 import { AddWalkInModal } from '../../components/barber/AddWalkInModal';
 import { ReservationDetailModal } from '../../components/barber/ReservationDetailModal';
 import { BlockTimeModal } from '../../components/barber/BlockTimeModal';
+import { SkeletonBox } from '../../components/ui/SkeletonBox';
 
 const DEFAULT_AVATAR = 'https://lh3.googleusercontent.com/aida-public/AB6AXuDqBwevJA_-4C8CiV0jhFk0kQ1wMed3SXsDLtkuYojI_z1NOOr9TsG1ppWseymOF1jEuEUK3KfQn_lUckAbPgmIaSRhgIECSEyCop0h_moZW-TI7--iKZxYbB5dZpkgKIpdJVPPVXhmU_beflYOnLuUI7k4eAbhpYAKJUc2JV4h2TvxiIWmmNqIissEk6ErNlsy-GNvPrX3FNFYIJAjGjQyRcvhURmAzdffu9vrnoRvuq2K4ncxHaDMjasu4zspMlyphP4AOIGdHDxi';
 
@@ -180,26 +181,25 @@ export function DashboardScreen() {
     ...(showBlocks ? blockedItems.map(item => ({ ...item, _type: 'blocked' as const })) : []),
   ], [bookingItems, blockedItems, showBlocks]);
 
-  // Statistics — always derived from periodItems (period-aware)
-  const stats = useMemo(() => {
-    const periodRealBookings = periodItems.filter((r) => !(r as any).notes?.includes('CR\u00c9NEAU BLOQU\u00c9'));
-    const nowAlgS  = new Date(Date.now() + 60 * 60 * 1000);
-    const nowStrS  = `${String(nowAlgS.getUTCHours()).padStart(2, '0')}:${String(nowAlgS.getUTCMinutes()).padStart(2, '0')}`;
-    const todayAlg = `${nowAlgS.getUTCFullYear()}-${String(nowAlgS.getUTCMonth()+1).padStart(2,'0')}-${String(nowAlgS.getUTCDate()).padStart(2,'0')}`;
-    const total = periodRealBookings.filter((r) =>
-      r.status === 'Completed' || r.status === 'Confirmed'
-    ).length;
-    const pending = periodRealBookings.filter((r) => {
-      if (r.status !== 'Pending') return false;
-      const apptDate = (r.appointment_date as string) ?? '';
-      const endTime  = (r.end_time ?? '').slice(0, 5);
-      return !(apptDate < todayAlg || (apptDate === todayAlg && !!endTime && endTime < nowStrS));
-    }).length;
-    const revenue = periodRealBookings
-      .filter((r) => r.status === 'Completed' || r.status === 'Confirmed')
-      .reduce((sum, r) => { const svc = (r as any).services; return sum + ((svc?.price as number) ?? 0); }, 0);
-    return { total, pending, revenue };
-  }, [periodItems]);
+  // ── Server-side dashboard stats ──────────────────────────────────
+  const statsDateParam = viewMode === 'day' ? viewDate : viewMode === 'month' ? `${viewMonth}-01` : undefined;
+  const { data: serverStats, isLoading: isStatsLoading } = useQuery({
+    queryKey: ['barber-stats', salonId, viewMode, statsDateParam],
+    queryFn: async () => {
+      const params = new URLSearchParams({ period: viewMode });
+      if (statsDateParam) params.append('date', statsDateParam);
+      return apiClient.get<{ totalBookings: number; pendingBookings: number; revenue: number; completedBookings: number; cancelledBookings: number; clientCount: number }>(`/salons/my-salon/stats?${params}`);
+    },
+    enabled: !!salonId,
+    staleTime: 30 * 1000,
+  });
+
+  const stats = useMemo(() => ({
+    total: serverStats?.totalBookings ?? 0,
+    pending: serverStats?.pendingBookings ?? 0,
+    revenue: serverStats?.revenue ?? 0,
+    clients: serverStats?.clientCount ?? 0,
+  }), [serverStats]);
 
 
   // Update status mutation
@@ -352,38 +352,58 @@ export function DashboardScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Salon Closed Banner */}
+        {salon?.force_closed && (
+          <View style={{ backgroundColor: 'rgba(239,68,68,0.15)', borderRadius: radius.md, padding: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md }}>
+            <Ionicons name="close-circle" size={20} color="#EF4444" />
+            <Text style={{ fontFamily: 'DMSans_500Medium', fontSize: 13, color: '#EF4444', flex: 1 }}>SALON FERMÉ — Les clients ne peuvent pas réserver</Text>
+          </View>
+        )}
+
         {/* Bento Stats Grid */}
         <View style={styles.bentoContainer}>
-          <View style={styles.bentoRow}>
-            {/* Today's Bookings */}
-            <View style={styles.bentoItem}>
-              <Ionicons name="calendar" size={24} color={colors.amber} style={styles.bentoIcon} />
-              <View>
-                <Text style={styles.bentoLabel}>Réservations</Text>
-                <Text style={styles.bentoValue}>{stats.total}</Text>
+          {isStatsLoading ? (
+            <>
+              <View style={styles.bentoRow}>
+                <SkeletonBox width={160} height={72} borderRadius={radius.md} />
+                <SkeletonBox width={160} height={72} borderRadius={radius.md} />
               </View>
-            </View>
+              <SkeletonBox width={340} height={72} borderRadius={radius.md} style={{ marginTop: spacing.sm }} />
+            </>
+          ) : (
+            <>
+              <View style={styles.bentoRow}>
+                {/* Today's Bookings */}
+                <View style={styles.bentoItem}>
+                  <Ionicons name="calendar" size={24} color={colors.amber} style={styles.bentoIcon} />
+                  <View>
+                    <Text style={styles.bentoLabel}>Réservations</Text>
+                    <Text style={styles.bentoValue}>{stats.total}</Text>
+                  </View>
+                </View>
 
-            {/* Pending Requests */}
-            <View style={styles.bentoItem}>
-              <Ionicons name="hourglass" size={24} color={colors.warning} style={styles.bentoIcon} />
-              <View>
-                <Text style={styles.bentoLabel}>En attente</Text>
-                <Text style={[styles.bentoValue, { color: colors.warning }]}>{stats.pending}</Text>
+                {/* Pending Requests */}
+                <View style={styles.bentoItem}>
+                  <Ionicons name="hourglass" size={24} color={colors.warning} style={styles.bentoIcon} />
+                  <View>
+                    <Text style={styles.bentoLabel}>En attente</Text>
+                    <Text style={[styles.bentoValue, { color: colors.warning }]}>{stats.pending}</Text>
+                  </View>
+                </View>
               </View>
-            </View>
-          </View>
 
-          {/* Daily Revenue (Wide card) */}
-          <View style={styles.bentoWideItem}>
-            <Ionicons name="wallet" size={26} color={colors.success} style={styles.bentoIconWide} />
-            <View>
-              <Text style={styles.bentoLabel}>Revenus estimés ({revenuePeriodLabel})</Text>
-              <Text style={[styles.bentoValue, { color: colors.success }]}>
-                {formatDZD(stats.revenue)}
-              </Text>
-            </View>
-          </View>
+              {/* Daily Revenue (Wide card) */}
+              <View style={styles.bentoWideItem}>
+                <Ionicons name="wallet" size={26} color={colors.success} style={styles.bentoIconWide} />
+                <View>
+                  <Text style={styles.bentoLabel}>Revenus estimés ({revenuePeriodLabel})</Text>
+                  <Text style={[styles.bentoValue, { color: colors.success }]}>
+                    {formatDZD(stats.revenue)}
+                  </Text>
+                </View>
+              </View>
+            </>
+          )}
         </View>
 
         {/* Quick Shop Management Actions */}
