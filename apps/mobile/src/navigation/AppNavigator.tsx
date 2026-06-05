@@ -13,8 +13,9 @@ import { AdminTabNavigator } from './AdminTabNavigator';
 import PhoneInputScreen from '../screens/auth/PhoneInputScreen';
 import SignUpScreen from '../screens/auth/SignUpScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
+import VerifyCodeScreen from '../screens/auth/VerifyCodeScreen';
+import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
 import PhoneEntryScreen from '../screens/auth/PhoneEntryScreen';
-import UpdatePasswordScreen from '../screens/auth/UpdatePasswordScreen';
 import { colors } from '../theme';
 
 const AuthStack = createNativeStackNavigator();
@@ -24,6 +25,8 @@ function AuthStackNavigator() {
       <AuthStack.Screen name="PhoneInput" component={PhoneInputScreen} />
       <AuthStack.Screen name="SignUp" component={SignUpScreen} />
       <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+      <AuthStack.Screen name="VerifyCode" component={VerifyCodeScreen} />
+      <AuthStack.Screen name="ResetPassword" component={ResetPasswordScreen} />
     </AuthStack.Navigator>
   );
 }
@@ -67,7 +70,7 @@ async function fetchProfileInfo(userId: string): Promise<{ role: string; hasPhon
 }
 
 export function AppNavigator() {
-  const { session, role, needsPhone, needsPasswordReset, clearAuth } = useAuthStore();
+  const { session, role, needsPhone, clearAuth } = useAuthStore();
 
   // Register push notifications & listen for notification taps
   useNotificationSetup();
@@ -157,9 +160,6 @@ export function AppNavigator() {
         {!session ? (
           // Not authenticated → Auth flow
           <RootStack.Screen name="Auth" component={AuthStackNavigator} />
-        ) : needsPasswordReset ? (
-          // Authenticated but needs password reset → Update Password
-          <RootStack.Screen name="UpdatePassword" component={UpdatePasswordScreen} />
         ) : needsPhone ? (
           // Authenticated but no phone → Phone entry
           <RootStack.Screen name="PhoneEntry" component={PhoneEntryScreen} />

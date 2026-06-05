@@ -12,12 +12,10 @@ interface AuthState {
   role: UserRole | null;
   isLoading: boolean;
   needsPhone: boolean;
-  needsPasswordReset: boolean;
 
   setSession: (session: Session | null) => void;
   setRole: (role: UserRole) => void;
   setNeedsPhone: (needsPhone: boolean) => void;
-  setNeedsPasswordReset: (needsPasswordReset: boolean) => void;
   clearAuth: () => void;
 }
 
@@ -37,7 +35,6 @@ export const useAuthStore = create<AuthState>()(
       role: null,
       isLoading: true,
       needsPhone: false,
-      needsPasswordReset: false,
 
       setSession: (session) =>
         set({ session, user: session?.user ?? null, isLoading: false }),
@@ -46,10 +43,8 @@ export const useAuthStore = create<AuthState>()(
 
       setNeedsPhone: (needsPhone) => set({ needsPhone }),
 
-      setNeedsPasswordReset: (needsPasswordReset) => set({ needsPasswordReset }),
-
       clearAuth: () =>
-        set({ session: null, user: null, role: null, isLoading: false, needsPhone: false, needsPasswordReset: false }),
+        set({ session: null, user: null, role: null, isLoading: false, needsPhone: false }),
     }),
     {
       name: 'hafefli-auth',
@@ -59,7 +54,6 @@ export const useAuthStore = create<AuthState>()(
         session: state.session,
         role: state.role,
         needsPhone: state.needsPhone,
-        needsPasswordReset: state.needsPasswordReset,
       }),
     },
   ),

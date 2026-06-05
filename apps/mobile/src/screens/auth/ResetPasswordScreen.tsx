@@ -12,18 +12,16 @@ import {
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAuthStore } from '../../store/authStore';
-import { colors, spacing, radius, shadows, typography } from '../../theme';
+import { colors, spacing, radius, shadows } from '../../theme';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { apiClient } from '../../lib/apiClient';
 
-export default function UpdatePasswordScreen() {
+export default function ResetPasswordScreen({ route, navigation }: any) {
+  const { email, code } = route.params || {};
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  
-  const setNeedsPasswordReset = useAuthStore(s => s.setNeedsPasswordReset);
 
   const handleSubmit = async () => {
     if (!password || !confirmPassword) {
@@ -55,21 +53,25 @@ export default function UpdatePasswordScreen() {
 
     setIsLoading(true);
     try {
-      await apiClient.post('/auth/update-password', { password });
+      await apiClient.post('/auth/password/reset', { 
+        email, 
+        code, 
+        newPassword: password 
+      });
       
       Toast.show({
         type: 'success',
         text1: 'Succès',
-        text2: 'Votre mot de passe a été mis à jour.'
+        text2: 'Votre mot de passe a été réinitialisé. Vous pouvez maintenant vous connecter.'
       });
       
-      // Update store to unlock the user and proceed to the app
-      setNeedsPasswordReset(false);
+      // Navigate back to login
+      navigation.navigate('PhoneInput');
     } catch (err: unknown) {
       Toast.show({
         type: 'error',
         text1: 'Erreur',
-        text2: (err as Error).message || 'Une erreur est survenue lors de la mise à jour'
+        text2: (err as any)?.response?.data?.message || (err as Error).message || 'Une erreur est survenue'
       });
     } finally {
       setIsLoading(false);
@@ -83,7 +85,11 @@ export default function UpdatePasswordScreen() {
         style={styles.keyboardContainer}
       >
         <View style={styles.headerBar}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
+          </TouchableOpacity>
           <Text style={styles.headerLogo}>7afefli</Text>
+          <View style={{ width: 40 }} />
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
@@ -158,105 +164,39 @@ export default function UpdatePasswordScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeContainer: {
-    flex: 1,
-    backgroundColor: colors.ink,
-  },
-  keyboardContainer: {
-    flex: 1,
-  },
+  safeContainer: { flex: 1, backgroundColor: colors.ink },
+  keyboardContainer: { flex: 1 },
   headerBar: {
-    height: 56,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
+    height: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)',
     backgroundColor: colors.ink,
   },
-  headerLogo: {
-    fontFamily: 'Syne_700Bold',
-    fontSize: 20,
-    color: colors.amber,
-  },
-  scrollContainer: {
-    flexGrow: 1,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xxl,
-  },
-  iconContainer: {
-    alignItems: 'center',
-    marginTop: spacing.xxl,
-    marginBottom: spacing.xl,
-  },
+  backButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  headerLogo: { fontFamily: 'Syne_700Bold', fontSize: 20, color: colors.amber },
+  scrollContainer: { flexGrow: 1, paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl },
+  iconContainer: { alignItems: 'center', marginTop: spacing.xxl, marginBottom: spacing.xl },
   iconWrap: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: 'rgba(232,160,32,0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(232,160,32,0.25)',
+    width: 96, height: 96, borderRadius: 48, backgroundColor: 'rgba(232,160,32,0.12)',
+    alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'rgba(232,160,32,0.25)',
   },
-  headlineContainer: {
-    marginBottom: spacing.xl,
-    alignItems: 'center',
-  },
-  headlineTitle: {
-    fontFamily: 'Syne_700Bold',
-    fontSize: 24,
-    color: colors.textPrimary,
-    textAlign: 'center',
-  },
+  headlineContainer: { marginBottom: spacing.xl, alignItems: 'center' },
+  headlineTitle: { fontFamily: 'Syne_700Bold', fontSize: 24, color: colors.textPrimary, textAlign: 'center' },
   headlineSubtitle: {
-    fontFamily: 'DMSans_400Regular',
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginTop: spacing.sm,
-    textAlign: 'center',
-    lineHeight: 20,
-    paddingHorizontal: spacing.lg,
+    fontFamily: 'DMSans_400Regular', fontSize: 14, color: colors.textSecondary,
+    marginTop: spacing.sm, textAlign: 'center', lineHeight: 20, paddingHorizontal: spacing.lg,
   },
-  form: {
-    width: '100%',
-    gap: spacing.lg,
-  },
+  form: { width: '100%', gap: spacing.lg },
   inputFieldContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.carbon,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    height: 56,
-    paddingHorizontal: spacing.md,
+    flexDirection: 'row', alignItems: 'center', backgroundColor: colors.carbon,
+    borderRadius: radius.md, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+    height: 56, paddingHorizontal: spacing.md,
   },
-  inputIcon: {
-    marginRight: spacing.sm,
-  },
-  input: {
-    flex: 1,
-    color: colors.textPrimary,
-    fontSize: 15,
-    fontFamily: 'DMSans_400Regular',
-  },
+  inputIcon: { marginRight: spacing.sm },
+  input: { flex: 1, color: colors.textPrimary, fontSize: 15, fontFamily: 'DMSans_400Regular' },
   submitButton: {
-    backgroundColor: colors.amber,
-    borderRadius: radius.md,
-    height: 56,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    marginTop: spacing.md,
-    ...shadows.amber,
+    backgroundColor: colors.amber, borderRadius: radius.md, height: 56,
+    alignItems: 'center', justifyContent: 'center', flexDirection: 'row', ...shadows.amber,
   },
-  submitButtonText: {
-    fontFamily: 'Syne_600SemiBold',
-    color: colors.ink,
-    fontSize: 16,
-  },
-  disabledButton: {
-    backgroundColor: colors.amberDim,
-    opacity: 0.6,
-  },
+  submitButtonText: { fontFamily: 'Syne_600SemiBold', color: colors.ink, fontSize: 16 },
+  disabledButton: { backgroundColor: colors.amberDim, opacity: 0.6 },
 });

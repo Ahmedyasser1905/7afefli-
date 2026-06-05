@@ -16,36 +16,40 @@ import { colors, spacing, radius, shadows } from '../../theme';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { apiClient } from '../../lib/apiClient';
 
-export default function ForgotPasswordScreen({ navigation }: { navigation: Record<string, unknown> }) {
-  const [email, setEmail] = useState('');
+export default function VerifyCodeScreen({ route, navigation }: any) {
+  const { email } = route.params || {};
+  const [otpCode, setOtpCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSendOtp = async () => {
-    if (!email.trim()) {
+  const handleVerifyOtp = async () => {
+    if (otpCode.trim().length !== 6) {
       Toast.show({
         type: 'error',
         text1: 'Erreur',
-        text2: 'Veuillez entrer votre adresse e-mail'
+        text2: 'Le code OTP doit contenir 6 chiffres'
       });
       return;
     }
 
     setIsLoading(true);
     try {
-      await apiClient.post('/auth/password/send-code', { email: email.trim() });
+      await apiClient.post('/auth/password/verify-code', { 
+        email: email, 
+        code: otpCode.trim() 
+      });
       
       Toast.show({
         type: 'success',
-        text1: 'E-mail envoyé',
-        text2: 'Vérifiez votre boîte de réception pour le code à 6 chiffres'
+        text1: 'Succès',
+        text2: 'Code validé. Veuillez définir un nouveau mot de passe.'
       });
       
-      (navigation as any).navigate('VerifyCode', { email: email.trim() });
+      navigation.navigate('ResetPassword', { email: email, code: otpCode.trim() });
     } catch (err: unknown) {
       Toast.show({
         type: 'error',
-        text1: 'Erreur',
-        text2: (err as any)?.response?.data?.message || (err as Error).message || 'Une erreur est survenue'
+        text1: 'Erreur de vérification',
+        text2: (err as any)?.response?.data?.message || (err as Error).message || 'Code incorrect ou expiré.'
       });
     } finally {
       setIsLoading(false);
@@ -59,7 +63,7 @@ export default function ForgotPasswordScreen({ navigation }: { navigation: Recor
         style={styles.keyboardContainer}
       >
         <View style={styles.headerBar}>
-          <TouchableOpacity onPress={() => (navigation as any).goBack()} style={styles.backButton}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerLogo}>7afefli</Text>
@@ -69,46 +73,53 @@ export default function ForgotPasswordScreen({ navigation }: { navigation: Recor
         <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
           <View style={styles.iconContainer}>
             <View style={styles.iconWrap}>
-              <Ionicons name="lock-closed" size={48} color={colors.amber} />
+              <Ionicons name="keypad" size={48} color={colors.amber} />
             </View>
           </View>
 
           <View style={styles.headlineContainer}>
-            <Text style={styles.headlineTitle}>Mot de passe oublié</Text>
+            <Text style={styles.headlineTitle}>Vérification OTP</Text>
             <Text style={styles.headlineSubtitle}>
-              Entrez votre adresse e-mail et nous vous enverrons un code pour réinitialiser votre mot de passe.
+              Entrez le code à 6 chiffres envoyé à l'adresse e-mail {email}.
             </Text>
           </View>
 
           <View style={styles.form}>
             <View style={styles.inputFieldContainer}>
-              <Ionicons name="mail-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
+              <Ionicons name="keypad-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="nom@example.com"
+                placeholder="Code à 6 chiffres"
                 placeholderTextColor={colors.textSecondary}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                value={email}
-                onChangeText={setEmail}
+                keyboardType="number-pad"
+                maxLength={6}
+                value={otpCode}
+                onChangeText={setOtpCode}
                 editable={!isLoading}
               />
             </View>
 
             <TouchableOpacity
               style={[styles.submitButton, isLoading && styles.disabledButton]}
-              onPress={handleSendOtp}
+              onPress={handleVerifyOtp}
               disabled={isLoading}
             >
               {isLoading ? (
                 <ActivityIndicator color={colors.ink} />
               ) : (
                 <>
-                  <Text style={styles.submitButtonText}>Recevoir le code OTP</Text>
-                  <Ionicons name="send-outline" size={18} color={colors.ink} style={{ marginLeft: spacing.sm }} />
+                  <Text style={styles.submitButtonText}>Vérifier le code</Text>
+                  <Ionicons name="checkmark-outline" size={18} color={colors.ink} style={{ marginLeft: spacing.sm }} />
                 </>
               )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.resendButton}
+              onPress={() => navigation.goBack()}
+              disabled={isLoading}
+            >
+              <Text style={styles.resendButtonText}>Changer d'adresse e-mail</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -153,4 +164,6 @@ const styles = StyleSheet.create({
   },
   submitButtonText: { fontFamily: 'Syne_600SemiBold', color: colors.ink, fontSize: 16 },
   disabledButton: { backgroundColor: colors.amberDim, opacity: 0.6 },
+  resendButton: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.md, marginTop: spacing.sm },
+  resendButtonText: { fontFamily: 'DMSans_500Medium', fontSize: 14, color: colors.textSecondary, textDecorationLine: 'underline' },
 });
