@@ -95,8 +95,7 @@ export class PaymentsController {
             salon_id,
             amount: amount || 0,
             status: 'Completed',
-            provider: 'chargily',
-            provider_id: payload.data.id || payload.id,
+            provider_payment_id: payload.data.id || payload.id,
           });
 
           // 2. Activate subscription (+30 days)
