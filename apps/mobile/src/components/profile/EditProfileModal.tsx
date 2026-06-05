@@ -79,7 +79,7 @@ export function EditProfileModal({ visible, onClose, profileData, onSaved }: Edi
       }
     } catch (err: unknown) {
       setUploading(false);
-      Alert.alert('Erreur', err.message || 'Impossible de télécharger la photo');
+      Alert.alert('Erreur', (err as Error).message || 'Impossible de télécharger la photo');
     }
   };
 
@@ -108,7 +108,7 @@ export function EditProfileModal({ visible, onClose, profileData, onSaved }: Edi
       onSaved();
       onClose();
     } catch (err: unknown) {
-      Alert.alert('Erreur', err.message);
+      Alert.alert('Erreur', (err as Error).message || 'Une erreur est survenue');
     } finally {
       setSaving(false);
     }

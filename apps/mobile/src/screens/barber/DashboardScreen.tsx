@@ -282,6 +282,19 @@ export function DashboardScreen() {
     ]);
   }, [updateStatus]);
 
+  const handleComplete = useCallback((id: string) => {
+    Alert.alert('Marquer terminé ?', 'Ce rendez-vous sera marqué comme terminé.', [
+      { text: 'Non', style: 'cancel' },
+      {
+        text: 'Oui, terminé',
+        onPress: () => {
+          updateStatus.mutate({ id, status: 'Completed' });
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        },
+      },
+    ]);
+  }, [updateStatus]);
+
   const toggleSalonStatus = useMutation({
     mutationFn: async (forceClosed: boolean) => {
       await apiClient.patch(`/salons/${salonId}`, { force_closed: forceClosed });
@@ -614,20 +627,32 @@ export function DashboardScreen() {
               </TouchableOpacity>
             </View>
           ) : (
-            <View style={[
-              styles.statusBadge,
-              isConfirmed && styles.badgeConfirmed,
-              isCancelled && styles.badgeCancelled,
-              isCompleted && styles.badgeCompleted,
-            ]}>
-              <Text style={[
-                styles.statusBadgeText,
-                isConfirmed && styles.textConfirmed,
-                isCancelled && styles.textCancelled,
-                isCompleted && styles.textCompleted,
+            <View style={{ alignItems: 'flex-end', gap: 4 }}>
+              <View style={[
+                styles.statusBadge,
+                isConfirmed && styles.badgeConfirmed,
+                isCancelled && styles.badgeCancelled,
+                isCompleted && styles.badgeCompleted,
               ]}>
-                {isConfirmed ? 'Confirmé' : isCancelled ? 'Annulé' : isCompleted ? 'Terminé' : item.status}
-              </Text>
+                <Text style={[
+                  styles.statusBadgeText,
+                  isConfirmed && styles.textConfirmed,
+                  isCancelled && styles.textCancelled,
+                  isCompleted && styles.textCompleted,
+                ]}>
+                  {isConfirmed ? 'Confirmé' : isCancelled ? 'Annulé' : isCompleted ? 'Terminé' : item.status}
+                </Text>
+              </View>
+              {isConfirmed && (
+                <TouchableOpacity
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(139,92,246,0.15)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.sm }}
+                  onPress={() => handleComplete(item.id)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="checkmark-done" size={12} color="#8B5CF6" />
+                  <Text style={{ fontFamily: 'DMSans_600SemiBold', fontSize: 10, color: '#8B5CF6' }}>Terminé</Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
         </View>
@@ -691,6 +716,7 @@ export function DashboardScreen() {
         reservation={selectedReservation}
         onCancel={handleCancel}
         onConfirm={handleConfirm}
+        onComplete={handleComplete}
       />
 
       <BlockTimeModal

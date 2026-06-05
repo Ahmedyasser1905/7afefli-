@@ -4,6 +4,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Param,
   Body,
   Query,
@@ -46,5 +47,20 @@ export class ReviewsController {
     @Query('offset') offset?: number,
   ) {
     return this.reviewsService.findBySalon(salonId, limit, offset);
+  }
+
+  /**
+   * PATCH /reviews/:id/response
+   * Add a response to a review (Coiffeur only — must own the salon).
+   */
+  @Patch('reviews/:id/response')
+  @UseGuards(SupabaseAuthGuard, RolesGuard)
+  @Roles('Coiffeur')
+  addResponse(
+    @Param('id') id: string,
+    @Body('response') response: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.reviewsService.addResponse(id, user.id, response);
   }
 }

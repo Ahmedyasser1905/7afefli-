@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Image,
   Alert,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -34,6 +35,9 @@ export function MySalonScreen() {
   const [isEditSalonVisible, setIsEditSalonVisible] = useState(false);
   const [isEditLocationVisible, setIsEditLocationVisible] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [editingService, setEditingService] = useState<Record<string, unknown> | null>(null);
+  const [respondingReview, setRespondingReview] = useState<string | null>(null);
+  const [responseText, setResponseText] = useState('');
 
   // Fetch salon via API (consistent with other screens)
   const { data: salon, isLoading: isSalonLoading } = useQuery({
@@ -64,7 +68,7 @@ export function MySalonScreen() {
   });
 
   // Fetch reviews
-  const { data: reviews = [] } = useQuery({
+  const { data: reviews = [], refetch: refetchReviews } = useQuery({
     queryKey: ['salon-reviews', salon?.id],
     queryFn: async () => {
       return apiClient.get(`/salons/${salon?.id}/reviews`);
@@ -311,9 +315,14 @@ export function MySalonScreen() {
                     <Text style={styles.serviceName}>{service.service_name}</Text>
                     <Text style={styles.serviceDetail}>{service.duration_minutes} min • {formatDZD(service.price)}</Text>
                   </View>
-                  <TouchableOpacity onPress={() => deleteService(service.id)} style={styles.deleteBtn}>
-                    <Ionicons name="trash-outline" size={20} color={colors.error} />
-                  </TouchableOpacity>
+                  <View style={{ flexDirection: 'row', gap: spacing.xs }}>
+                    <TouchableOpacity onPress={() => { setEditingService(service); setIsServiceModalVisible(true); }} style={styles.deleteBtn}>
+                      <Ionicons name="create-outline" size={20} color={colors.amber} />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => deleteService(service.id)} style={styles.deleteBtn}>
+                      <Ionicons name="trash-outline" size={20} color={colors.error} />
+                    </TouchableOpacity>
+                  </View>
                 </View>
               ))
             )}
@@ -418,6 +427,53 @@ export function MySalonScreen() {
                     </View>
                   </View>
                   {review.comment && <Text style={styles.reviewComment}>{review.comment}</Text>}
+                  {review.response && (
+                    <View style={{ backgroundColor: 'rgba(232,160,32,0.08)', borderRadius: radius.sm, padding: spacing.sm, marginTop: spacing.sm, borderLeftWidth: 3, borderLeftColor: colors.amber }}>
+                      <Text style={{ fontFamily: 'DMSans_500Medium', fontSize: 12, color: colors.amber, marginBottom: 4 }}>Votre réponse</Text>
+                      <Text style={{ fontFamily: 'DMSans_400Regular', fontSize: 13, color: colors.textSecondary }}>{review.response}</Text>
+                    </View>
+                  )}
+                  {!review.response && respondingReview !== review.id && (
+                    <TouchableOpacity 
+                      onPress={() => { setRespondingReview(review.id); setResponseText(''); }}
+                      style={{ alignSelf: 'flex-start', marginTop: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                    >
+                      <Ionicons name="chatbubble-outline" size={14} color={colors.amber} />
+                      <Text style={{ fontFamily: 'DMSans_500Medium', fontSize: 13, color: colors.amber }}>Répondre</Text>
+                    </TouchableOpacity>
+                  )}
+                  {respondingReview === review.id && (
+                    <View style={{ marginTop: spacing.sm }}>
+                      <TextInput
+                        style={{ backgroundColor: colors.ink, borderRadius: radius.sm, padding: spacing.sm, color: colors.textPrimary, fontFamily: 'DMSans_400Regular', fontSize: 13, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', minHeight: 60, textAlignVertical: 'top' }}
+                        placeholder="Votre réponse..."
+                        placeholderTextColor={colors.textMuted}
+                        value={responseText}
+                        onChangeText={setResponseText}
+                        multiline
+                      />
+                      <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
+                        <TouchableOpacity onPress={() => setRespondingReview(null)} style={{ flex: 1, padding: spacing.sm, alignItems: 'center', borderRadius: radius.sm, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
+                          <Text style={{ fontFamily: 'DMSans_500Medium', fontSize: 13, color: colors.textSecondary }}>Annuler</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity 
+                          onPress={async () => {
+                            try {
+                              await apiClient.patch(`/reviews/${review.id}/response`, { response: responseText });
+                              setRespondingReview(null);
+                              setResponseText('');
+                              refetchReviews();
+                            } catch (err: unknown) {
+                              Alert.alert('Erreur', (err as Error).message || 'Erreur lors de l\'envoi');
+                            }
+                          }}
+                          style={{ flex: 1, padding: spacing.sm, alignItems: 'center', borderRadius: radius.sm, backgroundColor: colors.amber }}
+                        >
+                          <Text style={{ fontFamily: 'DMSans_700Bold', fontSize: 13, color: colors.ink }}>Envoyer</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  )}
                 </View>
               ))
             )}
@@ -429,9 +485,10 @@ export function MySalonScreen() {
         <>
           <ServiceModal
             visible={isServiceModalVisible}
-            onClose={() => setIsServiceModalVisible(false)}
+            onClose={() => { setEditingService(null); setIsServiceModalVisible(false); }}
             salonId={salon.id}
             onSuccess={refetchServices}
+            service={editingService}
           />
           <AddStaffModal
             visible={isStaffModalVisible}

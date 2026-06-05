@@ -79,8 +79,16 @@ export class ReservationsController {
    * Get authenticated client's own reservations.
    */
   @Get('me')
-  findMyReservations(@CurrentUser() user: AuthenticatedUser) {
-    return this.reservationsService.findByClient(user.id);
+  findMyReservations(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('limit') limit?: number,
+    @Query('offset') offset?: number,
+  ) {
+    return this.reservationsService.findByClient(
+      user.id,
+      limit ? Number(limit) : undefined,
+      offset ? Number(offset) : undefined,
+    );
   }
 
   /**
@@ -93,8 +101,15 @@ export class ReservationsController {
   findPendingBySalon(
     @Param('salonId') salonId: string,
     @CurrentUser() user: AuthenticatedUser,
+    @Query('limit') limit?: number,
+    @Query('offset') offset?: number,
   ) {
-    return this.reservationsService.findPendingBySalon(salonId, user.id);
+    return this.reservationsService.findPendingBySalon(
+      salonId,
+      user.id,
+      limit ? Number(limit) : undefined,
+      offset ? Number(offset) : undefined,
+    );
   }
 
   /**
@@ -106,10 +121,18 @@ export class ReservationsController {
   @Roles('Coiffeur', 'Admin')
   findBySalon(
     @Param('salonId') salonId: string,
-    @Query('date') date: string | undefined,
     @CurrentUser() user: AuthenticatedUser,
+    @Query('date') date?: string,
+    @Query('limit') limit?: number,
+    @Query('offset') offset?: number,
   ) {
-    return this.reservationsService.findBySalon(salonId, user.id, date);
+    return this.reservationsService.findBySalon(
+      salonId,
+      user.id,
+      date,
+      limit ? Number(limit) : undefined,
+      offset ? Number(offset) : undefined,
+    );
   }
 
   /**

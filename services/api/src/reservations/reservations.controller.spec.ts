@@ -7,6 +7,7 @@ const mockService = {
   blockTime: jest.fn().mockResolvedValue({ id: '2' }),
   findByClient: jest.fn().mockResolvedValue([]),
   findBySalon: jest.fn().mockResolvedValue([]),
+  findPendingBySalon: jest.fn().mockResolvedValue([]),
   updateStatus: jest.fn().mockResolvedValue({ id: '1', status: 'Confirmed' }),
   findOne: jest.fn().mockResolvedValue({ id: '1' }),
 };
@@ -43,11 +44,11 @@ describe('ReservationsController', () => {
   });
 
   it('should call findMyReservations', async () => {
-    expect(await controller.findMyReservations({ id: 'u1' } as any)).toEqual([]);
+    expect(await controller.findMyReservations({ id: 'u1' } as any, undefined, undefined)).toEqual([]);
   });
 
   it('should call findBySalon', async () => {
-    expect(await controller.findBySalon('1', undefined, { id: 'u1' } as any)).toEqual([]);
+    expect(await controller.findBySalon('1', { id: 'u1' } as any, undefined, undefined, undefined)).toEqual([]);
   });
 
   it('should call updateStatus', async () => {

@@ -5,6 +5,7 @@ import {
   BadRequestException,
   ForbiddenException,
   ConflictException,
+  NotFoundException,
 } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { CreateReviewDto } from './dto/create-review.dto';
@@ -89,5 +90,47 @@ export class ReviewsService {
 
     if (error) throw new Error(`Failed to fetch reviews: ${error.message}`);
     return { data, total: count, limit, offset };
+  }
+
+  /**
+   * Add a response to a review (salon owner only).
+   * Verifies ownership through review → salon → owner_id chain.
+   */
+  async addResponse(reviewId: string, ownerId: string, response: string) {
+    // 1. Fetch the review with its salon
+    const { data: review, error: fetchError } = await this.supabase.adminClient
+      .from('reviews')
+      .select('id, salon_id')
+      .eq('id', reviewId)
+      .single();
+
+    if (fetchError || !review) {
+      throw new NotFoundException('Review not found');
+    }
+
+    // 2. Verify salon ownership
+    const { data: salon } = await this.supabase.adminClient
+      .from('salons')
+      .select('owner_id')
+      .eq('id', review.salon_id)
+      .single();
+
+    if (!salon || salon.owner_id !== ownerId) {
+      throw new ForbiddenException('You can only respond to reviews for your own salon');
+    }
+
+    // 3. Update the review with the response
+    const { data, error } = await this.supabase.adminClient
+      .from('reviews')
+      .update({
+        response,
+        response_date: new Date().toISOString(),
+      })
+      .eq('id', reviewId)
+      .select()
+      .single();
+
+    if (error) throw new Error(`Failed to add response: ${error.message}`);
+    return data;
   }
 }

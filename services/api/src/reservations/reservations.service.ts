@@ -304,7 +304,7 @@ export class ReservationsService {
   /**
    * Get all reservations for the authenticated client.
    */
-  async findByClient(clientId: string) {
+  async findByClient(clientId: string, limit: number = 50, offset: number = 0) {
     // Auto-update expired reservations for this client (Algeria UTC+1)
     // - Pending expiré  → Annulé  (jamais confirmé par le coiffeur)
     // - Confirmed expiré → Completed (rendez-vous effectué)
@@ -362,7 +362,8 @@ export class ReservationsService {
       `)
       .eq('client_id', clientId)
       .order('appointment_date', { ascending: false })
-      .order('start_time', { ascending: false });
+      .order('start_time', { ascending: false })
+      .range(offset, offset + limit - 1);
 
     if (error) throw new Error(`Failed to fetch reservations: ${error.message}`);
     return data;
@@ -371,7 +372,7 @@ export class ReservationsService {
   /**
    * Get all reservations for a salon (barber/owner view).
    */
-  async findBySalon(salonId: string, userId: string, date?: string) {
+  async findBySalon(salonId: string, userId: string, date?: string, limit: number = 50, offset: number = 0) {
     // Verify the user owns the salon or is staff
     const { data: salon } = await this.supabase.adminClient
       .from('salons')
@@ -460,6 +461,11 @@ export class ReservationsService {
       query = query.eq('appointment_date', date);
     }
 
+    // Apply pagination when no specific date filter is used
+    if (!date) {
+      query = query.range(offset, offset + limit - 1);
+    }
+
     const { data, error } = await query;
 
     if (error) throw new Error(`Failed to fetch salon reservations: ${error.message}`);
@@ -470,7 +476,7 @@ export class ReservationsService {
    * Get all PENDING reservations for a salon across all dates (barber/owner view).
    * Used to show the "pending approval" list on the calendar screen.
    */
-  async findPendingBySalon(salonId: string, userId: string) {
+  async findPendingBySalon(salonId: string, userId: string, limit: number = 50, offset: number = 0) {
     // Verify the user owns the salon or is staff
     const { data: salon } = await this.supabase.adminClient
       .from('salons')
@@ -512,7 +518,8 @@ export class ReservationsService {
       .eq('status', 'Pending')
       .gte('appointment_date', todayStr)
       .order('appointment_date', { ascending: true })
-      .order('start_time', { ascending: true });
+      .order('start_time', { ascending: true })
+      .range(offset, offset + limit - 1);
 
     if (error) throw new Error(`Failed to fetch pending reservations: ${error.message}`);
     return data;

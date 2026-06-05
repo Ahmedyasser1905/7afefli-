@@ -14,6 +14,7 @@ import {
   ConflictException,
   InternalServerErrorException,
   NotFoundException,
+  BadRequestException,
   Logger,
   HttpCode,
   HttpStatus,
@@ -179,5 +180,63 @@ export class AuthController {
 
     this.logger.log(`Account deleted for user ${user.id}`);
     return { success: true };
+  }
+
+  /**
+   * POST /auth/reset-password
+   * Send a password reset email (public — no auth required).
+   */
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Send a password reset email' })
+  async resetPassword(@Body('email') email: string) {
+    if (!email) {
+      throw new BadRequestException('Email is required');
+    }
+
+    const { error } = await this.supabase.adminClient.auth.resetPasswordForEmail(
+      email,
+      {
+        redirectTo: `${process.env.APP_URL || 'https://7afefli.app'}/reset-password`,
+      },
+    );
+
+    if (error) {
+      this.logger.error(`Password reset failed for ${email}: ${error.message}`);
+      // Don't reveal whether the email exists
+    }
+
+    return { message: 'Email de réinitialisation envoyé' };
+  }
+
+  /**
+   * POST /auth/update-password
+   * Update the authenticated user's password.
+   */
+  @Post('update-password')
+  @UseGuards(SupabaseAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update the authenticated user password' })
+  async updatePassword(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body('password') password: string,
+  ) {
+    if (!password || password.length < 6) {
+      throw new BadRequestException('Password must be at least 6 characters');
+    }
+
+    const { error } = await this.supabase.adminClient.auth.admin.updateUserById(
+      user.id,
+      { password },
+    );
+
+    if (error) {
+      this.logger.error(`Password update failed for user ${user.id}: ${error.message}`);
+      throw new InternalServerErrorException('Failed to update password');
+    }
+
+    this.logger.log(`Password updated for user ${user.id}`);
+    return { message: 'Mot de passe mis à jour' };
   }
 }

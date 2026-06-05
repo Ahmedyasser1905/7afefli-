@@ -130,6 +130,9 @@ export default function PhoneInputScreen({ navigation }: { navigation: Record<st
                 />
               </TouchableOpacity>
             </View>
+            <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')} style={{ alignSelf: 'flex-end', marginTop: spacing.sm }}>
+              <Text style={{ fontFamily: 'DMSans_500Medium', fontSize: 13, color: colors.amber }}>Mot de passe oublié ?</Text>
+            </TouchableOpacity>
             <TouchableOpacity
               style={[styles.submitButton, isLoading && styles.disabledButton, { marginTop: spacing.xl }]}
               onPress={handleEmailSubmit}

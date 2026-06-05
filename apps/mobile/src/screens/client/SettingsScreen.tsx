@@ -22,6 +22,7 @@ import { useAuthStore } from '../../store/authStore';
 import { colors, spacing, radius, shadows } from '../../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
 import { EditProfileModal } from '../../components/profile/EditProfileModal';
+import * as SecureStore from 'expo-secure-store';
 
 const DEFAULT_AVATAR = 'https://lh3.googleusercontent.com/aida-public/AB6AXuDhsTHtiP3Z4tCtsj3LGHwYS5xdJSlpMbLr-LvZld6LDrXErLk7k8pnjAS32G_HSNI0P2IuYAfQwpOp6Wr_9ufZKN6Klf7rxMQhmAnJmKwnPZIuuttQO7lWVDMWVmvbYLskVk5Ocfp_zGhXguCLwBCGAf8i0IbCjWKcjYkjEhCD3lEeJlMSlIAkiPwLvg1yvPehfA1FUh8sJwyUIeVjhtiKmRuyLFwa9Jo3HVhFr1t6_hj4T5WdrFjZki5vffu7I-q1rZHS5Owb9XUe';
 
@@ -59,6 +60,20 @@ export function SettingsScreen() {
   useEffect(() => {
     loadProfile();
   }, [user]);
+
+  useEffect(() => {
+    const loadPushPref = async () => {
+      try {
+        const saved = await SecureStore.getItemAsync('push_enabled');
+        if (saved !== null) {
+          setPushEnabled(saved === 'true');
+        }
+      } catch {
+        // Ignore — use default
+      }
+    };
+    loadPushPref();
+  }, []);
 
   const loadProfile = async () => {
     if (!user) return;
@@ -200,7 +215,14 @@ export function SettingsScreen() {
             </View>
             <Switch
               value={pushEnabled}
-              onValueChange={setPushEnabled}
+              onValueChange={async (val: boolean) => {
+                setPushEnabled(val);
+                try {
+                  await SecureStore.setItemAsync('push_enabled', String(val));
+                } catch {
+                  // Ignore storage errors
+                }
+              }}
               trackColor={{ false: colors.graphite, true: colors.amberDim }}
               thumbColor={pushEnabled ? colors.amber : colors.steel}
             />

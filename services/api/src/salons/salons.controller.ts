@@ -64,6 +64,20 @@ export class SalonsController {
   }
 
   /**
+   * GET /salons/my-salon/stats
+   * Get dashboard statistics for the authenticated owner's salon.
+   */
+  @Get('my-salon/stats')
+  @UseGuards(SupabaseAuthGuard)
+  getDashboardStats(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('period') period: 'day' | 'month' | 'all' = 'day',
+    @Query('date') date?: string,
+  ) {
+    return this.salonsService.getDashboardStats(user.id, period, date);
+  }
+
+  /**
    * GET /salons/:id
    * Get full salon details with services, staff, portfolio.
    */

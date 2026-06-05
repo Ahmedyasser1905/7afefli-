@@ -1,6 +1,6 @@
 // services/api/src/salons/salons.service.ts
 
-import { Injectable, NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, ConflictException, BadRequestException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { CreateSalonDto } from './dto/create-salon.dto';
 import { UpdateSalonDto } from './dto/update-salon.dto';
@@ -309,5 +309,92 @@ export class SalonsService {
 
     if (error && error.code !== '42P01') throw new Error(error.message);
     return data || [];
+  }
+
+  /**
+   * Get dashboard statistics for a salon owner.
+   */
+  async getDashboardStats(ownerId: string, period: string, date?: string) {
+    // 1. Find the salon by owner_id
+    const { data: salon, error: salonError } = await this.supabase.adminClient
+      .from('salons')
+      .select('id')
+      .eq('owner_id', ownerId)
+      .maybeSingle();
+
+    if (salonError || !salon) {
+      throw new NotFoundException('Salon not found for this owner');
+    }
+
+    // 2. Build query for reservations
+    let query = this.supabase.adminClient
+      .from('reservations')
+      .select('id, status, client_id, notes, service_id')
+      .eq('salon_id', salon.id)
+      .not('notes', 'ilike', '%CRÉNEAU BLOQUÉ%');
+
+    // 3. Apply period filter
+    const filterDate = date || new Date().toISOString().split('T')[0];
+    if (period === 'day') {
+      query = query.eq('appointment_date', filterDate);
+    } else if (period === 'month') {
+      const yearMonth = filterDate.substring(0, 7); // YYYY-MM
+      query = query.gte('appointment_date', `${yearMonth}-01`)
+                   .lte('appointment_date', `${yearMonth}-31`);
+    }
+    // 'all' → no date filter
+
+    const { data: reservations, error: resError } = await query;
+
+    if (resError) {
+      throw new BadRequestException(`Failed to fetch reservations: ${resError.message}`);
+    }
+
+    const rows = reservations || [];
+
+    // 4. Calculate stats
+    const confirmedOrCompleted = rows.filter(
+      (r) => r.status === 'Confirmed' || r.status === 'Completed',
+    );
+    const pendingRows = rows.filter((r) => r.status === 'Pending');
+    const completedRows = rows.filter((r) => r.status === 'Completed');
+    const cancelledRows = rows.filter((r) => r.status === 'Cancelled');
+
+    // Distinct client_id count
+    const clientIds = new Set(
+      confirmedOrCompleted.map((r) => r.client_id).filter(Boolean),
+    );
+
+    // 5. Fetch service prices for revenue calculation
+    const serviceIds = [
+      ...new Set(confirmedOrCompleted.map((r) => r.service_id).filter(Boolean)),
+    ];
+
+    let revenue = 0;
+    if (serviceIds.length > 0) {
+      const { data: services } = await this.supabase.adminClient
+        .from('services')
+        .select('id, price')
+        .in('id', serviceIds);
+
+      if (services) {
+        const priceMap = new Map(services.map((s) => [s.id, s.price ?? 0]));
+        revenue = confirmedOrCompleted.reduce(
+          (sum, r) => sum + (priceMap.get(r.service_id) || 0),
+          0,
+        );
+      }
+    }
+
+    return {
+      totalBookings: confirmedOrCompleted.length,
+      pendingBookings: pendingRows.length,
+      completedBookings: completedRows.length,
+      cancelledBookings: cancelledRows.length,
+      revenue,
+      clientCount: clientIds.size,
+      period,
+      date: filterDate,
+    };
   }
 }

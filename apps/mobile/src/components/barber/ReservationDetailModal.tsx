@@ -19,6 +19,7 @@ interface ReservationDetailModalProps {
   reservation: Record<string, unknown> | null;
   onCancel?: (id: string) => void;
   onConfirm?: (id: string) => void;
+  onComplete?: (id: string) => void;
 }
 
 const DEFAULT_AVATAR =
@@ -50,6 +51,7 @@ export function ReservationDetailModal({
   reservation,
   onCancel,
   onConfirm,
+  onComplete,
 }: ReservationDetailModalProps) {
   if (!reservation) return null;
 
@@ -271,9 +273,20 @@ export function ReservationDetailModal({
                     </TouchableOpacity>
                   )}
 
+                  {status === 'Confirmed' && onComplete && (
+                    <TouchableOpacity
+                      style={styles.completeButton}
+                      onPress={() => { onComplete(id); onClose(); }}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="checkmark-done-outline" size={18} color="#fff" />
+                      <Text style={styles.completeButtonText}>Terminé</Text>
+                    </TouchableOpacity>
+                  )}
+
                   {isCancellable && onCancel && (
                     <TouchableOpacity
-                      style={[styles.cancelButton, isPending && styles.cancelButtonSmall]}
+                      style={[styles.cancelButton, (isPending || status === 'Confirmed') && styles.cancelButtonSmall]}
                       onPress={() => { onCancel(id); onClose(); }}
                       activeOpacity={0.8}
                     >
@@ -485,5 +498,21 @@ const styles = StyleSheet.create({
     fontFamily: 'Syne_700Bold',
     fontSize: 15,
     color: colors.error,
+  },
+  completeButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    backgroundColor: '#8B5CF6',
+    borderRadius: radius.md,
+    padding: spacing.md,
+    height: 50,
+  },
+  completeButtonText: {
+    fontFamily: 'Syne_700Bold',
+    fontSize: 15,
+    color: '#fff',
   },
 });

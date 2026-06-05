@@ -15,6 +15,7 @@ import {
   Platform,
   ScrollView,
   Image,
+  FlatList,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { decode } from 'base64-arraybuffer';
@@ -44,6 +45,14 @@ const WILAYAS = [
   'Béni Abbès', 'In Salah', 'In Guezzam', 'Touggourt', 'Djanet', 'El M\'Ghair', 'El Meniaa',
 ];
 
+// Time chips from 06:00 to 00:00 in 30-minute increments
+const TIME_CHIPS: string[] = [];
+for (let h = 6; h <= 23; h++) {
+  TIME_CHIPS.push(`${String(h).padStart(2, '0')}:00`);
+  TIME_CHIPS.push(`${String(h).padStart(2, '0')}:30`);
+}
+TIME_CHIPS.push('00:00');
+
 export function EditSalonModal({ visible, onClose, salon, onSaved }: EditSalonModalProps) {
   const user = useAuthStore((s) => s.user);
   const [name, setName] = useState('');
@@ -55,6 +64,11 @@ export function EditSalonModal({ visible, onClose, salon, onSaved }: EditSalonMo
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [workingDays, setWorkingDays] = useState<number[]>([0, 1, 2, 3, 4, 5, 6]);
+  const [isWilayaModalVisible, setIsWilayaModalVisible] = useState(false);
+  const [wilayaSearch, setWilayaSearch] = useState('');
+
+  const filteredWilayas = WILAYAS.filter((w) => w.toLowerCase().includes(wilayaSearch.toLowerCase()));
 
   useEffect(() => {
     if (salon && visible) {
@@ -65,6 +79,7 @@ export function EditSalonModal({ visible, onClose, salon, onSaved }: EditSalonMo
       setOpenTime(salon.open_time?.substring(0, 5) || '09:00');
       setCloseTime(salon.close_time?.substring(0, 5) || '20:00');
       setImageUrl(salon.image_url || null);
+      setWorkingDays(salon.working_days || [0, 1, 2, 3, 4, 5, 6]);
     }
   }, [salon, visible]);
 
@@ -89,6 +104,7 @@ export function EditSalonModal({ visible, onClose, salon, onSaved }: EditSalonMo
         open_time: openTime,
         close_time: closeTime,
         image_url: imageUrl,
+        working_days: workingDays,
       });
 
       Alert.alert('Succès', 'Salon mis à jour');
@@ -144,17 +160,6 @@ export function EditSalonModal({ visible, onClose, salon, onSaved }: EditSalonMo
     } finally {
       setUploadingImage(false);
     }
-  };
-
-  const selectWilaya = () => {
-    Alert.alert(
-      'Choisir la wilaya',
-      '',
-      WILAYAS.map((w) => ({
-        text: w,
-        onPress: () => setWilaya(w),
-      })),
-    );
   };
 
   return (
@@ -233,7 +238,7 @@ export function EditSalonModal({ visible, onClose, salon, onSaved }: EditSalonMo
 
             {/* Wilaya */}
             <Text style={styles.label}>Wilaya</Text>
-            <TouchableOpacity style={styles.inputContainer} onPress={selectWilaya} activeOpacity={0.7}>
+            <TouchableOpacity style={styles.inputContainer} onPress={() => setIsWilayaModalVisible(true)} activeOpacity={0.7}>
               <Ionicons name="location-outline" size={18} color={colors.amber} />
               <Text style={[styles.input, { color: wilaya ? colors.textPrimary : colors.textMuted }]}>
                 {wilaya || 'Sélectionner la wilaya'}
@@ -254,34 +259,127 @@ export function EditSalonModal({ visible, onClose, salon, onSaved }: EditSalonMo
               />
             </View>
 
-            {/* Hours */}
-            <Text style={styles.label}>Horaires d'ouverture</Text>
-            <View style={styles.hoursRow}>
-              <View style={[styles.inputContainer, { flex: 1 }]}>
-                <Ionicons name="time-outline" size={18} color={colors.success} />
-                <TextInput
-                  style={styles.input}
-                  value={openTime}
-                  onChangeText={setOpenTime}
-                  placeholder="09:00"
-                  placeholderTextColor={colors.textMuted}
-                  maxLength={5}
-                />
+            {/* Hours — Scrollable chip selectors */}
+            <Text style={styles.label}>Heure d'ouverture</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: spacing.md }}>
+              <View style={{ flexDirection: 'row', gap: spacing.xs }}>
+                {TIME_CHIPS.map((t) => (
+                  <TouchableOpacity
+                    key={`open-${t}`}
+                    onPress={() => setOpenTime(t)}
+                    style={{
+                      paddingHorizontal: spacing.md,
+                      paddingVertical: spacing.sm,
+                      borderRadius: radius.md,
+                      backgroundColor: openTime === t ? colors.amber : colors.carbon,
+                      borderWidth: 1,
+                      borderColor: openTime === t ? colors.amber : 'rgba(255,255,255,0.1)',
+                    }}
+                  >
+                    <Text style={{
+                      fontFamily: 'DMSans_500Medium',
+                      fontSize: 13,
+                      color: openTime === t ? colors.ink : colors.textSecondary,
+                    }}>{t}</Text>
+                  </TouchableOpacity>
+                ))}
               </View>
-              <Text style={styles.hoursSeparator}>→</Text>
-              <View style={[styles.inputContainer, { flex: 1 }]}>
-                <Ionicons name="time-outline" size={18} color={colors.error} />
-                <TextInput
-                  style={styles.input}
-                  value={closeTime}
-                  onChangeText={setCloseTime}
-                  placeholder="20:00"
-                  placeholderTextColor={colors.textMuted}
-                  maxLength={5}
+            </ScrollView>
+
+            <Text style={styles.label}>Heure de fermeture</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: spacing.lg }}>
+              <View style={{ flexDirection: 'row', gap: spacing.xs }}>
+                {TIME_CHIPS.map((t) => (
+                  <TouchableOpacity
+                    key={`close-${t}`}
+                    onPress={() => setCloseTime(t)}
+                    style={{
+                      paddingHorizontal: spacing.md,
+                      paddingVertical: spacing.sm,
+                      borderRadius: radius.md,
+                      backgroundColor: closeTime === t ? colors.amber : colors.carbon,
+                      borderWidth: 1,
+                      borderColor: closeTime === t ? colors.amber : 'rgba(255,255,255,0.1)',
+                    }}
+                  >
+                    <Text style={{
+                      fontFamily: 'DMSans_500Medium',
+                      fontSize: 13,
+                      color: closeTime === t ? colors.ink : colors.textSecondary,
+                    }}>{t}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+
+            {/* Working Days */}
+            <Text style={styles.label}>Jours de travail</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
+              {[{ day: 0, label: 'Dim' }, { day: 1, label: 'Lun' }, { day: 2, label: 'Mar' }, { day: 3, label: 'Mer' }, { day: 4, label: 'Jeu' }, { day: 5, label: 'Ven' }, { day: 6, label: 'Sam' }].map(({ day, label }) => {
+                const isActive = workingDays.includes(day);
+                return (
+                  <TouchableOpacity
+                    key={day}
+                    onPress={() => setWorkingDays(prev => isActive ? prev.filter(d => d !== day) : [...prev, day].sort())}
+                    style={{
+                      paddingHorizontal: spacing.md,
+                      paddingVertical: spacing.sm,
+                      borderRadius: radius.md,
+                      backgroundColor: isActive ? colors.amber : colors.carbon,
+                      borderWidth: 1,
+                      borderColor: isActive ? colors.amber : 'rgba(255,255,255,0.1)',
+                    }}
+                  >
+                    <Text style={{
+                      fontFamily: 'DMSans_700Bold',
+                      fontSize: 13,
+                      color: isActive ? colors.ink : colors.textSecondary,
+                    }}>{label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </ScrollView>
+
+          {/* Wilaya Selection Modal */}
+          <Modal visible={isWilayaModalVisible} animationType="slide" transparent onRequestClose={() => setIsWilayaModalVisible(false)}>
+            <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
+              <View style={{ backgroundColor: colors.ink, borderTopLeftRadius: 24, borderTopRightRadius: 24, height: '70%' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing.lg, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' }}>
+                  <TouchableOpacity onPress={() => setIsWilayaModalVisible(false)} activeOpacity={0.7}>
+                    <Ionicons name="close" size={24} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                  <Text style={{ fontFamily: 'Syne_700Bold', fontSize: 18, color: colors.textPrimary }}>Choisir la Wilaya</Text>
+                  <View style={{ width: 24 }} />
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.carbon, margin: spacing.lg, paddingHorizontal: spacing.md, height: 44, borderRadius: radius.md, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' }}>
+                  <Ionicons name="search" size={18} color={colors.textSecondary} />
+                  <TextInput
+                    style={{ flex: 1, color: colors.textPrimary, fontFamily: 'DMSans_400Regular', marginLeft: spacing.sm }}
+                    placeholder="Rechercher une wilaya..."
+                    placeholderTextColor={colors.textMuted}
+                    value={wilayaSearch}
+                    onChangeText={setWilayaSearch}
+                  />
+                </View>
+                <FlatList
+                  data={filteredWilayas}
+                  keyExtractor={(item) => item}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity 
+                      style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing.md, paddingHorizontal: spacing.lg, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.02)' }}
+                      onPress={() => { setWilaya(item); setIsWilayaModalVisible(false); setWilayaSearch(''); }}
+                    >
+                      <Text style={{ fontFamily: 'DMSans_500Medium', fontSize: 15, color: wilaya === item ? colors.amber : colors.textPrimary }}>{item}</Text>
+                      {wilaya === item && <Ionicons name="checkmark" size={18} color={colors.amber} />}
+                    </TouchableOpacity>
+                  )}
+                  contentContainerStyle={{ paddingBottom: 40 }}
+                  showsVerticalScrollIndicator={false}
                 />
               </View>
             </View>
-          </ScrollView>
+          </Modal>
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -349,17 +447,6 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontFamily: 'DMSans_400Regular',
     fontSize: 15,
-  },
-  hoursRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  hoursSeparator: {
-    fontFamily: 'Syne_700Bold',
-    fontSize: 18,
-    color: colors.textMuted,
-    marginBottom: spacing.lg,
   },
   imageUploadContainer: {
     height: 160,
