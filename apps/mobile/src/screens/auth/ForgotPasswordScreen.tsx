@@ -12,17 +12,33 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
+import React, { useState } from 'react';
+import {
+  StyleSheet,
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, spacing, radius, shadows } from '../../theme';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { apiClient } from '../../lib/apiClient';
+import { supabase } from '../../lib/supabase';
+import { useAuthStore } from '../../store/authStore';
 
 export default function ForgotPasswordScreen({ navigation }: { navigation: Record<string, unknown> }) {
   const [email, setEmail] = useState('');
+  const [otpCode, setOtpCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isSent, setIsSent] = useState(false);
+  const [step, setStep] = useState<'email' | 'otp'>('email');
+  const setNeedsPasswordReset = useAuthStore(s => s.setNeedsPasswordReset);
 
-  const handleSubmit = async () => {
+  const handleSendOtp = async () => {
     if (!email.trim()) {
       Toast.show({
         type: 'error',
@@ -35,12 +51,50 @@ export default function ForgotPasswordScreen({ navigation }: { navigation: Recor
     setIsLoading(true);
     try {
       await apiClient.post('/auth/reset-password', { email: email.trim() });
-      setIsSent(true);
+      setStep('otp');
+      Toast.show({
+        type: 'success',
+        text1: 'E-mail envoyé',
+        text2: 'Vérifiez votre boîte de réception pour le code à 6 chiffres'
+      });
     } catch (err: unknown) {
       Toast.show({
         type: 'error',
         text1: 'Erreur',
         text2: (err as Error).message || 'Une erreur est survenue'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (otpCode.trim().length !== 6) {
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: 'Le code OTP doit contenir 6 chiffres'
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      setNeedsPasswordReset(true);
+      
+      const { error } = await supabase.auth.verifyOtp({
+        email: email.trim(),
+        token: otpCode.trim(),
+        type: 'recovery',
+      });
+      
+      if (error) throw error;
+    } catch (err: unknown) {
+      setNeedsPasswordReset(false);
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur de vérification',
+        text2: 'Code incorrect ou expiré. Veuillez réessayer.'
       });
     } finally {
       setIsLoading(false);
@@ -64,22 +118,22 @@ export default function ForgotPasswordScreen({ navigation }: { navigation: Recor
         <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
           <View style={styles.iconContainer}>
             <View style={styles.iconWrap}>
-              <Ionicons name={isSent ? 'checkmark-circle' : 'lock-closed'} size={48} color={colors.amber} />
+              <Ionicons name={step === 'otp' ? 'keypad' : 'lock-closed'} size={48} color={colors.amber} />
             </View>
           </View>
 
           <View style={styles.headlineContainer}>
             <Text style={styles.headlineTitle}>
-              {isSent ? 'E-mail envoyé !' : 'Mot de passe oublié'}
+              {step === 'otp' ? 'Entrez le code OTP' : 'Mot de passe oublié'}
             </Text>
             <Text style={styles.headlineSubtitle}>
-              {isSent
-                ? 'Un lien de réinitialisation a été envoyé à votre adresse e-mail. Vérifiez votre boîte de réception.'
-                : 'Entrez votre adresse e-mail et nous vous enverrons un lien pour réinitialiser votre mot de passe.'}
+              {step === 'otp'
+                ? 'Nous avons envoyé un code à 6 chiffres à votre adresse e-mail. Veuillez le saisir ci-dessous.'
+                : 'Entrez votre adresse e-mail et nous vous enverrons un code pour réinitialiser votre mot de passe.'}
             </Text>
           </View>
 
-          {!isSent ? (
+          {step === 'email' ? (
             <View style={styles.form}>
               <View style={styles.inputFieldContainer}>
                 <Ionicons name="mail-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
@@ -98,27 +152,58 @@ export default function ForgotPasswordScreen({ navigation }: { navigation: Recor
 
               <TouchableOpacity
                 style={[styles.submitButton, isLoading && styles.disabledButton]}
-                onPress={handleSubmit}
+                onPress={handleSendOtp}
                 disabled={isLoading}
               >
                 {isLoading ? (
                   <ActivityIndicator color={colors.ink} />
                 ) : (
                   <>
-                    <Text style={styles.submitButtonText}>Envoyer le lien</Text>
+                    <Text style={styles.submitButtonText}>Recevoir le code OTP</Text>
                     <Ionicons name="send-outline" size={18} color={colors.ink} style={{ marginLeft: spacing.sm }} />
                   </>
                 )}
               </TouchableOpacity>
             </View>
           ) : (
-            <TouchableOpacity
-              style={styles.submitButton}
-              onPress={() => (navigation as any).goBack()}
-            >
-              <Text style={styles.submitButtonText}>Retour à la connexion</Text>
-              <Ionicons name="arrow-back-outline" size={18} color={colors.ink} style={{ marginLeft: spacing.sm }} />
-            </TouchableOpacity>
+            <View style={styles.form}>
+              <View style={styles.inputFieldContainer}>
+                <Ionicons name="keypad-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Code à 6 chiffres"
+                  placeholderTextColor={colors.textSecondary}
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  value={otpCode}
+                  onChangeText={setOtpCode}
+                  editable={!isLoading}
+                />
+              </View>
+
+              <TouchableOpacity
+                style={[styles.submitButton, isLoading && styles.disabledButton]}
+                onPress={handleVerifyOtp}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color={colors.ink} />
+                ) : (
+                  <>
+                    <Text style={styles.submitButtonText}>Vérifier le code</Text>
+                    <Ionicons name="checkmark-outline" size={18} color={colors.ink} style={{ marginLeft: spacing.sm }} />
+                  </>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.resendButton}
+                onPress={() => setStep('email')}
+                disabled={isLoading}
+              >
+                <Text style={styles.resendButtonText}>Changer d'adresse e-mail</Text>
+              </TouchableOpacity>
+            </View>
           )}
         </ScrollView>
       </KeyboardAvoidingView>
@@ -234,5 +319,17 @@ const styles = StyleSheet.create({
   disabledButton: {
     backgroundColor: colors.amberDim,
     opacity: 0.6,
+  },
+  resendButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+    marginTop: spacing.sm,
+  },
+  resendButtonText: {
+    fontFamily: 'DMSans_500Medium',
+    fontSize: 14,
+    color: colors.textSecondary,
+    textDecorationLine: 'underline',
   },
 });
