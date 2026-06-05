@@ -1,12 +1,16 @@
 import { Injectable, Logger, BadRequestException, NotFoundException, InternalServerErrorException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
+import { MailService } from '../mail/mail.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class PasswordService {
   private readonly logger = new Logger(PasswordService.name);
 
-  constructor(private readonly supabase: SupabaseService) {}
+  constructor(
+    private readonly supabase: SupabaseService,
+    private readonly mailService: MailService,
+  ) {}
 
   /**
    * Génère un code OTP aléatoire à 6 chiffres
@@ -63,9 +67,8 @@ export class PasswordService {
       throw new InternalServerErrorException('Impossible de générer le code de réinitialisation');
     }
 
-    // "Envoi" de l'e-mail
-    // TODO: Intégrer un vrai fournisseur (Resend, Sendgrid, etc.)
-    this.logger.log(`[EMAIL SIMULÉ] Envoi du code OTP ${otp} à ${emailLower}`);
+    // "Envoi" de l'e-mail via Resend (ou simulation si clé manquante)
+    await this.mailService.sendPasswordResetOtp(emailLower, otp);
   }
 
   /**
