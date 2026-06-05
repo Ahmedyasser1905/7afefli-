@@ -22,11 +22,11 @@ export default function VerifyCodeScreen({ route, navigation }: any) {
   const [isLoading, setIsLoading] = useState(false);
 
   const handleVerifyOtp = async () => {
-    if (otpCode.trim().length !== 6) {
+    if (otpCode.trim().length < 6) {
       Toast.show({
         type: 'error',
         text1: 'Erreur',
-        text2: 'Le code OTP doit contenir 6 chiffres'
+        text2: 'Le code OTP doit contenir au moins 6 caractères'
       });
       return;
     }
@@ -94,10 +94,10 @@ export default function VerifyCodeScreen({ route, navigation }: any) {
               <Ionicons name="keypad-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="Code à 6 chiffres"
+                placeholder="Code OTP"
                 placeholderTextColor={colors.textSecondary}
-                keyboardType="number-pad"
-                maxLength={6}
+                keyboardType="default"
+                maxLength={8}
                 value={otpCode}
                 onChangeText={setOtpCode}
                 editable={!isLoading}
