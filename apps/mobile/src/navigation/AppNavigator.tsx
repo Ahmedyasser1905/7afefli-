@@ -26,7 +26,6 @@ function AuthStackNavigator() {
       <AuthStack.Screen name="SignUp" component={SignUpScreen} />
       <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
       <AuthStack.Screen name="VerifyCode" component={VerifyCodeScreen} />
-      <AuthStack.Screen name="ResetPassword" component={ResetPasswordScreen} />
     </AuthStack.Navigator>
   );
 }
@@ -70,7 +69,7 @@ async function fetchProfileInfo(userId: string): Promise<{ role: string; hasPhon
 }
 
 export function AppNavigator() {
-  const { session, role, needsPhone, clearAuth } = useAuthStore();
+  const { session, role, needsPhone, needsPasswordReset, clearAuth } = useAuthStore();
 
   // Register push notifications & listen for notification taps
   useNotificationSetup();
@@ -160,6 +159,9 @@ export function AppNavigator() {
         {!session ? (
           // Not authenticated → Auth flow
           <RootStack.Screen name="Auth" component={AuthStackNavigator} />
+        ) : needsPasswordReset ? (
+          // Authenticated but needs password reset → Update Password
+          <RootStack.Screen name="ResetPassword" component={ResetPasswordScreen} />
         ) : needsPhone ? (
           // Authenticated but no phone → Phone entry
           <RootStack.Screen name="PhoneEntry" component={PhoneEntryScreen} />

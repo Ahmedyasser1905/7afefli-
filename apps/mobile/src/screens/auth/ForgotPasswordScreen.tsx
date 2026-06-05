@@ -14,11 +14,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, spacing, radius, shadows } from '../../theme';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import { apiClient } from '../../lib/apiClient';
+import { supabase } from '../../lib/supabase';
+import { useAuthStore } from '../../store/authStore';
 
 export default function ForgotPasswordScreen({ navigation }: { navigation: Record<string, unknown> }) {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const setNeedsPasswordReset = useAuthStore(s => s.setNeedsPasswordReset);
 
   const handleSendOtp = async () => {
     if (!email.trim()) {
@@ -32,12 +34,23 @@ export default function ForgotPasswordScreen({ navigation }: { navigation: Recor
 
     setIsLoading(true);
     try {
-      await apiClient.post('/auth/password/send-code', { email: email.trim() });
+      const { error } = await supabase.auth.signInWithOtp({
+        email: email.trim(),
+        options: {
+          shouldCreateUser: false,
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+      
+      setNeedsPasswordReset(true);
       
       Toast.show({
         type: 'success',
         text1: 'E-mail envoyé',
-        text2: 'Vérifiez votre boîte de réception pour le code à 6 chiffres'
+        text2: 'Vérifiez votre boîte de réception pour le code OTP'
       });
       
       (navigation as any).navigate('VerifyCode', { email: email.trim() });
@@ -45,7 +58,7 @@ export default function ForgotPasswordScreen({ navigation }: { navigation: Recor
       Toast.show({
         type: 'error',
         text1: 'Erreur',
-        text2: (err as any)?.response?.data?.message || (err as Error).message || 'Une erreur est survenue'
+        text2: (err as any)?.message || 'Une erreur est survenue. Vérifiez votre email.'
       });
     } finally {
       setIsLoading(false);

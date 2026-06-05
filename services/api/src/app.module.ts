@@ -15,7 +15,6 @@ import { CacheModule } from '@nestjs/cache-manager';
 import { AuditModule } from './audit/audit.module';
 import { PaymentsModule } from './payments/payments.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
-import { MailModule } from './mail/mail.module';
 import { AppController } from './app.controller';
 
 // NOTE: redis packages are require()'d lazily inside the factories below.
@@ -78,7 +77,6 @@ import { AppController } from './app.controller';
     AuditModule,
     PaymentsModule,
     SubscriptionsModule,
-    MailModule,
   ],
   controllers: [AppController],
   providers: [

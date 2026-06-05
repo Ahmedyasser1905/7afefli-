@@ -14,14 +14,15 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, spacing, radius, shadows } from '../../theme';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import { apiClient } from '../../lib/apiClient';
+import { supabase } from '../../lib/supabase';
+import { useAuthStore } from '../../store/authStore';
 
-export default function ResetPasswordScreen({ route, navigation }: any) {
-  const { email, code } = route.params || {};
+export default function ResetPasswordScreen({ navigation }: any) {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const setNeedsPasswordReset = useAuthStore(s => s.setNeedsPasswordReset);
 
   const handleSubmit = async () => {
     if (!password || !confirmPassword) {
@@ -53,25 +54,28 @@ export default function ResetPasswordScreen({ route, navigation }: any) {
 
     setIsLoading(true);
     try {
-      await apiClient.post('/auth/password/reset', { 
-        email, 
-        code, 
-        newPassword: password 
+      const { error } = await supabase.auth.updateUser({
+        password: password,
       });
+
+      if (error) {
+        throw error;
+      }
       
       Toast.show({
         type: 'success',
         text1: 'Succès',
-        text2: 'Votre mot de passe a été réinitialisé. Vous pouvez maintenant vous connecter.'
+        text2: 'Votre mot de passe a été réinitialisé avec succès.'
       });
       
-      // Navigate back to login
-      navigation.navigate('PhoneInput');
+      // Débloque l'AppNavigator pour laisser passer l'utilisateur vers ClientApp/BarberApp/AdminApp
+      setNeedsPasswordReset(false);
+      
     } catch (err: unknown) {
       Toast.show({
         type: 'error',
         text1: 'Erreur',
-        text2: (err as any)?.response?.data?.message || (err as Error).message || 'Une erreur est survenue'
+        text2: (err as any)?.message || 'Une erreur est survenue'
       });
     } finally {
       setIsLoading(false);

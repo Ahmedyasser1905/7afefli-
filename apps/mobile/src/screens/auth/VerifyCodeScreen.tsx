@@ -14,7 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, spacing, radius, shadows } from '../../theme';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import { apiClient } from '../../lib/apiClient';
+import { supabase } from '../../lib/supabase';
 
 export default function VerifyCodeScreen({ route, navigation }: any) {
   const { email } = route.params || {};
@@ -33,10 +33,15 @@ export default function VerifyCodeScreen({ route, navigation }: any) {
 
     setIsLoading(true);
     try {
-      await apiClient.post('/auth/password/verify-code', { 
-        email: email, 
-        code: otpCode.trim() 
+      const { error } = await supabase.auth.verifyOtp({
+        email: email,
+        token: otpCode.trim(),
+        type: 'email',
       });
+      
+      if (error) {
+        throw error;
+      }
       
       Toast.show({
         type: 'success',
@@ -44,12 +49,12 @@ export default function VerifyCodeScreen({ route, navigation }: any) {
         text2: 'Code validé. Veuillez définir un nouveau mot de passe.'
       });
       
-      navigation.navigate('ResetPassword', { email: email, code: otpCode.trim() });
+      // La navigation est gérée automatiquement par AppNavigator (needsPasswordReset)
     } catch (err: unknown) {
       Toast.show({
         type: 'error',
         text1: 'Erreur de vérification',
-        text2: (err as any)?.response?.data?.message || (err as Error).message || 'Code incorrect ou expiré.'
+        text2: (err as any)?.message || 'Code incorrect ou expiré.'
       });
     } finally {
       setIsLoading(false);
