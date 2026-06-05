@@ -1,3 +1,4 @@
+import Toast from 'react-native-toast-message';
 // apps/mobile/src/screens/client/MyAppointmentsScreen.tsx
 // Client's appointments list — Separated into Upcoming and Past
 
@@ -49,10 +50,18 @@ export function MyAppointmentsScreen() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['my-reservations', user?.id] });
-      Alert.alert('Succès', 'Votre rendez-vous a été annulé.');
+      Toast.show({
+        type: 'success',
+        text1: 'Succès',
+        text2: 'Votre rendez-vous a été annulé.'
+      });
     },
     onError: (err: Error) => {
-      Alert.alert('Erreur', err.message || 'Impossible d\'annuler le rendez-vous');
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: err.message || 'Impossible d\'annuler le rendez-vous'
+      });
     },
   });
 

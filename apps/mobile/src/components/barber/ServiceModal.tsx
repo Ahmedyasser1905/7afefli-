@@ -1,3 +1,4 @@
+import Toast from 'react-native-toast-message';
 // apps/mobile/src/components/barber/ServiceModal.tsx
 import React, { useState, useEffect } from 'react';
 import {
@@ -51,7 +52,11 @@ export function ServiceModal({ visible, onClose, salonId, onSuccess, service }: 
 
   const handleSubmit = async () => {
     if (!form.service_name || !form.price || !form.duration_minutes) {
-      Alert.alert('Erreur', 'Veuillez remplir tous les champs');
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: 'Veuillez remplir tous les champs'
+      });
       return;
     }
 
@@ -59,11 +64,19 @@ export function ServiceModal({ visible, onClose, salonId, onSuccess, service }: 
     const duration = parseInt(form.duration_minutes, 10);
 
     if (isNaN(price) || price <= 0) {
-      Alert.alert('Erreur', 'Le prix doit être un nombre positif');
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: 'Le prix doit être un nombre positif'
+      });
       return;
     }
     if (isNaN(duration) || duration <= 0 || duration > 480) {
-      Alert.alert('Erreur', 'La durée doit être entre 1 et 480 minutes');
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: 'La durée doit être entre 1 et 480 minutes'
+      });
       return;
     }
 
@@ -86,7 +99,11 @@ export function ServiceModal({ visible, onClose, salonId, onSuccess, service }: 
       setForm({ service_name: '', description: '', price: '', duration_minutes: '30' });
       onClose();
     } catch (err: unknown) {
-      Alert.alert('Erreur', (err as Error).message || 'Une erreur est survenue');
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: (err as Error).message || 'Une erreur est survenue'
+      });
     } finally {
       setLoading(false);
     }

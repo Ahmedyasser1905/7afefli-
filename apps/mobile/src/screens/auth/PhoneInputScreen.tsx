@@ -1,3 +1,4 @@
+import Toast from 'react-native-toast-message';
 import React, { useState } from 'react';
 import {
   StyleSheet,
@@ -31,7 +32,11 @@ export default function PhoneInputScreen({ navigation }: { navigation: Record<st
     if (!email || !password) {
       const msg = 'Veuillez remplir tous les champs';
       setErrorMsg(msg);
-      Alert.alert('Erreur', msg);
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: msg
+      });
       return;
     }
 
@@ -55,7 +60,11 @@ export default function PhoneInputScreen({ navigation }: { navigation: Record<st
       console.error(err);
       const msg = err.message || 'Identifiants invalides';
       setErrorMsg(msg);
-      Alert.alert('Erreur de connexion', msg);
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur de connexion',
+        text2: msg
+      });
     } finally {
       setIsLoading(false);
     }

@@ -1,3 +1,4 @@
+import Toast from 'react-native-toast-message';
 // apps/mobile/src/screens/barber/CalendarScreen.tsx
 // Full-day timeline view with realtime reservation blocks + pending panel
 
@@ -66,7 +67,11 @@ export function CalendarScreen() {
       queryClient.invalidateQueries({ queryKey: ['barber-pending'] });
     },
     onError: (error: unknown) => {
-      Alert.alert('Erreur', (error as Error).message || 'Impossible de modifier la réservation');
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: (error as Error).message || 'Impossible de modifier la réservation'
+      });
     },
   });
 

@@ -1,3 +1,4 @@
+import Toast from 'react-native-toast-message';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Alert } from 'react-native';
 import { apiClient } from '../../lib/apiClient';
@@ -93,7 +94,11 @@ export function useCreateReservation() {
     },
 
     onError: (error: Error) => {
-      Alert.alert('Erreur de réservation', error.message);
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur de réservation',
+        text2: error.message
+      });
     },
   });
 }

@@ -1,3 +1,4 @@
+import Toast from 'react-native-toast-message';
 // apps/mobile/src/screens/client/SettingsScreen.tsx
 // Premium Settings & Profile management screen
 
@@ -130,7 +131,11 @@ export function SettingsScreen() {
               await apiClient.delete('/auth/me');
               await supabase.auth.signOut();
             } catch (error: unknown) {
-              Alert.alert('Erreur', (error as Error).message || 'Impossible de supprimer le compte.');
+              Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: (error as Error).message || 'Impossible de supprimer le compte.'
+      });
             }
           },
         },
@@ -239,7 +244,11 @@ export function SettingsScreen() {
               onValueChange={(val) => {
                 setDarkModeEnabled(val);
                 if (!val) {
-                  Alert.alert('Mode clair indisponible', 'L\'esthétique 7afefli est optimisée pour le thème sombre.');
+                  Toast.show({
+        type: 'error',
+        text1: 'Mode clair indisponible',
+        text2: 'L\'esthétique 7afefli est optimisée pour le thème sombre.'
+      });
                   setDarkModeEnabled(true);
                 }
               }}

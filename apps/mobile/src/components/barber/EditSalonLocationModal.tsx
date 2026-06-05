@@ -1,3 +1,4 @@
+import Toast from 'react-native-toast-message';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -42,11 +43,19 @@ export function EditSalonLocationModal({ visible, onClose, salon, onSaved }: Edi
         longitude: lng,
       });
 
-      Alert.alert('Succès', 'Emplacement mis à jour');
+      Toast.show({
+        type: 'success',
+        text1: 'Succès',
+        text2: 'Emplacement mis à jour'
+      });
       onSaved();
       onClose();
     } catch (err: unknown) {
-      Alert.alert('Erreur', (err as Error).message || 'Impossible de sauvegarder l\'emplacement');
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: (err as Error).message || 'Impossible de sauvegarder l\'emplacement'
+      });
     } finally {
       setSaving(false);
     }

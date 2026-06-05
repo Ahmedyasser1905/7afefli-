@@ -1,3 +1,4 @@
+import Toast from 'react-native-toast-message';
 // apps/mobile/src/screens/barber/SubscriptionScreen.tsx
 // Subscription plan management for salon owners — fully dynamic (Supabase direct)
 
@@ -177,7 +178,11 @@ export function SubscriptionScreen() {
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Erreur lors du paiement';
-      Alert.alert('Erreur', msg);
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: msg
+      });
     } finally {
       setProcessingPlan(null);
     }

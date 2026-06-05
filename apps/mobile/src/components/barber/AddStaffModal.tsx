@@ -1,3 +1,4 @@
+import Toast from 'react-native-toast-message';
 // apps/mobile/src/components/barber/AddStaffModal.tsx
 import React, { useState } from 'react';
 import {
@@ -28,7 +29,11 @@ export function AddStaffModal({ visible, onClose, salonId, onSuccess }: AddStaff
 
   const handleSubmit = async () => {
     if (!firstName.trim() || !lastName.trim()) {
-      Alert.alert('Erreur', 'Veuillez entrer le nom et le prénom du barbier');
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: 'Veuillez entrer le nom et le prénom du barbier'
+      });
       return;
     }
 
@@ -40,13 +45,21 @@ export function AddStaffModal({ visible, onClose, salonId, onSuccess }: AddStaff
         customName: fullName,
       });
 
-      Alert.alert('Succès', `${fullName} a été ajouté à votre équipe !`);
+      Toast.show({
+        type: 'success',
+        text1: 'Succès',
+        text2: `${fullName} a été ajouté à votre équipe !`
+      });
       onSuccess();
       setFirstName('');
       setLastName('');
       onClose();
     } catch (err: unknown) {
-      Alert.alert('Erreur', (err as Error).message || 'Impossible d\'ajouter ce barbier');
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: (err as Error).message || 'Impossible d\'ajouter ce barbier'
+      });
     } finally {
       setLoading(false);
     }

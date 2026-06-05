@@ -1,3 +1,4 @@
+import Toast from 'react-native-toast-message';
 import React, { useState, useMemo } from 'react';
 import {
   Modal,
@@ -61,16 +62,28 @@ export function BlockTimeModal({ visible, onClose, salonId, onSuccess }: BlockTi
 
   const handleBlock = async () => {
     if (!startTime || !endTime) {
-      Alert.alert('Erreur', 'Veuillez saisir une heure de début et de fin');
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: 'Veuillez saisir une heure de début et de fin'
+      });
       return;
     }
     if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(startTime) ||
         !/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(endTime)) {
-      Alert.alert('Erreur', 'Format invalide. Utilisez HH:MM (ex: 15:00)');
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: 'Format invalide. Utilisez HH:MM (ex: 15:00)'
+      });
       return;
     }
     if (timeToMinutes(startTime) >= timeToMinutes(endTime)) {
-      Alert.alert('Erreur', "L'heure de fin doit être après l'heure de début.");
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: "L'heure de fin doit être après l'heure de début."
+      });
       return;
     }
 
@@ -95,7 +108,11 @@ export function BlockTimeModal({ visible, onClose, salonId, onSuccess }: BlockTi
       setSelectedDate(todayStr);
       onClose();
     } catch (err: unknown) {
-      Alert.alert('Erreur', (err as Error).message || 'Une erreur est survenue');
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: (err as Error).message || 'Une erreur est survenue'
+      });
     } finally {
       setLoading(false);
     }

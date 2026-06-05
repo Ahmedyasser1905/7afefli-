@@ -1,3 +1,4 @@
+import Toast from 'react-native-toast-message';
 // apps/mobile/src/components/profile/EditProfileModal.tsx
 // Modal for editing user profile: name, phone, avatar photo
 
@@ -79,14 +80,22 @@ export function EditProfileModal({ visible, onClose, profileData, onSaved }: Edi
       }
     } catch (err: unknown) {
       setUploading(false);
-      Alert.alert('Erreur', (err as Error).message || 'Impossible de télécharger la photo');
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: (err as Error).message || 'Impossible de télécharger la photo'
+      });
     }
   };
 
   const handleSave = async () => {
     if (!user) return;
     if (!fullName.trim()) {
-      Alert.alert('Erreur', 'Le nom est obligatoire');
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: 'Le nom est obligatoire'
+      });
       return;
     }
 
@@ -104,11 +113,19 @@ export function EditProfileModal({ visible, onClose, profileData, onSaved }: Edi
 
       await apiClient.patch('/auth/profiles/me', updates);
 
-      Alert.alert('Succès', 'Profil mis à jour');
+      Toast.show({
+        type: 'success',
+        text1: 'Succès',
+        text2: 'Profil mis à jour'
+      });
       onSaved();
       onClose();
     } catch (err: unknown) {
-      Alert.alert('Erreur', (err as Error).message || 'Une erreur est survenue');
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: (err as Error).message || 'Une erreur est survenue'
+      });
     } finally {
       setSaving(false);
     }

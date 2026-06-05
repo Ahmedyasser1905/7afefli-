@@ -1,3 +1,4 @@
+import Toast from 'react-native-toast-message';
 // apps/mobile/src/screens/barber/SalonSetupScreen.tsx
 import React, { useState } from 'react';
 import {
@@ -36,7 +37,11 @@ export function SalonSetupScreen({ onComplete }: { onComplete: () => void }) {
 
   const handleCreateSalon = async () => {
     if (!form.name || !form.address) {
-      Alert.alert('Erreur', 'Veuillez remplir tous les champs');
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: 'Veuillez remplir tous les champs'
+      });
       return;
     }
 
@@ -57,7 +62,11 @@ export function SalonSetupScreen({ onComplete }: { onComplete: () => void }) {
         { text: 'Continuer', onPress: onComplete }
       ]);
     } catch (err: unknown) {
-      Alert.alert('Erreur', err.message);
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: err.message
+      });
     } finally {
       setLoading(false);
     }

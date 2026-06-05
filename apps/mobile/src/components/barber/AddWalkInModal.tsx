@@ -1,3 +1,4 @@
+import Toast from 'react-native-toast-message';
 // apps/mobile/src/components/barber/AddWalkInModal.tsx
 import React, { useState, useEffect } from 'react';
 import {
@@ -105,7 +106,11 @@ export function AddWalkInModal({ visible, onClose, salonId, onSuccess }: AddWalk
 
   const handleSubmit = async () => {
     if (!form.clientName || !selectedTimeSlot || !selectedServiceId || !selectedStaffId) {
-      Alert.alert('Erreur', 'Veuillez remplir le nom, choisir un service, un coiffeur et indiquer l\'heure');
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: 'Veuillez remplir le nom, choisir un service, un coiffeur et indiquer l\'heure'
+      });
       return;
     }
 
@@ -153,11 +158,23 @@ export function AddWalkInModal({ visible, onClose, salonId, onSuccess }: AddWalk
     } catch (err: unknown) {
       const msg = (err as Error).message || '';
       if (msg.includes('no longer available') || msg.includes('booking_conflict') || msg.includes('booked')) {
-        Alert.alert('Créneau indisponible', 'Ce créneau est déjà réservé. Veuillez choisir un autre horaire.');
+        Toast.show({
+        type: 'error',
+        text1: 'Créneau indisponible',
+        text2: 'Ce créneau est déjà réservé. Veuillez choisir un autre horaire.'
+      });
       } else if (msg.includes('past')) {
-        Alert.alert('Erreur', 'Impossible de créer une réservation dans le passé.');
+        Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: 'Impossible de créer une réservation dans le passé.'
+      });
       } else {
-        Alert.alert('Erreur', msg || 'Une erreur est survenue.');
+        Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: msg || 'Une erreur est survenue.'
+      });
       }
     } finally {
       setLoading(false);

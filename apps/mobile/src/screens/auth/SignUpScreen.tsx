@@ -1,3 +1,4 @@
+import Toast from 'react-native-toast-message';
 import React, { useState } from 'react';
 import {
   StyleSheet,
@@ -36,14 +37,22 @@ export default function SignUpScreen({ navigation }: { navigation: Record<string
     if (!fullName.trim() || !email.trim() || !password) {
       const msg = 'Veuillez remplir le nom, l\'email et le mot de passe';
       setErrorMsg(msg);
-      Alert.alert('Erreur', msg);
+      Toast.show({
+        type: 'error',
+        text1: `Erreur`,
+        text2: msg
+      });
       return;
     }
 
     if (password.length < 6) {
       const msg = 'Le mot de passe doit contenir au moins 6 caractères';
       setErrorMsg(msg);
-      Alert.alert('Erreur', msg);
+      Toast.show({
+        type: 'error',
+        text1: `Erreur`,
+        text2: msg
+      });
       return;
     }
 
@@ -53,7 +62,11 @@ export default function SignUpScreen({ navigation }: { navigation: Record<string
       if (phone.trim().length < 9) {
         const msg = 'Veuillez entrer un numéro de téléphone valide (min 9 chiffres)';
         setErrorMsg(msg);
-        Alert.alert('Erreur', msg);
+        Toast.show({
+        type: 'error',
+        text1: `Erreur`,
+        text2: msg
+      });
         return;
       }
       formattedPhone = phone.trim();
@@ -103,7 +116,11 @@ export default function SignUpScreen({ navigation }: { navigation: Record<string
           needsPhone: !formattedPhone,
           isLoading: false,
         });
-        Alert.alert('Succès', 'Votre compte a été créé avec succès.');
+        Toast.show({
+        type: 'success',
+        text1: `Succès`,
+        text2: 'Votre compte a été créé avec succès.'
+      });
       } else {
         Alert.alert(
           'Inscription réussie',
@@ -115,7 +132,11 @@ export default function SignUpScreen({ navigation }: { navigation: Record<string
       console.error(err);
       const msg = err.message || 'Une erreur est survenue lors de l\'inscription';
       setErrorMsg(msg);
-      Alert.alert('Erreur d\'inscription', msg);
+      Toast.show({
+        type: 'error',
+        text1: `Erreur d\'inscription`,
+        text2: msg
+      });
     } finally {
       setIsLoading(false);
     }

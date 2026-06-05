@@ -1,3 +1,4 @@
+import Toast from 'react-native-toast-message';
 // apps/mobile/src/components/client/LeaveReviewModal.tsx
 import React, { useState } from 'react';
 import {
@@ -34,7 +35,11 @@ export function LeaveReviewModal({ visible, onClose, reservation, onSuccess }: L
     // Guard against missing salon join — reservation must have salon data to submit
     const salon = reservation.salons as Record<string, unknown> | null | undefined;
     if (!salon?.id) {
-      Alert.alert('Erreur', 'Impossible de soumettre l\'avis: données du salon manquantes.');
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: 'Impossible de soumettre l\'avis: données du salon manquantes.'
+      });
       return;
     }
 
@@ -47,7 +52,11 @@ export function LeaveReviewModal({ visible, onClose, reservation, onSuccess }: L
         comment: comment.trim() || null,
       });
 
-      Alert.alert('Merci !', 'Votre avis a été enregistré.');
+      Toast.show({
+        type: 'success',
+        text1: 'Merci !',
+        text2: 'Votre avis a été enregistré.'
+      });
       onSuccess();
       // Reset state for next use
       setRating(5);
@@ -57,11 +66,19 @@ export function LeaveReviewModal({ visible, onClose, reservation, onSuccess }: L
       const errMsg = (err as Error).message || '';
       if (errMsg.includes('23505')) {
         // Duplicate review — not an error for the user
-        Alert.alert('Info', 'Vous avez déjà laissé un avis pour ce rendez-vous.');
+        Toast.show({
+        type: 'info',
+        text1: 'Info',
+        text2: 'Vous avez déjà laissé un avis pour ce rendez-vous.'
+      });
         onSuccess();
         onClose();
       } else {
-        Alert.alert('Erreur', 'Impossible d\'enregistrer votre avis. Veuillez réessayer.');
+        Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: 'Impossible d\'enregistrer votre avis. Veuillez réessayer.'
+      });
       }
     } finally {
       setLoading(false);

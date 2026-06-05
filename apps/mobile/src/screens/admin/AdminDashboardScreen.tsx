@@ -1,3 +1,4 @@
+import Toast from 'react-native-toast-message';
 // apps/mobile/src/screens/admin/AdminDashboardScreen.tsx
 // Admin dashboard — manage salons, users, and platform stats
 
@@ -61,7 +62,11 @@ export function AdminDashboardScreen() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-salons'] });
     },
-    onError: (err: unknown) => Alert.alert('Erreur', (err as Error).message || 'Une erreur est survenue'),
+    onError: (err: unknown) => Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: (err as Error).message || 'Une erreur est survenue'
+      }),
   });
 
   // Change user role
@@ -73,7 +78,11 @@ export function AdminDashboardScreen() {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       queryClient.invalidateQueries({ queryKey: ['admin-salons'] });
     },
-    onError: (err: unknown) => Alert.alert('Erreur', (err as Error).message || 'Une erreur est survenue'),
+    onError: (err: unknown) => Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: (err as Error).message || 'Une erreur est survenue'
+      }),
   });
 
   const confirmRoleChange = (userId: string, currentRole: string) => {
@@ -120,7 +129,11 @@ export function AdminDashboardScreen() {
             queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
           } catch (error: unknown) {
             const msg = error instanceof Error ? error.message : 'Erreur inconnue';
-            Alert.alert('Erreur', msg);
+            Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: msg
+      });
           }
         },
       },

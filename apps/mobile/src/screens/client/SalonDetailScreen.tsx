@@ -1,3 +1,4 @@
+import Toast from 'react-native-toast-message';
 // apps/mobile/src/screens/client/SalonDetailScreen.tsx
 // Salon detail — info, gallery, reviews, "Book Now" CTA
 
@@ -124,7 +125,11 @@ export function SalonDetailScreen() {
 
   const handleBookingPress = () => {
     if (selectedServices.size === 0) {
-      Alert.alert('Sélectionnez un service', 'Veuillez sélectionner au moins un service pour continuer la réservation.');
+      Toast.show({
+        type: 'info',
+        text1: 'Sélectionnez un service',
+        text2: 'Veuillez sélectionner au moins un service pour continuer la réservation.'
+      });
       return;
     }
     // Navigate to Booking screen and pass the selected service IDs

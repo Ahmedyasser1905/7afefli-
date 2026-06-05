@@ -1,3 +1,4 @@
+import Toast from 'react-native-toast-message';
 import React, { useState } from 'react';
 import {
   StyleSheet,
@@ -23,7 +24,11 @@ export default function ForgotPasswordScreen({ navigation }: { navigation: Recor
 
   const handleSubmit = async () => {
     if (!email.trim()) {
-      Alert.alert('Erreur', 'Veuillez entrer votre adresse e-mail');
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: 'Veuillez entrer votre adresse e-mail'
+      });
       return;
     }
 
@@ -32,7 +37,11 @@ export default function ForgotPasswordScreen({ navigation }: { navigation: Recor
       await apiClient.post('/auth/reset-password', { email: email.trim() });
       setIsSent(true);
     } catch (err: unknown) {
-      Alert.alert('Erreur', (err as Error).message || 'Une erreur est survenue');
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: (err as Error).message || 'Une erreur est survenue'
+      });
     } finally {
       setIsLoading(false);
     }

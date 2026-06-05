@@ -1,3 +1,4 @@
+import Toast from 'react-native-toast-message';
 // apps/mobile/src/screens/barber/DashboardScreen.tsx
 // Barber's first screen — today's stats + live booking feed
 
@@ -211,7 +212,11 @@ export function DashboardScreen() {
       queryClient.invalidateQueries({ queryKey: ['barber-reservations'] });
     },
     onError: (error: any) => {
-      Alert.alert('Erreur', error.message || 'Impossible d\'annuler la réservation');
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: error.message || 'Impossible d\'annuler la réservation'
+      });
     }
   });
 
@@ -223,10 +228,18 @@ export function DashboardScreen() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['barber-reservations'] });
       queryClient.invalidateQueries({ queryKey: ['slots'] });
-      Alert.alert('Succès', 'Le créneau a été débloqué ✅');
+      Toast.show({
+        type: 'success',
+        text1: 'Succès',
+        text2: 'Le créneau a été débloqué ✅'
+      });
     },
     onError: (error: any) => {
-      Alert.alert('Erreur', error.message || 'Impossible de débloquer ce créneau');
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: error.message || 'Impossible de débloquer ce créneau'
+      });
     },
   });
 
@@ -304,7 +317,11 @@ export function DashboardScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     },
     onError: (error) => {
-      Alert.alert('Erreur', error.message);
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: error.message
+      });
     }
   });
 
@@ -314,7 +331,11 @@ export function DashboardScreen() {
     } else if (action === 'block-time') {
       setIsBlockTimeModalVisible(true);
     } else {
-      Alert.alert('Gestion du salon', `L'action "${action}" sera bientôt disponible.`);
+      Toast.show({
+        type: 'info',
+        text1: 'Gestion du salon',
+        text2: `L'action "${action}" sera bientôt disponible.`
+      });
     }
   };
 
@@ -733,7 +754,11 @@ export function DashboardScreen() {
         salonId={salonId}
         onSuccess={() => {
           refetch();
-          Alert.alert('Succès', 'Le créneau a été bloqué');
+          Toast.show({
+        type: 'success',
+        text1: 'Succès',
+        text2: 'Le créneau a été bloqué'
+      });
         }}
       />
     </SafeAreaView>

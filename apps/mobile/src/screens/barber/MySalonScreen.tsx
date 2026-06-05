@@ -1,3 +1,4 @@
+import Toast from 'react-native-toast-message';
 // apps/mobile/src/screens/barber/MySalonScreen.tsx
 import React, { useState } from 'react';
 import {
@@ -96,7 +97,11 @@ export function MySalonScreen() {
             await apiClient.delete(`/salons/${salon?.id}/staff/${staffId}`);
             refetchStaff();
           } catch (err: unknown) {
-            Alert.alert('Erreur', (err as Error).message || 'Impossible de retirer ce barbier');
+            Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: (err as Error).message || 'Impossible de retirer ce barbier'
+      });
           }
         },
       },
@@ -147,10 +152,18 @@ export function MySalonScreen() {
         storagePath: fileName,
       });
 
-      Alert.alert('Succès', 'Photo ajoutée au portfolio');
+      Toast.show({
+        type: 'success',
+        text1: 'Succès',
+        text2: 'Photo ajoutée au portfolio'
+      });
       refetchPortfolio();
     } catch (err: unknown) {
-      Alert.alert('Erreur', (err as Error).message || 'Erreur upload portfolio');
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: (err as Error).message || 'Erreur upload portfolio'
+      });
     } finally {
       setUploading(false);
     }
@@ -170,7 +183,11 @@ export function MySalonScreen() {
             await apiClient.delete(`/salons/${salon?.id}/portfolio/${photoId}`);
             refetchPortfolio();
           } catch (err: unknown) {
-            Alert.alert('Erreur', (err as Error).message || 'Impossible de supprimer');
+            Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: (err as Error).message || 'Impossible de supprimer'
+      });
           }
         },
       },
@@ -224,7 +241,11 @@ export function MySalonScreen() {
 
       refetchStaff();
     } catch (err: unknown) {
-      Alert.alert('Erreur', (err as Error).message || 'Erreur upload avatar');
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: (err as Error).message || 'Erreur upload avatar'
+      });
     } finally {
       setUploading(false);
     }
@@ -241,7 +262,11 @@ export function MySalonScreen() {
             await apiClient.delete(`/salons/${salon?.id}/services/${id}`);
             refetchServices();
           } catch (err: unknown) {
-            Alert.alert('Erreur', (err as Error).message || 'Impossible de supprimer');
+            Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: (err as Error).message || 'Impossible de supprimer'
+      });
           }
         }
       }
@@ -464,7 +489,11 @@ export function MySalonScreen() {
                               setResponseText('');
                               refetchReviews();
                             } catch (err: unknown) {
-                              Alert.alert('Erreur', (err as Error).message || 'Erreur lors de l\'envoi');
+                              Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: (err as Error).message || 'Erreur lors de l\'envoi'
+      });
                             }
                           }}
                           style={{ flex: 1, padding: spacing.sm, alignItems: 'center', borderRadius: radius.sm, backgroundColor: colors.amber }}

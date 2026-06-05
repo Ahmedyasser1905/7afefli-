@@ -11,6 +11,8 @@ import { queryClient } from './src/lib/queryClient';
 import { SplashScreen } from './src/screens/SplashScreen';
 import { colors } from './src/theme';
 import * as ExpoSplashScreen from 'expo-splash-screen';
+import Toast from 'react-native-toast-message';
+import { toastConfig } from './src/components/ui/CustomToast';
 
 // Keep the native splash screen visible while we fetch resources
 ExpoSplashScreen.preventAutoHideAsync();
@@ -65,6 +67,7 @@ export default function App() {
         <SafeAreaProvider>
           <StatusBar style="light" />
           <AppNavigator />
+          <Toast config={toastConfig} />
         </SafeAreaProvider>
       </QueryClientProvider>
     </ErrorBoundary>

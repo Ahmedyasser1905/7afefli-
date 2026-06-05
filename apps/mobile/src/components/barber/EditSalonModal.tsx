@@ -1,3 +1,4 @@
+import Toast from 'react-native-toast-message';
 // apps/mobile/src/components/barber/EditSalonModal.tsx
 // Modal for editing salon settings: name, description, wilaya, address, hours
 
@@ -86,11 +87,19 @@ export function EditSalonModal({ visible, onClose, salon, onSaved }: EditSalonMo
   const handleSave = async () => {
     if (!salon) return;
     if (!name.trim()) {
-      Alert.alert('Erreur', 'Le nom du salon est obligatoire');
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: 'Le nom du salon est obligatoire'
+      });
       return;
     }
     if (!wilaya.trim()) {
-      Alert.alert('Erreur', 'La wilaya est obligatoire');
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: 'La wilaya est obligatoire'
+      });
       return;
     }
 
@@ -107,11 +116,19 @@ export function EditSalonModal({ visible, onClose, salon, onSaved }: EditSalonMo
         working_days: workingDays,
       });
 
-      Alert.alert('Succès', 'Salon mis à jour');
+      Toast.show({
+        type: 'success',
+        text1: 'Succès',
+        text2: 'Salon mis à jour'
+      });
       onSaved();
       onClose();
     } catch (err: unknown) {
-      Alert.alert('Erreur', (err as Error).message || 'Une erreur est survenue');
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: (err as Error).message || 'Une erreur est survenue'
+      });
     } finally {
       setSaving(false);
     }
@@ -131,7 +148,11 @@ export function EditSalonModal({ visible, onClose, salon, onSaved }: EditSalonMo
         await uploadImage(result.assets[0].base64);
       }
     } catch (error) {
-      Alert.alert('Erreur', 'Impossible de sélectionner la photo');
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: 'Impossible de sélectionner la photo'
+      });
     }
   };
 
@@ -156,7 +177,11 @@ export function EditSalonModal({ visible, onClose, salon, onSaved }: EditSalonMo
 
       setImageUrl(publicUrlData.publicUrl);
     } catch (err: unknown) {
-      Alert.alert('Erreur', "L'upload de l'image a échoué.");
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: "L'upload de l'image a échoué."
+      });
     } finally {
       setUploadingImage(false);
     }

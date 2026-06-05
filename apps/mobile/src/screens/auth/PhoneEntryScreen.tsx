@@ -1,3 +1,4 @@
+import Toast from 'react-native-toast-message';
 // apps/mobile/src/screens/auth/PhoneEntryScreen.tsx
 // Shown after login if user has no phone number in profile
 
@@ -36,7 +37,11 @@ export default function PhoneEntryScreen() {
     if (!phone.trim() || phone.trim().length < 9) {
       const msg = 'Veuillez entrer un numéro de téléphone valide';
       setErrorMsg(msg);
-      Alert.alert('Erreur', msg);
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: msg
+      });
       return;
     }
 
