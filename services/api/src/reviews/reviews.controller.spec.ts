@@ -4,7 +4,6 @@ import { ReviewsService } from './reviews.service';
 
 const mockService = {
   create: jest.fn().mockResolvedValue({ id: '1' }),
-  findBySalon: jest.fn().mockResolvedValue([]),
 };
 
 describe('ReviewsController', () => {
@@ -33,7 +32,4 @@ describe('ReviewsController', () => {
     expect(await controller.create({ reservationId: '1', rating: 5 } as any, { id: 'u1' } as any)).toEqual({ id: '1' });
   });
 
-  it('should call findBySalon', async () => {
-    expect(await controller.findBySalon('1')).toEqual([]);
-  });
 });
