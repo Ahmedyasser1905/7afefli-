@@ -186,9 +186,9 @@ export function DashboardScreen() {
   const { data: serverStats, isLoading: isStatsLoading } = useQuery({
     queryKey: ['barber-stats', salonId, viewMode, statsDateParam],
     queryFn: async () => {
-      const params = new URLSearchParams({ period: viewMode });
-      if (statsDateParam) params.append('date', statsDateParam);
-      return apiClient.get<{ totalBookings: number; pendingBookings: number; revenue: number; completedBookings: number; cancelledBookings: number; clientCount: number }>(`/salons/my-salon/stats?${params}`);
+      let url = `/salons/my-salon/stats?period=${viewMode}`;
+      if (statsDateParam) url += `&date=${statsDateParam}`;
+      return apiClient.get<{ totalBookings: number; pendingBookings: number; revenue: number; completedBookings: number; cancelledBookings: number; clientCount: number }>(url);
     },
     enabled: !!salonId,
     staleTime: 30 * 1000,
