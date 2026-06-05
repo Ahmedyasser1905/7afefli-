@@ -147,7 +147,7 @@ export function SettingsScreen() {
       setIsUpdating(true);
       try {
         // Update wilaya via API — not direct Supabase write
-        await apiClient.patch('/profiles/me', { wilaya: wilayaName });
+        await apiClient.patch('/auth/profiles/me', { wilaya: wilayaName });
       } catch {
         // Non-critical — setting will update on next profile load
       } finally {

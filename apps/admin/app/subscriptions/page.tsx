@@ -71,6 +71,7 @@ export default function AdminSubscriptionsPage() {
           <a href="/subscriptions" style={{ ...styles.navLink, ...styles.navLinkActive }}>
             💳 Abonnements
           </a>
+          <a href="/payments" style={styles.navLink}>💰 Paiements</a>
         </nav>
       </aside>
 

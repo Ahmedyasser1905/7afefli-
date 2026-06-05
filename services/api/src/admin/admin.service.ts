@@ -191,7 +191,7 @@ export class AdminService {
 
   async getAllSubscriptions() {
     const { data, error } = await this.supabase.adminClient
-      .from('subscriptions')
+      .from('user_subscriptions')
       .select('*, salons(name)')
       .order('starts_at', { ascending: false });
     if (error) throw new Error(error.message);

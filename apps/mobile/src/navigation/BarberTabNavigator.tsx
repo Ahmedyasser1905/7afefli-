@@ -16,6 +16,7 @@ import { apiClient } from '../lib/apiClient';
 import { useAuthStore } from '../store/authStore';
 import { SalonSetupScreen } from '../screens/barber/SalonSetupScreen';
 import { MySalonScreen } from '../screens/barber/MySalonScreen';
+import { SubscriptionScreen } from '../screens/barber/SubscriptionScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -78,6 +79,8 @@ export function BarberTabNavigator() {
             iconName = focused ? 'people' : 'people-outline';
           } else if (route.name === 'Mon Salon') {
             iconName = focused ? 'storefront' : 'storefront-outline';
+          } else if (route.name === 'Subscription') {
+            iconName = focused ? 'card' : 'card-outline';
           } else if (route.name === 'Settings') {
             iconName = focused ? 'settings' : 'settings-outline';
           }
@@ -104,6 +107,11 @@ export function BarberTabNavigator() {
         name="Mon Salon"
         component={MySalonScreen}
         options={{ tabBarLabel: 'Mon Salon' }}
+      />
+      <Tab.Screen
+        name="Subscription"
+        component={SubscriptionScreen}
+        options={{ tabBarLabel: 'Abonnement' }}
       />
       <Tab.Screen
         name="Settings"

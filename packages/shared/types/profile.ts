@@ -9,6 +9,10 @@ export interface Profile {
   role: UserRole;
   avatar_url: string | null;
   loyalty_points: number;
+  wilaya: string | null;
+  push_token: string | null;
+  is_phone_verified: boolean;
   created_at: string;
   updated_at: string;
 }
+

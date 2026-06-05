@@ -81,6 +81,7 @@ export default function AdminReservationsPage() {
             📅 Réservations
           </a>
           <a href="/subscriptions" style={styles.navLink}>💳 Abonnements</a>
+          <a href="/payments" style={styles.navLink}>💰 Paiements</a>
         </nav>
       </aside>
 

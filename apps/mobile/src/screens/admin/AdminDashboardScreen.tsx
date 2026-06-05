@@ -550,7 +550,7 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingHorizontal: spacing.lg,
-    paddingBottom: 40,
+    paddingBottom: 100,
   },
   card: {
     backgroundColor: colors.carbon,

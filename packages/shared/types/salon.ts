@@ -47,8 +47,10 @@ export interface Service {
 export interface SalonStaff {
   id: string;
   salon_id: string;
-  profile_id: string;
+  profile_id: string | null;
   role: string;
+  custom_name: string | null;
+  avatar_url: string | null;
   created_at: string;
   // Joined
   profiles?: { full_name: string; avatar_url: string | null };
@@ -71,6 +73,8 @@ export interface Review {
   salon_id: string;
   rating: number;
   comment: string | null;
+  response: string | null;
+  response_date: string | null;
   created_at: string;
   // Joined
   profiles?: { full_name: string; avatar_url: string | null };

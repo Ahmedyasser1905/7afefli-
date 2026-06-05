@@ -95,6 +95,7 @@ export default function DashboardPage() {
           <a href="/users" style={styles.navLink}>👥 Utilisateurs</a>
           <a href="/reservations" style={styles.navLink}>📅 Réservations</a>
           <a href="/subscriptions" style={styles.navLink}>💳 Abonnements</a>
+          <a href="/payments" style={styles.navLink}>💰 Paiements</a>
         </nav>
       </aside>
 

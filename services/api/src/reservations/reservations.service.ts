@@ -44,7 +44,7 @@ export class ReservationsService {
         .single(),
       this.supabase.adminClient
         .from('salons')
-        .select('owner_id')
+        .select('owner_id, subscriptions:user_subscriptions(status, plans(*))')
         .eq('id', dto.salonId)
         .single(),
       this.supabase.adminClient
@@ -62,8 +62,33 @@ export class ReservationsService {
       throw new BadRequestException('Salon not found');
     }
 
+    const salonData = salonResult.data as Record<string, any>;
     const duration = serviceResult.data.duration_minutes;
-    const isStaffOrOwner = salonResult.data.owner_id === clientId || !!staffResult.data;
+    const isStaffOrOwner = salonData.owner_id === clientId || !!staffResult.data;
+
+    // Plan Enforcement: max_reservations
+    const subs = salonData.subscriptions as any[];
+    const sub = subs?.[0];
+    const maxReservations = sub?.plans?.max_reservations ?? 50;
+
+    if (maxReservations !== -1) {
+      const today = new Date();
+      const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+      const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
+
+      const { count } = await this.supabase.adminClient
+        .from('reservations')
+        .select('*', { count: 'exact', head: true })
+        .eq('salon_id', dto.salonId)
+        .gte('appointment_date', firstDayOfMonth)
+        .lte('appointment_date', lastDayOfMonth)
+        .not('status', 'eq', 'Cancelled')
+        .not('notes', 'ilike', '%CRÉNEAU BLOQUÉ%');
+
+      if ((count || 0) >= maxReservations) {
+        throw new ForbiddenException(`Ce salon a atteint sa limite mensuelle de réservations (${maxReservations}). Il doit passer à un plan supérieur.`);
+      }
+    }
 
     // Validate that the slot is not in the past — only enforced for regular clients.
     // Barbers and salon owners can freely add walk-ins for any time today.

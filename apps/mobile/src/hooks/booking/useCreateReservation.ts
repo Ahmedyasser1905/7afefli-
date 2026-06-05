@@ -55,7 +55,7 @@ export function useCreateReservation() {
 
             // Persist phone number via API (best-effort, non-blocking)
             if (params.clientPhone) {
-              apiClient.patch('/profiles/me', { phone_number: params.clientPhone }).catch(() => {
+              apiClient.patch('/auth/profiles/me', { phone_number: params.clientPhone }).catch(() => {
                 // Non-critical — phone save failure doesn't affect the reservation
               });
             }

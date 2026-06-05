@@ -9,7 +9,7 @@ import { supabase } from '../lib/supabase';
 import { useNotificationSetup } from '../hooks/useNotificationSetup';
 import { ClientTabNavigator } from './ClientTabNavigator';
 import { BarberTabNavigator } from './BarberTabNavigator';
-import { AdminDashboardScreen } from '../screens/admin/AdminDashboardScreen';
+import { AdminTabNavigator } from './AdminTabNavigator';
 import PhoneInputScreen from '../screens/auth/PhoneInputScreen';
 import SignUpScreen from '../screens/auth/SignUpScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
@@ -161,7 +161,7 @@ export function AppNavigator() {
           <RootStack.Screen name="PhoneEntry" component={PhoneEntryScreen} />
         ) : role === 'Admin' ? (
           // Admin dashboard
-          <RootStack.Screen name="AdminApp" component={AdminDashboardScreen} />
+          <RootStack.Screen name="AdminApp" component={AdminTabNavigator} />
         ) : role === 'Coiffeur' ? (
           // Barber tab navigator
           <RootStack.Screen name="BarberApp" component={BarberTabNavigator} />

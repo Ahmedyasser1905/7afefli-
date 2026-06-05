@@ -176,15 +176,31 @@ export class SalonsService {
    * Add staff to salon
    */
   async addStaff(salonId: string, customName: string, userId: string) {
-    // Verify ownership
+    // Verify ownership and check plan
     const { data: salon } = await this.supabase.adminClient
       .from('salons')
-      .select('owner_id')
+      .select('owner_id, subscriptions:user_subscriptions(status, plans(*))')
       .eq('id', salonId)
       .single();
 
     if (!salon) throw new NotFoundException(`Salon with ID ${salonId} not found`);
     if (salon.owner_id !== userId) throw new ForbiddenException('You can only add staff to your own salon');
+
+    const subs = salon.subscriptions as any[];
+    const sub = subs?.[0];
+    const maxBarbers = sub?.plans?.max_barbers ?? 1;
+
+    // Check staff count
+    if (maxBarbers !== -1) {
+      const { count } = await this.supabase.adminClient
+        .from('salon_staff')
+        .select('*', { count: 'exact', head: true })
+        .eq('salon_id', salonId);
+
+      if ((count || 0) >= maxBarbers) {
+        throw new ForbiddenException(`Votre plan actuel est limité à ${maxBarbers} coiffeur(s). Passez à un plan supérieur.`);
+      }
+    }
 
     // Check if already a staff member by custom name
     const { data: existing } = await this.supabase.adminClient
@@ -273,6 +289,30 @@ export class SalonsService {
   }
 
   async addPortfolioPhoto(salonId: string, storagePath: string, userId: string) {
+    // Verify ownership and check plan
+    const { data: salon } = await this.supabase.adminClient
+      .from('salons')
+      .select('owner_id, subscriptions:user_subscriptions(status, plans(*))')
+      .eq('id', salonId)
+      .single();
+
+    if (!salon || salon.owner_id !== userId) throw new ForbiddenException('Accès refusé');
+
+    const subs = salon.subscriptions as any[];
+    const sub = subs?.[0];
+    const maxPhotos = sub?.plans?.max_portfolio_photos ?? 3;
+
+    if (maxPhotos !== -1) {
+      const { count } = await this.supabase.adminClient
+        .from('portfolio_photos')
+        .select('*', { count: 'exact', head: true })
+        .eq('salon_id', salonId);
+
+      if ((count || 0) >= maxPhotos) {
+        throw new ForbiddenException(`Votre plan actuel est limité à ${maxPhotos} photo(s). Passez à un plan supérieur.`);
+      }
+    }
+
     const { data, error } = await this.supabase.adminClient
       .from('portfolio_photos')
       .insert({ salon_id: salonId, uploader_id: userId, storage_path: storagePath })
@@ -317,15 +357,23 @@ export class SalonsService {
    * Get dashboard statistics for a salon owner.
    */
   async getDashboardStats(ownerId: string, period: string, date?: string) {
-    // 1. Find the salon by owner_id
+    // 1. Find the salon by owner_id and its subscription limits
     const { data: salon, error: salonError } = await this.supabase.adminClient
       .from('salons')
-      .select('id')
+      .select('id, subscriptions:user_subscriptions(status, plans(*))')
       .eq('owner_id', ownerId)
       .maybeSingle();
 
     if (salonError || !salon) {
       throw new NotFoundException('Salon not found for this owner');
+    }
+
+    const subs = (salon as any).subscriptions as any[];
+    const sub = subs?.[0];
+    const advancedStats = sub?.plans?.advanced_statistics ?? false;
+
+    if (!advancedStats) {
+      throw new ForbiddenException("Les statistiques avancées nécessitent le plan Pro ou Premium.");
     }
 
     // 2. Build query for reservations

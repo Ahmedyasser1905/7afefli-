@@ -30,6 +30,7 @@ export class PaymentsController {
   /**
    * POST /payments/checkout
    * Create a Chargily checkout session for a subscription plan.
+   * Now reads price from subscription_plans table (dynamic).
    */
   @Post('checkout')
   @UseGuards(SupabaseAuthGuard, RolesGuard)
@@ -37,7 +38,7 @@ export class PaymentsController {
   @HttpCode(HttpStatus.OK)
   async createCheckout(
     @CurrentUser() user: AuthenticatedUser,
-    @Body() body: { plan: string; amount: number },
+    @Body() body: { plan: string },
   ) {
     // Find the user's salon
     const { data: salon } = await this.supabase.adminClient
@@ -50,14 +51,26 @@ export class PaymentsController {
       return { error: 'Aucun salon trouvé pour cet utilisateur' };
     }
 
+    // Fetch plan details from DB (dynamic pricing)
+    const { data: planData } = await this.supabase.adminClient
+      .from('plans')
+      .select('slug, price, name')
+      .eq('slug', body.plan.toLowerCase())
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (!planData) {
+      return { error: 'Plan introuvable ou inactif' };
+    }
+
     const result = await this.chargily.createCheckoutUrl(
-      body.amount,
+      planData.price,
       salon.id,
-      body.plan,
+      planData.slug,
     );
 
     this.logger.log(
-      `Checkout created for salon ${salon.id}: plan=${body.plan}, amount=${body.amount} DZD`,
+      `Checkout created for salon ${salon.id}: plan=${planData.name}, amount=${planData.price} DZD`,
     );
 
     return result;
@@ -66,6 +79,7 @@ export class PaymentsController {
   /**
    * POST /payments/webhook
    * Handle Chargily payment webhook — activates subscription on successful payment.
+   * Now uses dynamic duration from subscription_plans table.
    */
   @Post('webhook')
   async handleWebhook(
@@ -90,6 +104,18 @@ export class PaymentsController {
         const amount = payload.data.amount;
 
         if (salon_id) {
+          // Fetch dynamic duration from subscription_plans
+          const { data: planData } = await this.supabase.adminClient
+            .from('plans')
+            .select('duration_days')
+            .eq('slug', (plan || 'pro').toLowerCase())
+            .maybeSingle();
+
+          const durationDays = planData?.duration_days || 30;
+          const endsAt = durationDays === 0 
+            ? null 
+            : new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
+
           // 1. Record payment
           await this.supabase.adminClient.from('payments').insert({
             salon_id,
@@ -98,13 +124,9 @@ export class PaymentsController {
             provider_payment_id: payload.data.id || payload.id,
           });
 
-          // 2. Activate subscription (+30 days)
-          const endsAt = new Date(
-            Date.now() + 30 * 24 * 60 * 60 * 1000,
-          ).toISOString();
-
+          // 2. Activate subscription (sync trigger auto-updates salon)
           await this.supabase.adminClient
-            .from('subscriptions')
+            .from('user_subscriptions')
             .update({
               status: 'Active',
               plan: plan || 'Pro',
@@ -113,17 +135,8 @@ export class PaymentsController {
             })
             .eq('salon_id', salon_id);
 
-          // 3. Update salon subscription_status
-          await this.supabase.adminClient
-            .from('salons')
-            .update({
-              subscription_status: 'Active',
-              subscription_ends_at: endsAt,
-            })
-            .eq('id', salon_id);
-
           this.logger.log(
-            `Payment processed: salon=${salon_id}, plan=${plan}, amount=${amount} DZD`,
+            `Payment processed: salon=${salon_id}, plan=${plan}, amount=${amount} DZD, duration=${durationDays}d`,
           );
         }
       }

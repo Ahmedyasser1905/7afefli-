@@ -2,3 +2,5 @@
 
 export * from './types';
 export * from './utils/timeSlots';
+export * from './utils/formatters';
+

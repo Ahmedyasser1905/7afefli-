@@ -8,6 +8,7 @@ export interface Reservation {
   salon_id: string;
   service_id: string;
   barber_id: string | null;
+  staff_id: string | null;
   appointment_date: string;  // "2025-07-15"
   start_time: string;        // "09:00"
   end_time: string;          // "09:30"

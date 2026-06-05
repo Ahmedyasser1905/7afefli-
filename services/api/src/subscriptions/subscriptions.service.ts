@@ -12,22 +12,86 @@ export class SubscriptionsService {
     private readonly audit: AuditService,
   ) {}
 
+  /**
+   * Get all active subscription plans (public catalog).
+   */
+  async getPlans() {
+    const { data, error } = await this.supabase.adminClient
+      .from('plans')
+      .select('*')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true });
+
+    if (error) {
+      this.logger.error('Failed to fetch plans:', error.message);
+      return [];
+    }
+    return data || [];
+  }
+
+  /**
+   * Daily subscription checks:
+   * 1. Expire trials past trial_ends_at
+   * 2. Expire active subscriptions past ends_at
+   * 3. Sync salon status (handled by trigger, but double-check)
+   */
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async handleDailySubscriptionChecks() {
     this.logger.log('Running daily subscription checks...');
-    // Expire trials
-    await this.supabase.adminClient
-      .from('subscriptions')
-      .update({ status: 'Expired' })
-      .eq('status', 'Trial')
-      .lt('trial_ends_at', new Date().toISOString());
+    const now = new Date().toISOString();
 
-    // Expire active
-    await this.supabase.adminClient
-      .from('subscriptions')
-      .update({ status: 'Expired' })
+    // Fetch basic plan ID
+    const { data: basicPlan } = await this.supabase.adminClient
+      .from('plans')
+      .select('id')
+      .eq('slug', 'basic')
+      .maybeSingle();
+
+    const basicPlanId = basicPlan?.id || null;
+
+    // Expire trials (Fallback to Basic)
+    const { data: expiredTrials, error: trialErr } = await this.supabase.adminClient
+      .from('user_subscriptions')
+      .update({ status: 'Active', plan: 'Basic', plan_id: basicPlanId, trial_ends_at: null, ends_at: null })
+      .eq('status', 'Trial')
+      .lt('trial_ends_at', now)
+      .select('salon_id');
+
+    if (trialErr) {
+      this.logger.error('Failed to expire trials:', trialErr.message);
+    } else if (expiredTrials?.length) {
+      this.logger.log(`Transitioned ${expiredTrials.length} trial(s) to Basic plan`);
+    }
+
+    // Expire active subscriptions (Fallback to Basic)
+    const { data: expiredActive, error: activeErr } = await this.supabase.adminClient
+      .from('user_subscriptions')
+      .update({ status: 'Active', plan: 'Basic', plan_id: basicPlanId, trial_ends_at: null, ends_at: null })
       .eq('status', 'Active')
-      .lt('ends_at', new Date().toISOString());
+      .neq('plan', 'Basic')
+      .lt('ends_at', now)
+      .select('salon_id');
+
+    if (activeErr) {
+      this.logger.error('Failed to expire active subs:', activeErr.message);
+    } else if (expiredActive?.length) {
+      this.logger.log(`Transitioned ${expiredActive.length} active subscription(s) to Basic plan`);
+    }
+
+    // The sync trigger should have updated salon status,
+    // but let's double-check for any desync
+    try {
+      const { error } = await this.supabase.adminClient.rpc(
+        'sync_all_subscription_statuses',
+      );
+      if (error) {
+        this.logger.error('Failed to sync subscription statuses:', error.message);
+      }
+    } catch (err) {
+      // Ignore if function doesn't exist
+    }
+
+    this.logger.log('Daily subscription checks completed.');
   }
 
   /**
@@ -47,10 +111,10 @@ export class SubscriptionsService {
 
     // 2. Try to find a subscription record
     const { data: subscription } = await this.supabase.adminClient
-      .from('subscriptions')
+      .from('user_subscriptions')
       .select('*')
       .eq('salon_id', salon.id)
-      .order('created_at', { ascending: false })
+      .order('starts_at', { ascending: false })
       .maybeSingle();
 
     if (subscription) {
@@ -62,7 +126,7 @@ export class SubscriptionsService {
       id: null,
       salon_id: salon.id,
       status: salon.subscription_status || 'Trial',
-      plan: 'trial',
+      plan: 'Basic',
       trial_ends_at: salon.trial_ends_at || null,
       starts_at: null,
       ends_at: null,
