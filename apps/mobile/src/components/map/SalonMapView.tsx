@@ -1,7 +1,8 @@
 // @ts-nocheck
 // apps/mobile/src/components/map/SalonMapView.tsx
 // Map with Google Maps-style rotation (MapLibre GL) + Leaflet fallback
-// Optimised: stable memoisation prevents unnecessary WebView reloads
+// Fixed: mapHtml is stable — userLocation updates go through injectJavaScript only,
+//        never causing a WebView remount. resetView uses a ref so it never stale-closes.
 
 import React, { useMemo, useRef, useCallback, useState, useEffect } from 'react';
 import { View, StyleSheet, ActivityIndicator, TouchableOpacity, Text } from 'react-native';
@@ -18,6 +19,10 @@ interface SalonMapViewProps {
   style?: unknown;
 }
 
+// Default center: Algiers
+const DEFAULT_LAT = 36.7538;
+const DEFAULT_LNG = 3.0588;
+
 export function SalonMapView({
   salons,
   userLocation,
@@ -27,9 +32,14 @@ export function SalonMapView({
 }: SalonMapViewProps) {
   const webViewRef = useRef<WebView>(null);
   const [mapReady, setMapReady] = useState(false);
-  // Track whether we've already flown to the user's real location on first fix
   const hasCenteredOnUser = useRef(false);
-  const center = userLocation ?? { latitude: 36.7538, longitude: 3.0588 };
+
+  // Keep latest userLocation in a ref so callbacks never go stale
+  // without re-creating the WebView.
+  const userLocationRef = useRef(userLocation);
+  useEffect(() => {
+    userLocationRef.current = userLocation;
+  }, [userLocation]);
 
   const zoomIn = useCallback(() => {
     webViewRef.current?.injectJavaScript('if(window.map)map.zoomIn();true;');
@@ -39,13 +49,17 @@ export function SalonMapView({
     webViewRef.current?.injectJavaScript('if(window.map)map.zoomOut();true;');
   }, []);
 
+  // resetView reads from the ref — never needs to be recreated
   const resetView = useCallback(() => {
+    const loc = userLocationRef.current;
+    const lng = loc?.longitude ?? DEFAULT_LNG;
+    const lat = loc?.latitude ?? DEFAULT_LAT;
     webViewRef.current?.injectJavaScript(
-      `if(window.map){try{map.easeTo({center:[${center.longitude},${center.latitude}],zoom:12,bearing:0,pitch:0,duration:400})}catch(e){map.setView([${center.latitude},${center.longitude}],12)}}true;`
+      `if(window.map){try{map.easeTo({center:[${lng},${lat}],zoom:12,bearing:0,pitch:0,duration:400})}catch(e){map.setView([${lat},${lng}],12)}}true;`
     );
-  }, [center]);
+  }, []); // stable — no deps needed
 
-  // ── Stable key: only changes when the actual data changes ──
+  // ── Stable fingerprint: only the salon data that the map cares about ──
   const salonsFingerprint = useMemo(() => {
     return salons
       .filter((s) => s.latitude && s.longitude && s.latitude !== 0 && s.longitude !== 0)
@@ -53,6 +67,8 @@ export function SalonMapView({
       .join('|');
   }, [salons]);
 
+  // ── mapHtml is ONLY rebuilt when the salon data changes ──
+  // userLocation is intentionally excluded: live updates go through injectJavaScript.
   const mapHtml = useMemo(() => {
     const salonsData = salons
       .filter((s) => s.latitude && s.longitude && s.latitude !== 0 && s.longitude !== 0)
@@ -65,11 +81,10 @@ export function SalonMapView({
         lat: s.latitude,
       }));
 
-    const userLng = userLocation?.longitude ?? center.longitude;
-    const userLat = userLocation?.latitude ?? center.latitude;
-    const hasUser = !!userLocation;
     const salonsJson = JSON.stringify(salonsData);
 
+    // Initial center: Algiers — the map will fly to the real location once
+    // updateUserLocation is called via injectJavaScript after MAP_READY.
     return `<!DOCTYPE html>
 <html>
 <head>
@@ -94,7 +109,6 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1a2e}
 .p-btn{display:inline-flex;align-items:center;padding:6px 12px;border-radius:20px;font-size:11px;font-weight:600;text-decoration:none;border:none;cursor:pointer}
 .p-view{background:#E8A020;color:#111}
 .p-dir{background:#4A90D9;color:#fff}
-/* Leaflet fallback styles */
 .leaflet-tile-pane{filter:brightness(0.7) contrast(1.2) saturate(0.3) hue-rotate(180deg) invert(1)}
 .leaflet-control-attribution,.leaflet-control-zoom{display:none!important}
 .leaflet-popup-content-wrapper{border-radius:14px;background:#1a1a2e;border:1px solid rgba(255,255,255,0.08);box-shadow:0 4px 20px rgba(0,0,0,0.5)}
@@ -108,11 +122,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1a2e}
 <div id="status">Chargement...</div>
 <script>
 var DATA=${salonsJson};
-var HAS_USER=${hasUser};
-var ULNG=${userLng};
-var ULAT=${userLat};
-var CLNG=${center.longitude};
-var CLAT=${center.latitude};
+var ULNG=${DEFAULT_LNG};
+var ULAT=${DEFAULT_LAT};
+var HAS_USER=false;
 var routeLayer=null;
 var userMarker=null;
 
@@ -135,13 +147,11 @@ function loadCSS(url){
   document.head.appendChild(l);
 }
 
-// Check WebGL support
 function hasWebGL(){
   try{var c=document.createElement('canvas');return!!(c.getContext('webgl')||c.getContext('experimental-webgl'))}catch(e){return false}
 }
 
 if(hasWebGL()){
-  // === MAPLIBRE GL (rotation support) ===
   loadCSS('https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css');
   loadScript('https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js', initMapLibre, initLeaflet);
 } else {
@@ -153,7 +163,7 @@ function initMapLibre(){
   var map=window.map=new maplibregl.Map({
     container:'map',
     style:{version:8,sources:{'osm':{type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256,maxzoom:19}},layers:[{id:'osm',type:'raster',source:'osm',paint:{'raster-brightness-max':0.55,'raster-contrast':0.2,'raster-saturation':-0.5}}]},
-    center:[CLNG,CLAT],
+    center:[ULNG,ULAT],
     zoom:12,
     dragRotate:true,
     touchZoomRotate:true,
@@ -162,12 +172,7 @@ function initMapLibre(){
   });
 
   map.on('load',function(){
-    // User dot
-    if(HAS_USER){
-      var uel=document.createElement('div');uel.className='user-dot';
-      userMarker=new maplibregl.Marker({element:uel}).setLngLat([ULNG,ULAT]).addTo(map);
-    }
-    
+    // updateUserLocation is called from React Native once we have a GPS fix
     window.updateUserLocation = function(lng, lat) {
       ULNG = lng;
       ULAT = lat;
@@ -180,7 +185,11 @@ function initMapLibre(){
       }
     };
 
-    // Salon markers — data-sid prevents JS closure from capturing wrong ID
+    // flyToUser is called once on first GPS fix
+    window.flyToUser = function(lng, lat) {
+      map.easeTo({center:[lng,lat],zoom:13,duration:800});
+    };
+
     DATA.forEach(function(s){
       var el=document.createElement('div');el.className='marker';el.innerHTML=scissorsSvg;
       el.setAttribute('data-sid', s.id);
@@ -195,23 +204,9 @@ function initMapLibre(){
       };
       new maplibregl.Marker({element:el,anchor:'center'}).setLngLat([s.lng,s.lat]).addTo(map);
     });
-    // Fit bounds
-    if(HAS_USER){
-      var b=new maplibregl.LngLatBounds([ULNG,ULAT],[ULNG,ULAT]);
-      var added = false;
-      DATA.forEach(function(s){
-         if (Math.abs(s.lng - ULNG) + Math.abs(s.lat - ULAT) < 0.2) {
-           b.extend([s.lng,s.lat]);
-           added = true;
-         }
-      });
-      if (added) {
-         map.fitBounds(b,{padding:50,maxZoom:14});
-      } else {
-         map.setCenter([ULNG, ULAT]);
-         map.setZoom(13);
-      }
-    } else if(DATA.length>0){
+
+    // Fit to salon bounds initially; flyToUser will recenter once GPS arrives
+    if(DATA.length>0){
       var b=new maplibregl.LngLatBounds([DATA[0].lng,DATA[0].lat],[DATA[0].lng,DATA[0].lat]);
       DATA.forEach(function(s){b.extend([s.lng,s.lat])});
       map.fitBounds(b,{padding:50,maxZoom:14});
@@ -219,7 +214,6 @@ function initMapLibre(){
     window.ReactNativeWebView.postMessage('MAP_READY');
   });
 
-  // Route drawing for MapLibre
   window.mglRoute=function(lng,lat){
     if(!HAS_USER)return;
     try{map.removeLayer('route-bg');map.removeLayer('route');map.removeSource('route-src')}catch(e){}
@@ -235,19 +229,14 @@ function initMapLibre(){
 }
 
 function initLeaflet(){
-  // Fallback to Leaflet (no rotation)
   loadCSS('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
   loadScript('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',function(){
     document.getElementById('status').style.display='none';
-    var map=window.map=L.map('map',{center:[CLAT,CLNG],zoom:12,zoomControl:false,attributionControl:false});
+    var map=window.map=L.map('map',{center:[ULAT,ULNG],zoom:12,zoomControl:false,attributionControl:false});
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
 
     var icon=L.divIcon({html:'<div class="marker">'+scissorsSvg+'</div>',className:'',iconSize:[32,32],iconAnchor:[16,16],popupAnchor:[0,-18]});
 
-    if(HAS_USER){
-      userMarker=L.marker([ULAT,ULNG],{icon:L.divIcon({html:'<div class="user-dot"></div>',className:'',iconSize:[14,14],iconAnchor:[7,7]}),zIndexOffset:1000}).addTo(map);
-    }
-    
     window.updateUserLocation = function(lng, lat) {
       ULNG = lng;
       ULAT = lat;
@@ -259,6 +248,10 @@ function initLeaflet(){
       }
     };
 
+    window.flyToUser = function(lng, lat) {
+      map.setView([lat, lng], 13, {animate: true});
+    };
+
     DATA.forEach(function(s){
       var sid=s.id;
       var dirBtn=HAS_USER?'<button class="p-btn p-dir" onclick="lfRoute('+s.lng+','+s.lat+')">Itin\u00e9raire</button>':'';
@@ -266,21 +259,7 @@ function initLeaflet(){
       L.marker([s.lat,s.lng],{icon:icon}).addTo(map).bindPopup(popup,{maxWidth:240});
     });
 
-    if(HAS_USER){
-      var pts = [[ULAT, ULNG]];
-      var added = false;
-      DATA.forEach(function(s){
-         if (Math.abs(s.lng - ULNG) + Math.abs(s.lat - ULAT) < 0.2) {
-           pts.push([s.lat, s.lng]);
-           added = true;
-         }
-      });
-      if (added) {
-         map.fitBounds(pts,{padding:[40,40],maxZoom:14});
-      } else {
-         map.setView([ULAT, ULNG], 13);
-      }
-    } else if(DATA.length>0){
+    if(DATA.length>0){
       var pts=DATA.map(function(s){return[s.lat,s.lng]});
       map.fitBounds(pts,{padding:[40,40],maxZoom:14});
     }
@@ -303,40 +282,39 @@ function initLeaflet(){
 </body>
 </html>`;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [salonsFingerprint]);
+  }, [salonsFingerprint]); // ← only salon data changes trigger a WebView rebuild
 
-  // Update the user dot and — on the very first real location fix — fly the map to it
+  // ── Update user dot position via JS injection (never rebuilds WebView) ──
+  const prevLocationRef = useRef<{ latitude: number; longitude: number } | null>(null);
+
   useEffect(() => {
     if (!mapReady || !userLocation || !webViewRef.current) return;
 
-    // Always update the blue dot position
+    const prev = prevLocationRef.current;
+    // Skip injection if coordinates haven't meaningfully changed (< 1m)
+    if (
+      prev &&
+      Math.abs(prev.latitude - userLocation.latitude) < 0.00001 &&
+      Math.abs(prev.longitude - userLocation.longitude) < 0.00001
+    ) {
+      return;
+    }
+    prevLocationRef.current = userLocation;
+
+    // Always update the blue dot
     webViewRef.current.injectJavaScript(
       `if(window.updateUserLocation){window.updateUserLocation(${userLocation.longitude}, ${userLocation.latitude});}true;`
     );
 
-    // On the very first real location fix, fly the camera to the user
+    // Fly to user only on the very first GPS fix
     if (!hasCenteredOnUser.current) {
       hasCenteredOnUser.current = true;
-      webViewRef.current.injectJavaScript(`
-        (function(){
-          var lng=${userLocation.longitude}, lat=${userLocation.latitude};
-          if(window.map){
-            try{
-              // MapLibre GL
-              window.map.easeTo({center:[lng,lat],zoom:13,duration:800});
-            } catch(e){
-              try{
-                // Leaflet fallback
-                window.map.setView([lat,lng],13,{animate:true});
-              } catch(e2){}
-            }
-          }
-        })();
-        true;
-      `);
+      webViewRef.current.injectJavaScript(
+        `if(window.flyToUser){window.flyToUser(${userLocation.longitude}, ${userLocation.latitude});}true;`
+      );
     }
   }, [userLocation, mapReady]);
-  // Prevent WebView from re-mounting when mapHtml hasn't changed
+
   const handleMessage = useCallback(
     (event: unknown) => {
       const data = event.nativeEvent.data;

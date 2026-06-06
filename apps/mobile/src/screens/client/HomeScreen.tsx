@@ -21,6 +21,84 @@ import Ionicons from "@react-native-vector-icons/ionicons";
 import type { Salon } from '@barberdz/shared/types';
 import { useMapPreferences } from '../../store/mapPreferencesStore';
 
+// ─── Wilaya bounding boxes (lat_min, lat_max, lng_min, lng_max) ───────────────
+// Ordered by population density so the most-likely match is tested first.
+// Coordinates are approximate administrative boundaries.
+const WILAYA_BOUNDS: Array<{ name: string; latMin: number; latMax: number; lngMin: number; lngMax: number }> = [
+  { name: 'Alger',           latMin: 36.60, latMax: 36.92, lngMin: 2.85,  lngMax: 3.35  },
+  { name: 'Oran',            latMin: 35.40, latMax: 35.85, lngMin: -0.75, lngMax: -0.40 },
+  { name: 'Constantine',     latMin: 36.25, latMax: 36.50, lngMin: 6.50,  lngMax: 6.75  },
+  { name: 'Annaba',          latMin: 36.65, latMax: 36.95, lngMin: 7.65,  lngMax: 7.85  },
+  { name: 'Blida',           latMin: 36.35, latMax: 36.65, lngMin: 2.60,  lngMax: 3.05  },
+  { name: 'Sétif',           latMin: 35.90, latMax: 36.30, lngMin: 5.20,  lngMax: 5.60  },
+  { name: 'Tizi Ouzou',      latMin: 36.55, latMax: 36.95, lngMin: 3.80,  lngMax: 4.35  },
+  { name: 'Béjaïa',          latMin: 36.55, latMax: 36.90, lngMin: 4.85,  lngMax: 5.25  },
+  { name: 'Batna',           latMin: 35.35, latMax: 35.75, lngMin: 5.85,  lngMax: 6.35  },
+  { name: 'Boumerdès',       latMin: 36.65, latMax: 36.92, lngMin: 3.35,  lngMax: 3.85  },
+  { name: 'Tipaza',          latMin: 36.45, latMax: 36.75, lngMin: 2.15,  lngMax: 2.85  },
+  { name: 'Médéa',           latMin: 35.85, latMax: 36.40, lngMin: 2.55,  lngMax: 3.10  },
+  { name: 'Tlemcen',         latMin: 34.55, latMax: 35.15, lngMin: -1.55, lngMax: -1.10 },
+  { name: 'Skikda',          latMin: 36.70, latMax: 37.00, lngMin: 6.70,  lngMax: 7.00  },
+  { name: 'Guelma',          latMin: 36.25, latMax: 36.60, lngMin: 7.25,  lngMax: 7.65  },
+  { name: 'Jijel',           latMin: 36.65, latMax: 37.00, lngMin: 5.40,  lngMax: 5.95  },
+  { name: 'Mostaganem',      latMin: 35.70, latMax: 36.10, lngMin: 0.05,  lngMax: 0.45  },
+  { name: 'Sidi Bel Abbès',  latMin: 34.95, latMax: 35.30, lngMin: -0.75, lngMax: -0.35 },
+  { name: 'Mascara',         latMin: 35.15, latMax: 35.60, lngMin: 0.00,  lngMax: 0.50  },
+  { name: 'Tiaret',          latMin: 35.10, latMax: 35.55, lngMin: 1.20,  lngMax: 1.75  },
+  { name: 'Chlef',           latMin: 36.00, latMax: 36.40, lngMin: 0.95,  lngMax: 1.50  },
+  { name: 'Aïn Defla',       latMin: 36.10, latMax: 36.55, lngMin: 1.60,  lngMax: 2.20  },
+  { name: 'Relizane',        latMin: 35.60, latMax: 35.95, lngMin: 0.45,  lngMax: 1.05  },
+  { name: 'Mila',            latMin: 36.20, latMax: 36.55, lngMin: 6.15,  lngMax: 6.60  },
+  { name: 'Oum El Bouaghi',  latMin: 35.75, latMax: 36.15, lngMin: 6.75,  lngMax: 7.25  },
+  { name: 'Khenchela',       latMin: 35.25, latMax: 35.65, lngMin: 6.90,  lngMax: 7.30  },
+  { name: 'Tébessa',         latMin: 35.00, latMax: 35.55, lngMin: 7.80,  lngMax: 8.30  },
+  { name: 'Souk Ahras',      latMin: 36.10, latMax: 36.55, lngMin: 7.70,  lngMax: 8.15  },
+  { name: 'El Tarf',         latMin: 36.55, latMax: 36.90, lngMin: 7.90,  lngMax: 8.45  },
+  { name: 'Bordj Bou Arréridj', latMin: 35.90, latMax: 36.25, lngMin: 4.60, lngMax: 5.20 },
+  { name: 'Bouira',          latMin: 36.20, latMax: 36.65, lngMin: 3.75,  lngMax: 4.40  },
+  { name: 'Aïn Témouchent',  latMin: 35.20, latMax: 35.55, lngMin: -1.30, lngMax: -0.80 },
+  { name: 'Naâma',           latMin: 33.10, latMax: 33.70, lngMin: -0.65, lngMax: -0.05 },
+  { name: 'El Bayadh',       latMin: 33.25, latMax: 33.85, lngMin: 0.55,  lngMax: 1.30  },
+  { name: 'Tissemsilt',      latMin: 35.55, latMax: 35.95, lngMin: 1.60,  lngMax: 2.05  },
+  { name: 'Saïda',           latMin: 34.55, latMax: 34.90, lngMin: 0.05,  lngMax: 0.60  },
+  { name: 'Laghouat',        latMin: 33.45, latMax: 33.90, lngMin: 2.60,  lngMax: 3.10  },
+  { name: 'Djelfa',          latMin: 34.25, latMax: 34.80, lngMin: 3.10,  lngMax: 3.75  },
+  { name: 'Ghardaïa',        latMin: 32.15, latMax: 32.60, lngMin: 3.50,  lngMax: 4.00  },
+  { name: 'Ouargla',         latMin: 31.75, latMax: 32.20, lngMin: 4.75,  lngMax: 5.25  },
+  { name: 'Biskra',          latMin: 34.40, latMax: 34.90, lngMin: 5.45,  lngMax: 5.95  },
+  { name: "M'Sila",          latMin: 35.40, latMax: 35.85, lngMin: 4.35,  lngMax: 4.85  },
+  { name: 'El Oued',         latMin: 33.15, latMax: 33.65, lngMin: 6.55,  lngMax: 7.05  },
+  { name: 'Adrar',           latMin: 27.50, latMax: 28.10, lngMin: -0.35, lngMax: 0.35  },
+  { name: 'Tamanrasset',     latMin: 22.50, latMax: 23.00, lngMin: 5.25,  lngMax: 5.75  },
+  { name: 'Illizi',          latMin: 26.20, latMax: 26.70, lngMin: 8.30,  lngMax: 8.80  },
+  { name: 'Tindouf',         latMin: 27.50, latMax: 28.00, lngMin: -8.20, lngMax: -7.70 },
+  { name: 'Béchar',          latMin: 31.40, latMax: 31.85, lngMin: -2.30, lngMax: -1.80 },
+  { name: 'Timimoun',        latMin: 29.15, latMax: 29.60, lngMin: 0.15,  lngMax: 0.55  },
+  { name: 'Touggourt',       latMin: 32.95, latMax: 33.35, lngMin: 5.80,  lngMax: 6.20  },
+  { name: 'Djanet',          latMin: 24.40, latMax: 24.90, lngMin: 9.30,  lngMax: 9.70  },
+  { name: 'In Salah',        latMin: 27.00, latMax: 27.40, lngMin: 2.35,  lngMax: 2.75  },
+  { name: 'In Guezzam',      latMin: 19.40, latMax: 19.80, lngMin: 5.60,  lngMax: 6.00  },
+  { name: 'Bordj Badji Mokhtar', latMin: 21.20, latMax: 21.60, lngMin: 0.70, lngMax: 1.10 },
+  { name: 'Ouled Djellal',   latMin: 34.35, latMax: 34.70, lngMin: 4.80,  lngMax: 5.20  },
+  { name: 'Béni Abbès',      latMin: 30.00, latMax: 30.40, lngMin: -2.20, lngMax: -1.80 },
+  { name: "El M'Ghair",      latMin: 33.60, latMax: 33.95, lngMin: 5.65,  lngMax: 6.05  },
+  { name: 'El Meniaa',       latMin: 30.50, latMax: 30.90, lngMin: 2.45,  lngMax: 2.85  },
+];
+
+/**
+ * Determine a user's wilaya from GPS coordinates using bounding-box lookup.
+ * Returns the matched wilaya name, or null if coordinates are outside all boxes
+ * (e.g. remote desert, offshore, or outside Algeria).
+ */
+function getWilayaFromCoords(lat: number, lng: number): string | null {
+  for (const w of WILAYA_BOUNDS) {
+    if (lat >= w.latMin && lat <= w.latMax && lng >= w.lngMin && lng <= w.lngMax) {
+      return w.name;
+    }
+  }
+  return null;
+}
+
 function getDistanceKm(
   user: { latitude: number; longitude: number },
   salon: { latitude: number; longitude: number }
@@ -54,10 +132,14 @@ export function HomeScreen() {
   const { activeHomeFilters, toggleHomeFilter } = useMapPreferences();
   const activeFilters = new Set(activeHomeFilters);
   const [location, setLocation] = useState<Coords | null>(null);
+  const [userWilaya, setUserWilaya] = useState<string | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // 1. Request location permissions and track location continuously
+  // Throttle: only update location state when coords change meaningfully (>50m)
+  const lastLocationRef = useRef<Coords | null>(null);
+
+  // 1. Request location permissions and track location
   useEffect(() => {
     let locationSubscription: Location.LocationSubscription | null = null;
 
@@ -66,56 +148,73 @@ export function HomeScreen() {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
           setLocationError('Permission de localisation refusée');
-          // Fallback coordinates for Algiers Center if user rejects permission
           setLocation({ latitude: 36.7538, longitude: 3.0588 });
+          setUserWilaya('Alger');
           return;
         }
-        
+
         locationSubscription = await Location.watchPositionAsync(
           {
             accuracy: Location.Accuracy.Balanced,
-            distanceInterval: 5, // update every 5 meters
-            timeInterval: 5000,  // or every 5 seconds
+            distanceInterval: 50,  // only fire when user moves 50+ metres
+            timeInterval: 30000,   // or every 30 seconds at most
           },
           (loc) => {
-            // Fallback for testing: if location is outside Algeria (roughly), force Algiers
-            if (loc.coords.latitude < 15 || loc.coords.latitude > 38 || loc.coords.longitude < -9 || loc.coords.longitude > 12) {
-              setLocation({ latitude: 36.7538, longitude: 3.0588 });
-              setLocationError('Localisation hors Algérie, position de test (Alger) utilisée');
-            } else {
-              setLocation({
-                latitude: loc.coords.latitude,
-                longitude: loc.coords.longitude,
-              });
-              setLocationError(null);
+            const { latitude, longitude } = loc.coords;
+
+            // Guard: outside Algeria bounding box → fall back to Algiers
+            if (latitude < 15 || latitude > 38 || longitude < -9 || longitude > 12) {
+              if (!lastLocationRef.current) {
+                setLocation({ latitude: 36.7538, longitude: 3.0588 });
+                setUserWilaya('Alger');
+                setLocationError('Localisation hors Algérie, position de test (Alger) utilisée');
+              }
+              return;
             }
+
+            const prev = lastLocationRef.current;
+            // Skip state update if coords haven't meaningfully changed
+            if (
+              prev &&
+              Math.abs(prev.latitude - latitude) < 0.00045 &&   // ~50m
+              Math.abs(prev.longitude - longitude) < 0.00045
+            ) {
+              return;
+            }
+
+            const newCoords = { latitude, longitude };
+            lastLocationRef.current = newCoords;
+            setLocation(newCoords);
+            setLocationError(null);
+
+            // Detect wilaya from coordinates
+            const wilaya = getWilayaFromCoords(latitude, longitude);
+            setUserWilaya(wilaya);
           }
         );
       } catch {
         setLocationError('Localisation indisponible');
-        // Fallback to Algiers
         setLocation({ latitude: 36.7538, longitude: 3.0588 });
+        setUserWilaya('Alger');
       }
     })();
 
     return () => {
-      if (locationSubscription) {
-        locationSubscription.remove();
-      }
+      locationSubscription?.remove();
     };
   }, []);
 
-  // Fetch ALL salons once — used for both list (filtered) and map display.
+  // 2. Fetch ALL salons once
   const { data: allSalons = [], isLoading, refetch } = useQuery<Salon[]>({
     queryKey: ['home-salons-all'],
     queryFn: async () => {
-      const data = await apiClient.get<Salon[]>('/salons?limit=100');
+      const data = await apiClient.get<Salon[]>('/salons?limit=200');
       return data ?? [];
     },
     staleTime: 5 * 60 * 1000,
   });
 
-  // Fetch whether this client has a Premium plan (unlocks sponsored barber visibility)
+  // 3. Client Premium plan
   const { data: clientPlan } = useQuery<{ plan: string; isPremium: boolean }>({
     queryKey: ['client-plan'],
     queryFn: async () => {
@@ -130,25 +229,32 @@ export function HomeScreen() {
 
   const isPremiumClient = clientPlan?.isPremium ?? false;
 
-  // Sort by proximity when location is available, else by rating.
-  // Sponsored salons bubble to the top only for Premium clients.
+  // 4. Filter to user's wilaya first, then sort by proximity
+  const salonsInWilaya = useMemo(() => {
+    if (!userWilaya) return allSalons; // location not yet resolved — show all
+
+    const wilayaNorm = userWilaya.toLowerCase().trim();
+    const inWilaya = allSalons.filter(
+      (s) => s.wilaya?.toLowerCase().trim() === wilayaNorm
+    );
+
+    // If no salons match (the wilaya has no registered barbers yet), fall back to all
+    return inWilaya.length > 0 ? inWilaya : allSalons;
+  }, [allSalons, userWilaya]);
+
+  // 5. Sort by proximity within the wilaya
   const salons = useMemo(() => {
-    if (!location) return allSalons;
-    return [...allSalons].sort((a, b) => {
+    if (!location) return salonsInWilaya;
+    return [...salonsInWilaya].sort((a, b) => {
       if (isPremiumClient && a.is_sponsored !== b.is_sponsored) return a.is_sponsored ? -1 : 1;
-      const distA = getDistanceKm(location, a);
-      const distB = getDistanceKm(location, b);
-      return distA - distB;
+      return getDistanceKm(location, a) - getDistanceKm(location, b);
     });
-  }, [allSalons, location, isPremiumClient]);
+  }, [salonsInWilaya, location, isPremiumClient]);
 
-  const mapSalons = allSalons;
-
-  // Client-side filtering & sorting
+  // 6. Apply UI filters & search on top
   const filteredSalons = useMemo(() => {
     let result = [...salons];
 
-    // Hide sponsored salons from non-Premium clients
     if (!isPremiumClient) {
       result = result.filter((s) => !s.is_sponsored);
     }
@@ -159,21 +265,19 @@ export function HomeScreen() {
 
     if (searchQuery.trim().length > 0) {
       const q = searchQuery.toLowerCase();
-      result = result.filter((s) =>
-        s.name.toLowerCase().includes(q) ||
-        s.wilaya.toLowerCase().includes(q) ||
-        (s.address && s.address.toLowerCase().includes(q))
+      result = result.filter(
+        (s) =>
+          s.name.toLowerCase().includes(q) ||
+          s.wilaya.toLowerCase().includes(q) ||
+          (s.address && s.address.toLowerCase().includes(q))
       );
     }
 
-    // Sort: Premium clients see sponsored first, then by rating
-    result.sort((a, b) => {
-      if (isPremiumClient && a.is_sponsored !== b.is_sponsored) return a.is_sponsored ? -1 : 1;
-      return b.average_rating - a.average_rating;
-    });
-
     return result;
   }, [salons, activeFilters, searchQuery, isPremiumClient]);
+
+  // Map shows the same wilaya-filtered salons
+  const mapSalons = salonsInWilaya;
 
   const handleToggleFilter = useCallback((filterId: string) => {
     toggleHomeFilter(filterId);
@@ -185,6 +289,10 @@ export function HomeScreen() {
     },
     [navigation],
   );
+
+  const listTitle = userWilaya
+    ? `Salons à ${userWilaya}`
+    : 'Salons à proximité';
 
   return (
     <SafeAreaView style={styles.container}>
@@ -200,8 +308,8 @@ export function HomeScreen() {
             onChangeText={setSearchQuery}
             clearButtonMode="while-editing"
           />
-          <TouchableOpacity 
-            style={styles.tuneButton} 
+          <TouchableOpacity
+            style={styles.tuneButton}
             activeOpacity={0.7}
             onPress={() => navigation.getParent()?.navigate('Explore')}
           >
@@ -254,14 +362,12 @@ export function HomeScreen() {
 
       {/* Nearby Salons List (Bottom Sheet Style) */}
       <View style={styles.bottomSheetContainer}>
-        {/* Handle bar for bottom-sheet visual clue */}
         <View style={styles.dragHandleContainer}>
           <View style={styles.dragHandle} />
         </View>
 
-        {/* List Title & Header */}
         <View style={styles.listHeaderRow}>
-          <Text style={styles.listTitle}>Salons à proximité</Text>
+          <Text style={styles.listTitle}>{listTitle}</Text>
           <View style={styles.statusBadge}>
             <Text style={styles.statusBadgeText}>
               {isLoading ? 'Recherche...' : `${filteredSalons.length} dispos`}
@@ -289,7 +395,9 @@ export function HomeScreen() {
                 <Ionicons name="business" size={48} color={colors.textMuted} />
                 <Text style={styles.emptyTitle}>Aucun salon trouvé</Text>
                 <Text style={styles.emptySubtitle}>
-                  Essayez d'ajuster vos filtres ou votre recherche.
+                  {userWilaya
+                    ? `Pas encore de salon enregistré à ${userWilaya}.`
+                    : "Essayez d'ajuster vos filtres ou votre recherche."}
                 </Text>
               </View>
             }
@@ -398,7 +506,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.05)',
-    marginTop: -24, // overlap onto the map
+    marginTop: -24,
     paddingTop: spacing.sm,
   },
   dragHandleContainer: {
@@ -423,12 +531,14 @@ const styles = StyleSheet.create({
     fontFamily: 'Syne_700Bold',
     fontSize: 20,
     color: colors.textPrimary,
+    flexShrink: 1,
   },
   statusBadge: {
     backgroundColor: 'rgba(232, 160, 32, 0.12)',
     paddingHorizontal: spacing.md,
     paddingVertical: 4,
     borderRadius: radius.full,
+    marginLeft: spacing.sm,
   },
   statusBadgeText: {
     fontFamily: 'DMSans_700Bold',
