@@ -28,7 +28,15 @@
       "expo-font",
       "expo-secure-store",
       "expo-notifications",
-      "expo-splash-screen"
+      "expo-splash-screen",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Autoriser 7afefli à accéder à votre position pour trouver les salons les plus proches.",
+          "locationAlwaysPermission": "Autoriser 7afefli à accéder à votre position pour trouver les salons les plus proches.",
+          "locationWhenInUsePermission": "Autoriser 7afefli à accéder à votre position pour trouver les salons les plus proches."
+        }
+      ]
     ],
     "splash": {
       "backgroundColor": "#0D0D0F"

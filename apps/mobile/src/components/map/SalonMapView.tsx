@@ -1,8 +1,7 @@
 // @ts-nocheck
 // apps/mobile/src/components/map/SalonMapView.tsx
 // Map with Google Maps-style rotation (MapLibre GL) + Leaflet fallback
-// Fixed: mapHtml is stable — userLocation updates go through injectJavaScript only,
-//        never causing a WebView remount. resetView uses a ref so it never stale-closes.
+// Stable: mapHtml is compiled exactly once. Salon and location updates are injected dynamically.
 
 import React, { useMemo, useRef, useCallback, useState, useEffect } from 'react';
 import { View, StyleSheet, ActivityIndicator, TouchableOpacity, Text } from 'react-native';
@@ -15,6 +14,8 @@ interface SalonMapViewProps {
   salons: Salon[];
   userLocation: { latitude: number; longitude: number } | null;
   onSalonPress?: (salonId: string) => void;
+  onMarkerClick?: (salonId: string) => void;
+  selectedSalonId?: string | null;
   height?: number;
   style?: unknown;
 }
@@ -27,6 +28,8 @@ export function SalonMapView({
   salons,
   userLocation,
   onSalonPress,
+  onMarkerClick,
+  selectedSalonId,
   height = 250,
   style,
 }: SalonMapViewProps) {
@@ -35,7 +38,6 @@ export function SalonMapView({
   const hasCenteredOnUser = useRef(false);
 
   // Keep latest userLocation in a ref so callbacks never go stale
-  // without re-creating the WebView.
   const userLocationRef = useRef(userLocation);
   useEffect(() => {
     userLocationRef.current = userLocation;
@@ -49,7 +51,6 @@ export function SalonMapView({
     webViewRef.current?.injectJavaScript('if(window.map)map.zoomOut();true;');
   }, []);
 
-  // resetView reads from the ref — never needs to be recreated
   const resetView = useCallback(() => {
     const loc = userLocationRef.current;
     const lng = loc?.longitude ?? DEFAULT_LNG;
@@ -57,19 +58,10 @@ export function SalonMapView({
     webViewRef.current?.injectJavaScript(
       `if(window.map){try{map.easeTo({center:[${lng},${lat}],zoom:12,bearing:0,pitch:0,duration:400})}catch(e){map.setView([${lat},${lng}],12)}}true;`
     );
-  }, []); // stable — no deps needed
+  }, []);
 
-  // ── Stable fingerprint: only the salon data that the map cares about ──
-  const salonsFingerprint = useMemo(() => {
-    return salons
-      .filter((s) => s.latitude && s.longitude && s.latitude !== 0 && s.longitude !== 0)
-      .map((s) => `${s.id}:${s.latitude}:${s.longitude}:${s.name}:${s.average_rating}`)
-      .join('|');
-  }, [salons]);
-
-  // ── mapHtml is ONLY rebuilt when the salon data changes ──
-  // userLocation is intentionally excluded: live updates go through injectJavaScript.
-  const mapHtml = useMemo(() => {
+  // ── Serialize salons dynamically — only trigger injection when salons change ──
+  const serializedSalons = useMemo(() => {
     const salonsData = salons
       .filter((s) => s.latitude && s.longitude && s.latitude !== 0 && s.longitude !== 0)
       .map((s) => ({
@@ -80,11 +72,27 @@ export function SalonMapView({
         lng: s.longitude,
         lat: s.latitude,
       }));
+    return JSON.stringify(salonsData);
+  }, [salons]);
 
-    const salonsJson = JSON.stringify(salonsData);
+  // ── Inject salons when map is ready or salons change ──
+  useEffect(() => {
+    if (!mapReady || !webViewRef.current) return;
+    webViewRef.current.injectJavaScript(
+      `if(window.updateSalons){window.updateSalons(${serializedSalons});}true;`
+    );
+  }, [serializedSalons, mapReady]);
 
-    // Initial center: Algiers — the map will fly to the real location once
-    // updateUserLocation is called via injectJavaScript after MAP_READY.
+  // ── Inject selection when active salon changes ──
+  useEffect(() => {
+    if (!mapReady || !selectedSalonId || !webViewRef.current) return;
+    webViewRef.current.injectJavaScript(
+      `if(window.selectSalon){window.selectSalon("${selectedSalonId}");}true;`
+    );
+  }, [selectedSalonId, mapReady]);
+
+  // ── Static HTML string - compiled exactly ONCE ──
+  const mapHtml = useMemo(() => {
     return `<!DOCTYPE html>
 <html>
 <head>
@@ -121,12 +129,13 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1a2e}
 <div id="map"></div>
 <div id="status">Chargement...</div>
 <script>
-var DATA=${salonsJson};
+var DATA=[];
 var ULNG=${DEFAULT_LNG};
 var ULAT=${DEFAULT_LAT};
 var HAS_USER=false;
 var routeLayer=null;
 var userMarker=null;
+var salonMarkers=[];
 
 var scissorsSvg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23111"><path d="M9.64 7.64c.23-.5.36-1.05.36-1.64 0-2.21-1.79-4-4-4S2 3.79 2 6s1.79 4 4 4c.59 0 1.14-.13 1.64-.36L10 12l-2.36 2.36C7.14 14.13 6.59 14 6 14c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4c0-.59-.13-1.14-.36-1.64L12 14l7 7h3v-1L9.64 7.64zM6 8c-1.1 0-2-.89-2-2s.9-2 2-2 2 .89 2 2-.9 2-2 2zm0 12c-1.1 0-2-.89-2-2s.9-2 2-2 2 .89 2 2-.9 2-2 2zm6-7.5c-.28 0-.5-.22-.5-.5s.22-.5.5-.5.5.22.5.5-.22.5-.5.5zM19 3l-6 6 2 2 7-7V3h-3z"/></svg>';
 
@@ -159,73 +168,96 @@ if(hasWebGL()){
 }
 
 function initMapLibre(){
-  document.getElementById('status').style.display='none';
-  var map=window.map=new maplibregl.Map({
-    container:'map',
-    style:{version:8,sources:{'osm':{type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256,maxzoom:19}},layers:[{id:'osm',type:'raster',source:'osm',paint:{'raster-brightness-max':0.55,'raster-contrast':0.2,'raster-saturation':-0.5}}]},
-    center:[ULNG,ULAT],
-    zoom:12,
-    dragRotate:true,
-    touchZoomRotate:true,
-    touchPitch:true,
-    attributionControl:false
-  });
+  try {
+    document.getElementById('status').style.display='none';
+    var map=window.map=new maplibregl.Map({
+      container:'map',
+      style:{version:8,sources:{'osm':{type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256,maxzoom:19}},layers:[{id:'osm',type:'raster',source:'osm',paint:{'raster-brightness-max':0.55,'raster-contrast':0.2,'raster-saturation':-0.5}}]},
+      center:[ULNG,ULAT],
+      zoom:12,
+      dragRotate:true,
+      touchZoomRotate:true,
+      touchPitch:true,
+      attributionControl:false
+    });
 
-  map.on('load',function(){
-    // updateUserLocation is called from React Native once we have a GPS fix
-    window.updateUserLocation = function(lng, lat) {
-      ULNG = lng;
-      ULAT = lat;
-      HAS_USER = true;
-      if (userMarker) {
-        userMarker.setLngLat([lng, lat]);
-      } else {
-        var uel=document.createElement('div');uel.className='user-dot';
-        userMarker=new maplibregl.Marker({element:uel}).setLngLat([lng, lat]).addTo(map);
-      }
-    };
+    map.on('load',function(){
+      window.updateUserLocation = function(lng, lat) {
+        ULNG = lng;
+        ULAT = lat;
+        HAS_USER = true;
+        if (userMarker) {
+          userMarker.setLngLat([lng, lat]);
+        } else {
+          var uel=document.createElement('div');uel.className='user-dot';
+          userMarker=new maplibregl.Marker({element:uel}).setLngLat([lng, lat]).addTo(map);
+        }
+      };
 
-    // flyToUser is called once on first GPS fix
-    window.flyToUser = function(lng, lat) {
-      map.easeTo({center:[lng,lat],zoom:13,duration:800});
-    };
+      window.flyToUser = function(lng, lat) {
+        map.easeTo({center:[lng,lat],zoom:13,duration:800});
+      };
 
-    DATA.forEach(function(s){
-      var el=document.createElement('div');el.className='marker';el.innerHTML=scissorsSvg;
-      el.setAttribute('data-sid', s.id);
-      el.onclick=function(e){
-        e.stopPropagation();
-        var sid=el.getAttribute('data-sid');
+      window.updateSalons = function(salonsData) {
+        DATA = salonsData;
+        salonMarkers.forEach(function(m){m.remove()});
+        salonMarkers = [];
+
+        DATA.forEach(function(s){
+          var el=document.createElement('div');el.className='marker';el.innerHTML=scissorsSvg;
+          el.setAttribute('data-sid', s.id);
+          el.onclick=function(e){
+            e.stopPropagation();
+            window.ReactNativeWebView.postMessage(JSON.stringify({type:'MARKER_CLICK', salonId:s.id}));
+            
+            var dirBtn=HAS_USER?'<button class="p-btn p-dir" onclick="mglRoute('+s.lng+','+s.lat+')">Itin\u00e9raire</button>':'';
+            new maplibregl.Popup({offset:18,closeButton:true,maxWidth:'240px'})
+              .setLngLat([s.lng,s.lat])
+              .setHTML('<div class="p-name">'+s.name+'</div><div class="p-info">\u2B50 '+s.rating+' \u00B7 '+s.wilaya+'</div><div class="p-actions"><button class="p-btn p-view" onclick="window.ReactNativeWebView.postMessage(JSON.stringify({type:\'SALON_PRESS\', salonId:\''+s.id+'\'}))">Voir salon</button>'+dirBtn+'</div>')
+              .addTo(map);
+          };
+          var m = new maplibregl.Marker({element:el,anchor:'center'}).setLngLat([s.lng,s.lat]).addTo(map);
+          salonMarkers.push(m);
+        });
+
+        if(DATA.length>0){
+          var b=new maplibregl.LngLatBounds([DATA[0].lng,DATA[0].lat],[DATA[0].lng,DATA[0].lat]);
+          DATA.forEach(function(s){b.extend([s.lng,s.lat])});
+          map.fitBounds(b,{padding:50,maxZoom:14});
+        }
+      };
+
+      window.selectSalon = function(salonId) {
+        var s = DATA.find(function(item){return item.id === salonId;});
+        if(!s) return;
+        map.easeTo({center:[s.lng,s.lat],zoom:14,duration:600});
+        
         var dirBtn=HAS_USER?'<button class="p-btn p-dir" onclick="mglRoute('+s.lng+','+s.lat+')">Itin\u00e9raire</button>':'';
         new maplibregl.Popup({offset:18,closeButton:true,maxWidth:'240px'})
           .setLngLat([s.lng,s.lat])
-          .setHTML('<div class="p-name">'+s.name+'</div><div class="p-info">\u2B50 '+s.rating+' \u00B7 '+s.wilaya+'</div><div class="p-actions"><button class="p-btn p-view" onclick="window.ReactNativeWebView.postMessage(\''+sid+'\')">Voir salon</button>'+dirBtn+'</div>')
+          .setHTML('<div class="p-name">'+s.name+'</div><div class="p-info">\u2B50 '+s.rating+' \u00B7 '+s.wilaya+'</div><div class="p-actions"><button class="p-btn p-view" onclick="window.ReactNativeWebView.postMessage(JSON.stringify({type:\'SALON_PRESS\', salonId:\''+s.id+'\'}))">Voir salon</button>'+dirBtn+'</div>')
           .addTo(map);
       };
-      new maplibregl.Marker({element:el,anchor:'center'}).setLngLat([s.lng,s.lat]).addTo(map);
+
+      window.ReactNativeWebView.postMessage('MAP_READY');
     });
 
-    // Fit to salon bounds initially; flyToUser will recenter once GPS arrives
-    if(DATA.length>0){
-      var b=new maplibregl.LngLatBounds([DATA[0].lng,DATA[0].lat],[DATA[0].lng,DATA[0].lat]);
-      DATA.forEach(function(s){b.extend([s.lng,s.lat])});
-      map.fitBounds(b,{padding:50,maxZoom:14});
-    }
-    window.ReactNativeWebView.postMessage('MAP_READY');
-  });
-
-  window.mglRoute=function(lng,lat){
-    if(!HAS_USER)return;
-    try{map.removeLayer('route-bg');map.removeLayer('route');map.removeSource('route-src')}catch(e){}
-    drawRouteOSRM(lng,lat).then(function(coords){
-      map.addSource('route-src',{type:'geojson',data:{type:'Feature',properties:{},geometry:{type:'LineString',coordinates:coords}}});
-      map.addLayer({id:'route-bg',type:'line',source:'route-src',paint:{'line-color':'#000','line-width':8,'line-opacity':0.3},layout:{'line-cap':'round','line-join':'round'}});
-      map.addLayer({id:'route',type:'line',source:'route-src',paint:{'line-color':'#E8A020','line-width':5,'line-opacity':0.9},layout:{'line-cap':'round','line-join':'round'}});
-      var rb=new maplibregl.LngLatBounds(coords[0],coords[0]);
-      coords.forEach(function(c){rb.extend(c)});
-      map.fitBounds(rb,{padding:60,maxZoom:15});
-    });
-  };
+    window.mglRoute=function(lng,lat){
+      if(!HAS_USER)return;
+      try{map.removeLayer('route-bg');map.removeLayer('route');map.removeSource('route-src')}catch(e){}
+      drawRouteOSRM(lng,lat).then(function(coords){
+        map.addSource('route-src',{type:'geojson',data:{type:'Feature',properties:{},geometry:{type:'LineString',coordinates:coords}}});
+        map.addLayer({id:'route-bg',type:'line',source:'route-src',paint:{'line-color':'#000','line-width':8,'line-opacity':0.3},layout:{'line-cap':'round','line-join':'round'}});
+        map.addLayer({id:'route',type:'line',source:'route-src',paint:{'line-color':'#E8A020','line-width':5,'line-opacity':0.9},layout:{'line-cap':'round','line-join':'round'}});
+        var rb=new maplibregl.LngLatBounds(coords[0],coords[0]);
+        coords.forEach(function(c){rb.extend(c)});
+        map.fitBounds(rb,{padding:60,maxZoom:15});
+      });
+    };
+  } catch(e) {
+    console.error(e);
+    initLeaflet();
+  }
 }
 
 function initLeaflet(){
@@ -252,24 +284,40 @@ function initLeaflet(){
       map.setView([lat, lng], 13, {animate: true});
     };
 
-    DATA.forEach(function(s){
-      var sid=s.id;
-      var dirBtn=HAS_USER?'<button class="p-btn p-dir" onclick="lfRoute('+s.lng+','+s.lat+')">Itin\u00e9raire</button>':'';
-      var popup='<div class="p-name">'+s.name+'</div><div class="p-info">\u2B50 '+s.rating+' \u00B7 '+s.wilaya+'</div><div class="p-actions"><button class="p-btn p-view" onclick="window.ReactNativeWebView.postMessage(\''+sid+'\')">Voir salon</button>'+dirBtn+'</div>';
-      L.marker([s.lat,s.lng],{icon:icon}).addTo(map).bindPopup(popup,{maxWidth:240});
-    });
+    window.updateSalons = function(salonsData) {
+      DATA = salonsData;
+      salonMarkers.forEach(function(m){map.removeLayer(m)});
+      salonMarkers = [];
 
-    if(DATA.length>0){
-      var pts=DATA.map(function(s){return[s.lat,s.lng]});
-      map.fitBounds(pts,{padding:[40,40],maxZoom:14});
-    }
-
-    window.lfRoute=function(lng,lat){
-      if(routeLayer){map.removeLayer(routeLayer)}
-      drawRouteOSRM(lng,lat).then(function(coords){
-        routeLayer=L.polyline(coords.map(function(c){return[c[1],c[0]]}),{color:'#E8A020',weight:5,opacity:0.85}).addTo(map);
-        map.fitBounds(routeLayer.getBounds(),{padding:[50,50]});
+      DATA.forEach(function(s){
+        var dirBtn=HAS_USER?'<button class="p-btn p-dir" onclick="lfRoute('+s.lng+','+s.lat+')">Itin\u00e9raire</button>':'';
+        var popup='<div class="p-name">'+s.name+'</div><div class="p-info">\u2B50 '+s.rating+' \u00B7 '+s.wilaya+'</div><div class="p-actions"><button class="p-btn p-view" onclick="window.ReactNativeWebView.postMessage(JSON.stringify({type:\'SALON_PRESS\', salonId:\''+s.id+'\'}))">Voir salon</button>'+dirBtn+'</div>';
+        
+        var m = L.marker([s.lat,s.lng],{icon:icon}).addTo(map).bindPopup(popup,{maxWidth:240});
+        m.on('click', function(){
+          window.ReactNativeWebView.postMessage(JSON.stringify({type:'MARKER_CLICK', salonId:s.id}));
+        });
+        salonMarkers.push(m);
       });
+
+      if(DATA.length>0){
+        var pts=DATA.map(function(s){return[s.lat,s.lng]});
+        map.fitBounds(pts,{padding:[40,40],maxZoom:14});
+      }
+    };
+
+    window.selectSalon = function(salonId) {
+      var s = DATA.find(function(item){return item.id === salonId;});
+      if(!s) return;
+      map.setView([s.lat, s.lng], 14, {animate: true});
+
+      var marker = salonMarkers.find(function(m) {
+        var latlng = m.getLatLng();
+        return Math.abs(latlng.lat - s.lat) < 0.0001 && Math.abs(latlng.lng - s.lng) < 0.0001;
+      });
+      if (marker) {
+        marker.openPopup();
+      }
     };
 
     setTimeout(function(){map.invalidateSize()},300);
@@ -281,17 +329,15 @@ function initLeaflet(){
 </script>
 </body>
 </html>`;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [salonsFingerprint]); // ← only salon data changes trigger a WebView rebuild
+  }, []);
 
-  // ── Update user dot position via JS injection (never rebuilds WebView) ──
+  // ── Update user dot position via JS injection ──
   const prevLocationRef = useRef<{ latitude: number; longitude: number } | null>(null);
 
   useEffect(() => {
     if (!mapReady || !userLocation || !webViewRef.current) return;
 
     const prev = prevLocationRef.current;
-    // Skip injection if coordinates haven't meaningfully changed (< 1m)
     if (
       prev &&
       Math.abs(prev.latitude - userLocation.latitude) < 0.00001 &&
@@ -301,12 +347,10 @@ function initLeaflet(){
     }
     prevLocationRef.current = userLocation;
 
-    // Always update the blue dot
     webViewRef.current.injectJavaScript(
       `if(window.updateUserLocation){window.updateUserLocation(${userLocation.longitude}, ${userLocation.latitude});}true;`
     );
 
-    // Fly to user only on the very first GPS fix
     if (!hasCenteredOnUser.current) {
       hasCenteredOnUser.current = true;
       webViewRef.current.injectJavaScript(
@@ -316,17 +360,31 @@ function initLeaflet(){
   }, [userLocation, mapReady]);
 
   const handleMessage = useCallback(
-    (event: unknown) => {
-      const data = event.nativeEvent.data;
-      if (data === 'MAP_READY') {
+    (event: any) => {
+      const rawData = event.nativeEvent.data;
+      if (rawData === 'MAP_READY') {
         setMapReady(true);
         return;
       }
-      if (data && onSalonPress) {
-        onSalonPress(data);
+      try {
+        const parsed = JSON.parse(rawData);
+        if (parsed.type === 'MARKER_CLICK') {
+          if (onMarkerClick) {
+            onMarkerClick(parsed.salonId);
+          }
+        } else if (parsed.type === 'SALON_PRESS') {
+          if (onSalonPress) {
+            onSalonPress(parsed.salonId);
+          }
+        }
+      } catch (e) {
+        // Fallback for raw string message
+        if (onSalonPress) {
+          onSalonPress(rawData);
+        }
       }
     },
-    [onSalonPress],
+    [onSalonPress, onMarkerClick],
   );
 
   return (

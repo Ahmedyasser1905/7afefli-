@@ -29,7 +29,7 @@ export class SalonsService {
       .order('average_rating', { ascending: false });
 
     if (filters.wilaya) {
-      query = query.eq('wilaya', filters.wilaya);
+      query = query.ilike('wilaya', filters.wilaya);
     }
 
     if (filters.search) {

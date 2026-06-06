@@ -2,7 +2,7 @@
 // apps/mobile/src/screens/client/ExploreScreen.tsx
 // Full explore & search screen — map + search + filters + results
 
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -50,6 +50,8 @@ export function ExploreScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [location, setLocation] = useState<Coords | null>(null);
+  const [selectedSalonId, setSelectedSalonId] = useState<string | null>(null);
+  const flatListRef = useRef<FlatList>(null);
 
   // Debounce search input
   useEffect(() => {
@@ -124,6 +126,13 @@ export function ExploreScreen() {
       if (selectedSort === 'distance' && location) {
         return getDistanceKm(location, a) - getDistanceKm(location, b);
       }
+      if (selectedSort === 'price') {
+        const getMinPrice = (salon: Salon) => {
+          if (!salon.services || salon.services.length === 0) return Infinity;
+          return Math.min(...salon.services.map((s) => s.price));
+        };
+        return getMinPrice(a) - getMinPrice(b);
+      }
       if (a.is_sponsored !== b.is_sponsored) return a.is_sponsored ? -1 : 1;
       return b.average_rating - a.average_rating;
     });
@@ -133,9 +142,13 @@ export function ExploreScreen() {
 
   const handleSalonPress = useCallback(
     (salon: Salon) => {
-      navigation.navigate('SalonDetail', { salonId: salon.id });
+      if (selectedSalonId === salon.id) {
+        navigation.navigate('SalonDetail', { salonId: salon.id });
+      } else {
+        setSelectedSalonId(salon.id);
+      }
     },
-    [navigation]
+    [selectedSalonId, navigation]
   );
 
   const handleMapSalonPress = useCallback(
@@ -143,6 +156,17 @@ export function ExploreScreen() {
       navigation.navigate('SalonDetail', { salonId });
     },
     [navigation]
+  );
+
+  const handleMarkerClick = useCallback(
+    (salonId: string) => {
+      setSelectedSalonId(salonId);
+      const index = filteredSalons.findIndex((s) => s.id === salonId);
+      if (index >= 0) {
+        flatListRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
+      }
+    },
+    [filteredSalons],
   );
 
   return (
@@ -258,6 +282,8 @@ export function ExploreScreen() {
           salons={filteredSalons}
           userLocation={location}
           onSalonPress={handleMapSalonPress}
+          onMarkerClick={handleMarkerClick}
+          selectedSalonId={selectedSalonId}
           height={200}
           style={styles.mapView}
         />
@@ -282,10 +308,15 @@ export function ExploreScreen() {
         </View>
       ) : (
         <FlatList
+          ref={flatListRef}
           data={filteredSalons}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <SalonCard salon={item} onPress={handleSalonPress} />
+            <SalonCard
+              salon={item}
+              onPress={handleSalonPress}
+              selected={item.id === selectedSalonId}
+            />
           )}
           contentContainerStyle={styles.resultsList}
           showsVerticalScrollIndicator={false}

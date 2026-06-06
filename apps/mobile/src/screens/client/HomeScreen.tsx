@@ -135,6 +135,8 @@ export function HomeScreen() {
   const [userWilaya, setUserWilaya] = useState<string | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedSalonId, setSelectedSalonId] = useState<string | null>(null);
+  const flatListRef = useRef<FlatList>(null);
 
   // Throttle: only update location state when coords change meaningfully (>50m)
   const lastLocationRef = useRef<Coords | null>(null);
@@ -263,6 +265,37 @@ export function HomeScreen() {
       result = result.filter((s) => s.average_rating >= 4.5);
     }
 
+    if (activeFilters.has('beard')) {
+      result = result.filter((s) =>
+        s.services?.some((srv) => {
+          const name = srv.service_name.toLowerCase();
+          return name.includes('barbe') || name.includes('beard') || name.includes('rasage');
+        })
+      );
+    }
+
+    if (activeFilters.has('haircut')) {
+      result = result.filter((s) =>
+        s.services?.some((srv) => {
+          const name = srv.service_name.toLowerCase();
+          return name.includes('coupe') || name.includes('hair') || name.includes('cheveux') || name.includes('coiffure');
+        })
+      );
+    }
+
+    if (activeFilters.has('keratin')) {
+      result = result.filter((s) =>
+        s.services?.some((srv) => {
+          const name = srv.service_name.toLowerCase();
+          return name.includes('kératine') || name.includes('keratin') || name.includes('lissage');
+        })
+      );
+    }
+
+    if (activeFilters.has('nearby') && location) {
+      result = result.filter((s) => getDistanceKm(location, s) <= 20);
+    }
+
     if (searchQuery.trim().length > 0) {
       const q = searchQuery.toLowerCase();
       result = result.filter(
@@ -274,10 +307,10 @@ export function HomeScreen() {
     }
 
     return result;
-  }, [salons, activeFilters, searchQuery, isPremiumClient]);
+  }, [salons, activeFilters, searchQuery, isPremiumClient, location]);
 
-  // Map shows the same wilaya-filtered salons
-  const mapSalons = salonsInWilaya;
+  // Map shows the same filtered salons
+  const mapSalons = filteredSalons;
 
   const handleToggleFilter = useCallback((filterId: string) => {
     toggleHomeFilter(filterId);
@@ -285,9 +318,24 @@ export function HomeScreen() {
 
   const handleSalonPress = useCallback(
     (salon: Salon) => {
-      navigation.navigate('SalonDetail', { salonId: salon.id });
+      if (selectedSalonId === salon.id) {
+        navigation.navigate('SalonDetail', { salonId: salon.id });
+      } else {
+        setSelectedSalonId(salon.id);
+      }
     },
-    [navigation],
+    [selectedSalonId, navigation],
+  );
+
+  const handleMarkerClick = useCallback(
+    (salonId: string) => {
+      setSelectedSalonId(salonId);
+      const index = filteredSalons.findIndex((s) => s.id === salonId);
+      if (index >= 0) {
+        flatListRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
+      }
+    },
+    [filteredSalons],
   );
 
   const listTitle = userWilaya
@@ -349,6 +397,8 @@ export function HomeScreen() {
           salons={mapSalons}
           userLocation={location}
           onSalonPress={(salonId) => navigation.navigate('SalonDetail', { salonId })}
+          onMarkerClick={handleMarkerClick}
+          selectedSalonId={selectedSalonId}
           height={220}
         />
 
@@ -381,10 +431,15 @@ export function HomeScreen() {
           </View>
         ) : (
           <FlatList
+            ref={flatListRef}
             data={filteredSalons}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
-              <SalonCard salon={item} onPress={handleSalonPress} />
+              <SalonCard
+                salon={item}
+                onPress={handleSalonPress}
+                selected={item.id === selectedSalonId}
+              />
             )}
             contentContainerStyle={styles.salonListContent}
             showsVerticalScrollIndicator={false}

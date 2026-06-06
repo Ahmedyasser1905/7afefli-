@@ -7,19 +7,23 @@ import type { Salon } from '@barberdz/shared/types';
 interface SalonCardProps {
   salon: Salon;
   onPress: (salon: Salon) => void;
+  selected?: boolean;
 }
 
 const DEFAULT_COVER = 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=600&q=80';
 const DEFAULT_THUMB = 'https://images.unsplash.com/photo-1621605815971-fbc98d665033?auto=format&fit=crop&w=300&q=80';
 
-export const SalonCard = React.memo(function SalonCard({ salon, onPress }: SalonCardProps) {
+export const SalonCard = React.memo(function SalonCard({ salon, onPress, selected }: SalonCardProps) {
   const displayImage = salon.image_url || (salon.is_sponsored ? DEFAULT_COVER : DEFAULT_THUMB);
 
   if (salon.is_sponsored) {
     // Sponsored Card (Large Hero style)
     return (
       <TouchableOpacity
-        style={styles.sponsoredCard}
+        style={[
+          styles.sponsoredCard,
+          selected && { borderColor: colors.amber, borderWidth: 2 }
+        ]}
         onPress={() => onPress(salon)}
         activeOpacity={0.85}
       >
@@ -67,7 +71,10 @@ export const SalonCard = React.memo(function SalonCard({ salon, onPress }: Salon
   // Regular Card (Horizontal Row style)
   return (
     <TouchableOpacity
-      style={styles.regularCard}
+      style={[
+        styles.regularCard,
+        selected && { borderColor: colors.amber, borderWidth: 1.5 }
+      ]}
       onPress={() => onPress(salon)}
       activeOpacity={0.8}
     >
