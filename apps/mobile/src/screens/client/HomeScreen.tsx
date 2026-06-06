@@ -1,7 +1,4 @@
-// apps/mobile/src/screens/client/HomeScreen.tsx
-// First impression — Map + nearby salon discovery
-
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -106,8 +103,6 @@ export function HomeScreen() {
   }, []);
 
   // Fetch ALL salons once — used for both list (filtered) and map display.
-  // The nearby sort is applied client-side using the Haversine formula when location is available,
-  // eliminating the duplicate network request previously made by useNearbySalons.
   const { data: allSalons = [], isLoading, refetch } = useQuery<Salon[]>({
     queryKey: ['home-salons-all'],
     queryFn: async () => {
@@ -117,22 +112,43 @@ export function HomeScreen() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Sort by proximity when location is available, else by rating
+  // Fetch whether this client has a Premium plan (unlocks sponsored barber visibility)
+  const { data: clientPlan } = useQuery<{ plan: string; isPremium: boolean }>({
+    queryKey: ['client-plan'],
+    queryFn: async () => {
+      try {
+        return await apiClient.get<{ plan: string; isPremium: boolean }>('/subscriptions/my-client-plan');
+      } catch {
+        return { plan: 'Free', isPremium: false };
+      }
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const isPremiumClient = clientPlan?.isPremium ?? false;
+
+  // Sort by proximity when location is available, else by rating.
+  // Sponsored salons bubble to the top only for Premium clients.
   const salons = useMemo(() => {
     if (!location) return allSalons;
     return [...allSalons].sort((a, b) => {
-      if (a.is_sponsored !== b.is_sponsored) return a.is_sponsored ? -1 : 1;
+      if (isPremiumClient && a.is_sponsored !== b.is_sponsored) return a.is_sponsored ? -1 : 1;
       const distA = getDistanceKm(location, a);
       const distB = getDistanceKm(location, b);
       return distA - distB;
     });
-  }, [allSalons, location]);
+  }, [allSalons, location, isPremiumClient]);
 
   const mapSalons = allSalons;
 
-  // 3. Client-side filtering & sorting
+  // Client-side filtering & sorting
   const filteredSalons = useMemo(() => {
     let result = [...salons];
+
+    // Hide sponsored salons from non-Premium clients
+    if (!isPremiumClient) {
+      result = result.filter((s) => !s.is_sponsored);
+    }
 
     if (activeFilters.has('top_rated')) {
       result = result.filter((s) => s.average_rating >= 4.5);
@@ -140,21 +156,21 @@ export function HomeScreen() {
 
     if (searchQuery.trim().length > 0) {
       const q = searchQuery.toLowerCase();
-      result = result.filter((s) => 
-        s.name.toLowerCase().includes(q) || 
-        s.wilaya.toLowerCase().includes(q) || 
+      result = result.filter((s) =>
+        s.name.toLowerCase().includes(q) ||
+        s.wilaya.toLowerCase().includes(q) ||
         (s.address && s.address.toLowerCase().includes(q))
       );
     }
 
-    // Sort: Sponsored first, then by average rating
+    // Sort: Premium clients see sponsored first, then by rating
     result.sort((a, b) => {
-      if (a.is_sponsored !== b.is_sponsored) return a.is_sponsored ? -1 : 1;
+      if (isPremiumClient && a.is_sponsored !== b.is_sponsored) return a.is_sponsored ? -1 : 1;
       return b.average_rating - a.average_rating;
     });
 
     return result;
-  }, [salons, activeFilters, searchQuery]);
+  }, [salons, activeFilters, searchQuery, isPremiumClient]);
 
   const toggleFilter = useCallback((filterId: string) => {
     setActiveFilters((prev) => {

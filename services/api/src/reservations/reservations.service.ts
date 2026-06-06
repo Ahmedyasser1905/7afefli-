@@ -404,7 +404,7 @@ export class ReservationsService {
       .from('reservations')
       .select(`
         *,
-        profiles!reservations_client_id_fkey(full_name, phone_number, avatar_url),
+        profiles!reservations_client_id_fkey(id, full_name, phone_number, avatar_url, loyalty_points),
         services(service_name, price, duration_minutes),
         salon_staff:staff_id(custom_name, profiles!profile_id(full_name))
       `)

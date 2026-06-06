@@ -28,4 +28,15 @@ export class SubscriptionsController {
   getMyPlan(@CurrentUser() user: AuthenticatedUser) {
     return this.subscriptionsService.getMyPlan(user.id);
   }
+
+  /**
+   * GET /subscriptions/my-client-plan
+   * Get the subscription plan for the authenticated client user.
+   * Returns { plan: 'Free' | 'Premium', isPremium: boolean }
+   */
+  @Get('my-client-plan')
+  @UseGuards(SupabaseAuthGuard)
+  getMyClientPlan(@CurrentUser() user: AuthenticatedUser) {
+    return this.subscriptionsService.getMyClientPlan(user.id);
+  }
 }

@@ -81,53 +81,51 @@ export function ClientsScreen() {
     const clientsMap = new Map<string, ClientItem>();
 
     reservations.forEach((res: Record<string, unknown>) => {
-      // A walk-in has no client_id (barber-created, no account needed)
-      // Deliberately NOT checking res.client_id === user?.id to avoid misclassifying the barber's own real bookings
       const isWalkIn = !res.client_id;
       let clientId = '';
       let clientName = 'Client de passage';
       let clientPhone = (res.client_phone as string) || '';
-      let avatarUrl = null;
+      let avatarUrl: string | null = null;
       let loyaltyPoints = 0;
       let isRegistered = false;
 
       if (!isWalkIn && res.profiles) {
         const profile = res.profiles as Record<string, unknown>;
-        clientId = profile.id as string;
+        // Use client_id from the reservation row (always present for registered clients)
+        clientId = res.client_id as string;
         clientName = (profile.full_name as string) || 'Sans Nom';
         clientPhone = (profile.phone_number as string) || (res.client_phone as string) || '';
-        avatarUrl = profile.avatar_url;
+        avatarUrl = (profile.avatar_url as string) || null;
         loyaltyPoints = (profile.loyalty_points as number) || 0;
         isRegistered = true;
       } else {
         // Parse Walk-In client from notes
-        // Format: "[Sans RDV] Client: Name\nTel: 055..."
         const notes = (res.notes as string) || '';
         if (notes.startsWith('[Sans RDV]')) {
           const nameMatch = notes.match(/Client:\s*([^\n]+)/);
           const telMatch = notes.match(/Tel:\s*([^\n]+)/);
-
           if (nameMatch) clientName = nameMatch[1].trim();
           if (telMatch) {
             clientPhone = telMatch[1].trim();
           } else if (res.client_phone) {
-            // Fallback: use the stored client_phone field
             clientPhone = res.client_phone as string;
           }
         }
-        // Use normalized phone as ID for walk-in, otherwise fallback to reservation ID
         clientId = clientPhone ? `walkin-${clientPhone}` : `walkin-${res.id}`;
       }
 
       if (!clientId) return;
 
-      const price = res.services?.price || 0;
+      // services is returned as an object {service_name, price, duration_minutes}
+      const services = res.services as Record<string, unknown> | null;
+      const price = (services?.price as number) || 0;
+
       const appt = {
-        id: res.id,
-        date: res.appointment_date,
-        time: res.start_time,
-        status: res.status,
-        price: price,
+        id: res.id as string,
+        date: res.appointment_date as string,
+        time: res.start_time as string,
+        status: res.status as string,
+        price,
       };
 
       if (clientsMap.has(clientId)) {

@@ -133,4 +133,29 @@ export class SubscriptionsService {
       created_at: null,
     };
   }
+
+  /**
+   * Get the subscription plan for a client user (not a barber/salon owner).
+   * Clients can subscribe to a Premium plan that unlocks sponsored salon visibility.
+   */
+  async getMyClientPlan(userId: string): Promise<{ plan: string; isPremium: boolean }> {
+    const { data: subscription } = await this.supabase.adminClient
+      .from('client_subscriptions')
+      .select('plan, status, ends_at')
+      .eq('user_id', userId)
+      .eq('status', 'Active')
+      .order('ends_at', { ascending: false })
+      .maybeSingle();
+
+    if (subscription && subscription.plan === 'Premium') {
+      // Verify not expired
+      const now = new Date();
+      const endsAt = subscription.ends_at ? new Date(subscription.ends_at) : null;
+      if (!endsAt || endsAt > now) {
+        return { plan: 'Premium', isPremium: true };
+      }
+    }
+
+    return { plan: 'Free', isPremium: false };
+  }
 }

@@ -26,6 +26,8 @@ export function SalonMapView({
 }: SalonMapViewProps) {
   const webViewRef = useRef<WebView>(null);
   const [mapReady, setMapReady] = useState(false);
+  // Track whether we've already flown to the user's real location on first fix
+  const hasCenteredOnUser = useRef(false);
   const center = userLocation ?? { latitude: 36.7538, longitude: 3.0588 };
 
   const zoomIn = useCallback(() => {
@@ -299,12 +301,35 @@ function initLeaflet(){
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [salonsFingerprint]);
 
-  // Dynamically update user location in the map without reloading the WebView HTML
+  // Update the user dot and — on the very first real location fix — fly the map to it
   useEffect(() => {
-    if (mapReady && userLocation && webViewRef.current) {
-      webViewRef.current.injectJavaScript(
-        `if(window.updateUserLocation){window.updateUserLocation(${userLocation.longitude}, ${userLocation.latitude});}true;`
-      );
+    if (!mapReady || !userLocation || !webViewRef.current) return;
+
+    // Always update the blue dot position
+    webViewRef.current.injectJavaScript(
+      `if(window.updateUserLocation){window.updateUserLocation(${userLocation.longitude}, ${userLocation.latitude});}true;`
+    );
+
+    // On the very first real location fix, fly the camera to the user
+    if (!hasCenteredOnUser.current) {
+      hasCenteredOnUser.current = true;
+      webViewRef.current.injectJavaScript(`
+        (function(){
+          var lng=${userLocation.longitude}, lat=${userLocation.latitude};
+          if(window.map){
+            try{
+              // MapLibre GL
+              window.map.easeTo({center:[lng,lat],zoom:13,duration:800});
+            } catch(e){
+              try{
+                // Leaflet fallback
+                window.map.setView([lat,lng],13,{animate:true});
+              } catch(e2){}
+            }
+          }
+        })();
+        true;
+      `);
     }
   }, [userLocation, mapReady]);
   // Prevent WebView from re-mounting when mapHtml hasn't changed
