@@ -63,22 +63,24 @@ export function LeaveReviewModal({ visible, onClose, reservation, onSuccess }: L
       setComment('');
       onClose();
     } catch (err: unknown) {
-      const errMsg = (err as Error).message || '';
-      if (errMsg.includes('23505')) {
+      const axiosError = (err as any)?.response?.data?.message;
+      const errMsg = axiosError || (err as Error).message || '';
+      
+      if (errMsg.includes('already reviewed') || errMsg.includes('23505')) {
         // Duplicate review — not an error for the user
         Toast.show({
-        type: 'info',
-        text1: 'Info',
-        text2: 'Vous avez déjà laissé un avis pour ce rendez-vous.'
-      });
+          type: 'info',
+          text1: 'Info',
+          text2: 'Vous avez déjà laissé un avis pour ce rendez-vous.'
+        });
         onSuccess();
         onClose();
       } else {
         Toast.show({
-        type: 'error',
-        text1: 'Erreur',
-        text2: 'Impossible d\'enregistrer votre avis. Veuillez réessayer.'
-      });
+          type: 'error',
+          text1: 'Erreur',
+          text2: typeof errMsg === 'string' ? errMsg : 'Impossible d\'enregistrer votre avis. Veuillez réessayer.'
+        });
       }
     } finally {
       setLoading(false);

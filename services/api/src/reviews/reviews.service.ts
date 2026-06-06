@@ -21,7 +21,7 @@ export class ReviewsService {
     // 1. Verify the reservation exists, belongs to this client, and is Completed
     const { data: reservation } = await this.supabase.adminClient
       .from('reservations')
-      .select('id, client_id, salon_id, status')
+      .select('id, client_id, salon_id, status, appointment_date, end_time')
       .eq('id', dto.reservationId)
       .single();
 
@@ -33,8 +33,23 @@ export class ReviewsService {
       throw new ForbiddenException('You can only review your own reservations');
     }
 
-    if (reservation.status !== 'Completed') {
-      throw new BadRequestException('You can only review completed appointments');
+    let isReviewable = reservation.status === 'Completed';
+
+    if (reservation.status === 'Confirmed') {
+      const algNow = new Date(Date.now() + 60 * 60 * 1000); // UTC+1
+      const todayAlg = algNow.toISOString().split('T')[0];
+      const nowStr = `${String(algNow.getUTCHours()).padStart(2, '0')}:${String(algNow.getUTCMinutes()).padStart(2, '0')}`;
+
+      const apptDate = reservation.appointment_date;
+      const endTime = reservation.end_time ? reservation.end_time.slice(0, 5) : null;
+
+      if (apptDate < todayAlg || (apptDate === todayAlg && endTime && endTime < nowStr)) {
+        isReviewable = true;
+      }
+    }
+
+    if (!isReviewable) {
+      throw new BadRequestException('You can only review completed or expired appointments');
     }
 
     if (reservation.salon_id !== dto.salonId) {
