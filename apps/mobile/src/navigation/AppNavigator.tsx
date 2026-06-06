@@ -17,6 +17,7 @@ import VerifyCodeScreen from '../screens/auth/VerifyCodeScreen';
 import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
 import PhoneEntryScreen from '../screens/auth/PhoneEntryScreen';
 import { colors } from '../theme';
+import { navigationRef } from './navigationRef';
 
 const AuthStack = createNativeStackNavigator();
 function AuthStackNavigator() {
@@ -154,7 +155,7 @@ export function AppNavigator() {
   }, []);
 
   return (
-    <NavigationContainer theme={HafefliTheme}>
+    <NavigationContainer ref={navigationRef} theme={HafefliTheme}>
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
         {!session ? (
           // Not authenticated → Auth flow

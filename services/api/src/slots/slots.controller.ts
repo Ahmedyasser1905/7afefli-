@@ -1,8 +1,7 @@
 // services/api/src/slots/slots.controller.ts
 
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { SlotsService } from './slots.service';
-import { SupabaseAuthGuard } from '../auth/auth.guard';
 
 @Controller('slots')
 export class SlotsController {
@@ -11,9 +10,10 @@ export class SlotsController {
   /**
    * GET /slots?salonId=...&serviceId=...&date=2025-06-15&barberId=...
    * Get available time slots for a specific salon, service, and date.
+   * Note: No auth required — slot availability is public information.
+   * Authenticated users (barbers) can additionally see past slots for walk-in booking.
    */
   @Get()
-  @UseGuards(SupabaseAuthGuard)
   getAvailableSlots(
     @Query('salonId') salonId: string,
     @Query('serviceId') serviceId: string,

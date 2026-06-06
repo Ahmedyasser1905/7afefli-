@@ -4,6 +4,7 @@ import {
   Controller,
   Get,
   Patch,
+  Post,
   Param,
   Body,
   UseGuards,
@@ -98,5 +99,27 @@ export class AdminController {
   @Get('subscriptions')
   getAllSubscriptions() {
     return this.adminService.getAllSubscriptions();
+  }
+
+  /**
+   * POST /admin/salons/:id/sponsor
+   * Sponsor a salon for a given number of days (Admin only).
+   * Body: { "days": 30 }
+   */
+  @Post('salons/:id/sponsor')
+  sponsorSalon(
+    @Param('id') id: string,
+    @Body('days') days: number,
+  ) {
+    return this.adminService.sponsorSalon(id, days ?? 30);
+  }
+
+  /**
+   * DELETE /admin/salons/:id/sponsor
+   * Remove sponsoring from a salon (Admin only).
+   */
+  @Delete('salons/:id/sponsor')
+  unsponsorSalon(@Param('id') id: string) {
+    return this.adminService.unsponsorSalon(id);
   }
 }

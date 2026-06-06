@@ -26,56 +26,18 @@ export function useCreateReservation() {
     mutationFn: async (params: CreateReservationParams): Promise<Reservation> => {
       if (!user) throw new Error('Not authenticated');
 
-      try {
-        const data = await apiClient.post<Reservation>('/reservations', {
-          salonId: params.salonId,
-          serviceId: params.serviceId,
-          barberId: params.staffId ?? undefined,
-          appointmentDate: params.appointmentDate,
-          startTime: params.startTime,
-          endTime: params.endTime,
-          notes: params.notes,
-          clientPhone: params.clientPhone,
-        });
-        return data;
-      } catch (error: unknown) {
-        const errorStr = (error as Error).message || '';
-        
-        // If the backend rejected clientPhone because it is not whitelisted, retry without it
-        if (errorStr.includes('clientPhone') && (errorStr.includes('should not exist') || errorStr.includes('non-whitelisted'))) {
-          try {
-            const data = await apiClient.post<Reservation>('/reservations', {
-              salonId: params.salonId,
-              serviceId: params.serviceId,
-              barberId: params.staffId ?? undefined,
-              appointmentDate: params.appointmentDate,
-              startTime: params.startTime,
-              endTime: params.endTime,
-              notes: params.notes,
-            });
+      const data = await apiClient.post<Reservation>('/reservations', {
+        salonId: params.salonId,
+        serviceId: params.serviceId,
+        barberId: params.staffId ?? undefined,
+        appointmentDate: params.appointmentDate,
+        startTime: params.startTime,
+        endTime: params.endTime,
+        notes: params.notes,
+        clientPhone: params.clientPhone,
+      });
 
-            // Persist phone number via API (best-effort, non-blocking)
-            if (params.clientPhone) {
-              apiClient.patch('/auth/profiles/me', { phone_number: params.clientPhone }).catch(() => {
-                // Non-critical — phone save failure doesn't affect the reservation
-              });
-            }
-
-            return data;
-          } catch (retryError: unknown) {
-            const retryStr = (retryError as Error).message || '';
-            if (retryStr.includes('no longer available') || retryStr.includes('booked')) {
-              throw new Error('Ce créneau n\'est plus disponible. Veuillez en choisir un autre.');
-            }
-            throw new Error(`Réservation échouée (retry): ${retryStr}`);
-          }
-        }
-
-        if (errorStr.includes('no longer available') || errorStr.includes('booked')) {
-          throw new Error('Ce créneau n\'est plus disponible. Veuillez en choisir un autre.');
-        }
-        throw new Error(`Réservation échouée: ${errorStr}`);
-      }
+      return data;
     },
 
     onSuccess: (reservation) => {

@@ -18,9 +18,8 @@ const ENV_CONFIG: EnvConfig = {
     'ALLOWED_ORIGINS',
   ],
   productionOnly: [
-    // Temporarily disabled to prevent Railway startup crashes if missing
-    // 'SENTRY_DSN',
-    // 'CHARGILY_SECRET_KEY',
+    'CHARGILY_SECRET_KEY',
+    // 'SENTRY_DSN', // Optional monitoring
   ],
 };
 

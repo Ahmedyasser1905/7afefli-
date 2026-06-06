@@ -25,7 +25,7 @@ import { apiClient } from '../../lib/apiClient';
 
 export function AdminDashboardScreen() {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'salons' | 'users'>('salons');
+  const [activeTab, setActiveTab] = useState<'salons' | 'users' | 'reservations'>('salons');
   const [selectedUser, setSelectedUser] = useState<Record<string, unknown> | null>(null);
 
   // Fetch all salons via API only — Supabase bypasses backend auth guards
@@ -47,6 +47,14 @@ export function AdminDashboardScreen() {
     queryKey: ['admin-stats'],
     queryFn: () => apiClient.get<Record<string, unknown>>('/admin/stats'),
     staleTime: 60 * 1000,
+  });
+
+  // Fetch all reservations via API
+  const { data: reservations = [], isLoading: resLoading, isRefetching: resRefetching, refetch: refetchRes } = useQuery<Record<string, unknown>[]>({
+    queryKey: ['admin-reservations'],
+    queryFn: () => apiClient.get<Record<string, unknown>[]>('/admin/reservations'),
+    staleTime: 60 * 1000,
+    enabled: activeTab === 'reservations',
   });
 
   const totalSalons = statsData?.totalSalons ?? salons.length;
@@ -337,6 +345,15 @@ export function AdminDashboardScreen() {
             Utilisateurs ({totalUsers})
           </Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'reservations' && styles.tabActive]}
+          onPress={() => setActiveTab('reservations')}
+        >
+          <Ionicons name="calendar-outline" size={18} color={activeTab === 'reservations' ? colors.amber : colors.textSecondary} />
+          <Text style={[styles.tabText, activeTab === 'reservations' && styles.tabTextActive]}>
+            RDV
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Content */}
@@ -353,6 +370,51 @@ export function AdminDashboardScreen() {
             ListEmptyComponent={
               <Text style={styles.emptyText}>Aucun salon enregistré</Text>
             }
+          />
+        )
+      ) : activeTab === 'reservations' ? (
+        resLoading ? (
+          <ActivityIndicator color={colors.amber} size="large" style={{ marginTop: 40 }} />
+        ) : (
+          <FlatList
+            data={reservations}
+            keyExtractor={(item: Record<string, unknown>) => item.id as string}
+            renderItem={({ item }) => (
+              <View style={styles.card}>
+                <View style={styles.cardHeader}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.cardTitle}>
+                      {(item.profiles as any)?.full_name ?? 'Client inconnu'}
+                    </Text>
+                    <Text style={styles.cardSubtitle}>
+                      {(item.salons as any)?.name ?? '—'} • {item.appointment_date as string}
+                    </Text>
+                    <Text style={styles.cardSubtitle}>
+                      {item.start_time as string} → {item.end_time as string} • {(item.services as any)?.service_name ?? '—'}
+                    </Text>
+                  </View>
+                  <View style={[
+                    styles.badge,
+                    item.status === 'Confirmed' ? styles.badgeApproved :
+                    item.status === 'Pending' ? styles.badgePending :
+                    item.status === 'Completed' ? { backgroundColor: 'rgba(74,144,217,0.15)' } :
+                    styles.badgeAdmin
+                  ]}>
+                    <Text style={[styles.badgeText,
+                      item.status === 'Confirmed' ? styles.badgeTextApproved :
+                      item.status === 'Pending' ? styles.badgeTextPending :
+                      item.status === 'Completed' ? { color: '#4A90D9' } :
+                      styles.badgeTextAdmin
+                    ]}>
+                      {item.status as string}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            )}
+            contentContainerStyle={styles.list}
+            refreshControl={<RefreshControl refreshing={resRefetching} onRefresh={refetchRes} tintColor={colors.amber} />}
+            ListEmptyComponent={<Text style={styles.emptyText}>Aucune réservation</Text>}
           />
         )
       ) : (

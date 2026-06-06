@@ -330,51 +330,16 @@ export class ReservationsService {
    * Get all reservations for the authenticated client.
    */
   async findByClient(clientId: string, limit: number = 50, offset: number = 0) {
-    // Auto-update expired reservations for this client (Algeria UTC+1)
-    // - Pending expiré  → Annulé  (jamais confirmé par le coiffeur)
-    // - Confirmed expiré → Completed (rendez-vous effectué)
-    const algeriaOffset = 60;
-    const nowAlgeria  = new Date(Date.now() + algeriaOffset * 60 * 1000);
-    const todayStr    = nowAlgeria.toISOString().split('T')[0];
-    const currentTime = `${String(nowAlgeria.getUTCHours()).padStart(2, '0')}:${String(nowAlgeria.getUTCMinutes()).padStart(2, '0')}`;
-
-    // Pending des jours passés → Annulé
-    await this.supabase.adminClient
-      .from('reservations')
-      .update({ status: 'Cancelled' })
-      .eq('client_id', clientId)
-      .eq('status', 'Pending')
-      .not('notes', 'ilike', '%NEAU BLOQU%')
-      .lt('appointment_date', todayStr);
-
-    // Pending d'aujourd'hui dont l'heure est passée → Annulé
-    await this.supabase.adminClient
-      .from('reservations')
-      .update({ status: 'Cancelled' })
-      .eq('client_id', clientId)
-      .eq('status', 'Pending')
-      .not('notes', 'ilike', '%NEAU BLOQU%')
-      .eq('appointment_date', todayStr)
-      .lt('end_time', currentTime);
-
-    // Confirmed des jours passés → Completed
-    await this.supabase.adminClient
-      .from('reservations')
-      .update({ status: 'Completed' })
-      .eq('client_id', clientId)
-      .eq('status', 'Confirmed')
-      .not('notes', 'ilike', '%NEAU BLOQU%')
-      .lt('appointment_date', todayStr);
-
-    // Confirmed d'aujourd'hui dont l'heure est passée → Completed
-    await this.supabase.adminClient
-      .from('reservations')
-      .update({ status: 'Completed' })
-      .eq('client_id', clientId)
-      .eq('status', 'Confirmed')
-      .not('notes', 'ilike', '%NEAU BLOQU%')
-      .eq('appointment_date', todayStr)
-      .lt('end_time', currentTime);
+    // ── Auto-expire stale reservations via PostgreSQL function ────────────────
+    // Using a DB-side function avoids 4 sequential UPDATE calls per request.
+    // Falls back silently if the function doesn't exist yet (pre-migration).
+    try {
+      await this.supabase.adminClient.rpc('expire_client_reservations', {
+        p_client_id: clientId,
+      });
+    } catch {
+      // Migration not yet applied — silently continue
+    }
 
     const { data, error } = await this.supabase.adminClient
       .from('reservations')
@@ -423,51 +388,16 @@ export class ReservationsService {
       }
     }
 
-    // ── Auto-update réservations expirées ────────────────────────────────────
-    // - Pending expiré  → Annulé   (jamais confirmé par le coiffeur)
-    // - Confirmed expiré → Completed (rendez-vous effectué)
-    const algeriaOffset = 60;
-    const nowAlgeria = new Date(Date.now() + algeriaOffset * 60 * 1000);
-    const todayStr   = nowAlgeria.toISOString().split('T')[0];
-    const currentTime = `${String(nowAlgeria.getUTCHours()).padStart(2, '0')}:${String(nowAlgeria.getUTCMinutes()).padStart(2, '0')}`;
-
-    // Pending des jours passés → Annulé
-    await this.supabase.adminClient
-      .from('reservations')
-      .update({ status: 'Cancelled' })
-      .eq('salon_id', salonId)
-      .eq('status', 'Pending')
-      .not('notes', 'ilike', '%NEAU BLOQU%')
-      .lt('appointment_date', todayStr);
-
-    // Pending d'aujourd'hui dont l'heure est passée → Annulé
-    await this.supabase.adminClient
-      .from('reservations')
-      .update({ status: 'Cancelled' })
-      .eq('salon_id', salonId)
-      .eq('status', 'Pending')
-      .not('notes', 'ilike', '%NEAU BLOQU%')
-      .eq('appointment_date', todayStr)
-      .lt('end_time', currentTime);
-
-    // Confirmed des jours passés → Completed
-    await this.supabase.adminClient
-      .from('reservations')
-      .update({ status: 'Completed' })
-      .eq('salon_id', salonId)
-      .eq('status', 'Confirmed')
-      .not('notes', 'ilike', '%NEAU BLOQU%')
-      .lt('appointment_date', todayStr);
-
-    // Confirmed d'aujourd'hui dont l'heure est passée → Completed
-    await this.supabase.adminClient
-      .from('reservations')
-      .update({ status: 'Completed' })
-      .eq('salon_id', salonId)
-      .eq('status', 'Confirmed')
-      .not('notes', 'ilike', '%NEAU BLOQU%')
-      .eq('appointment_date', todayStr)
-      .lt('end_time', currentTime);
+    // ── Auto-expire stale reservations via PostgreSQL function ────────────────
+    // Using a DB-side function avoids 4-6 sequential UPDATE calls per request.
+    // Falls back silently if the function doesn't exist yet (pre-migration).
+    try {
+      await this.supabase.adminClient.rpc('expire_salon_reservations', {
+        p_salon_id: salonId,
+      });
+    } catch {
+      // Migration not yet applied — silently continue
+    }
     // ─────────────────────────────────────────────────────────────────────────
 
     let query = this.supabase.adminClient

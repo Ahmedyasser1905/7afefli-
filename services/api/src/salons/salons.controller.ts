@@ -102,10 +102,11 @@ export class SalonsController {
 
   /**
    * PATCH /salons/:id
-   * Update salon details (owner only).
+   * Update salon details (Coiffeur owner only).
    */
   @Patch(':id')
-  @UseGuards(SupabaseAuthGuard)
+  @UseGuards(SupabaseAuthGuard, RolesGuard)
+  @Roles('Coiffeur')
   update(
     @Param('id') id: string,
     @Body() dto: UpdateSalonDto,
@@ -167,6 +168,22 @@ export class SalonsController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.salonsService.addPortfolioPhoto(id, storagePath, user.id);
+  }
+
+  /**
+   * POST /salons/:id/portfolio/upload-url
+   * Generate a Supabase signed upload URL after checking the plan quota.
+   * The client uploads directly to Supabase Storage using this URL.
+   * Coiffeur only — must own the salon.
+   */
+  @Post(':id/portfolio/upload-url')
+  @UseGuards(SupabaseAuthGuard)
+  getPortfolioUploadUrl(
+    @Param('id') id: string,
+    @Body('fileName') fileName: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.salonsService.getPortfolioUploadUrl(id, fileName, user.id);
   }
 
   @Delete(':id/portfolio/:photoId')

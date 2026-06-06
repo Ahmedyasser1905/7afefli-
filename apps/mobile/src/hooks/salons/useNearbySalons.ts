@@ -1,60 +1,31 @@
 // apps/mobile/src/hooks/salons/useNearbySalons.ts
-// Fetches nearby salons using PostGIS geolocation via NestJS API
+// Fetches nearby salons. Falls back to Algiers coordinates if location is unavailable.
 
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../lib/apiClient';
 import type { Salon } from '@barberdz/shared/types';
+
+const ALGIERS_FALLBACK = { latitude: 36.7538, longitude: 3.0588 };
 
 interface Coords {
   latitude: number;
   longitude: number;
 }
 
-export function useNearbySalons(location: Coords | null, radiusKm: number = 10) {
+export function useNearbySalons(location: Coords | null) {
+  // Use provided location or fall back to Algiers — never block the query on missing location
+  const coords = location ?? ALGIERS_FALLBACK;
+
   return useQuery<Salon[]>({
-    queryKey: ['nearby-salons', location?.latitude, location?.longitude, radiusKm],
-
-    queryFn: async (): Promise<Salon[]> => {
-      if (!location) return [];
-
-      try {
-        const data = await apiClient.get<Salon[]>(`/salons/nearby?lat=${location.latitude}&lng=${location.longitude}&radius=${radiusKm}`);
-        return data ?? [];
-      } catch {
-        // Nearby search unavailable — return empty (non-critical feature)
-        return [];
-      }
-    },
-
-    enabled: !!location,
-    staleTime: 5 * 60 * 1000, // 5 minutes — salons don't change often
-  });
-}
-
-export function useSalonDetail(salonId: string | null) {
-  return useQuery<Salon>({
-    queryKey: ['salon-detail', salonId],
-
-    queryFn: async (): Promise<Salon> => {
-      const data = await apiClient.get<Salon>(`/salons/${salonId}`);
-      return data;
-    },
-
-    enabled: !!salonId,
-    staleTime: 3 * 60 * 1000, // 3 minutes — detail page data doesn't change often
-  });
-}
-
-export function useSalonServices(salonId: string | null) {
-  return useQuery({
-    queryKey: ['salon-services', salonId],
-
+    queryKey: ['nearby-salons', coords.latitude.toFixed(3), coords.longitude.toFixed(3)],
     queryFn: async () => {
-      const data = await apiClient.get<Record<string, unknown>[]>(`/salons/${salonId}/services`);
-      return data;
+      const data = await apiClient.get<Salon[]>(
+        `/salons/nearby?lat=${coords.latitude}&lng=${coords.longitude}&radius=15&limit=30`,
+      );
+      return data ?? [];
     },
-
-    enabled: !!salonId,
-    staleTime: 3 * 60 * 1000,
+    staleTime: 2 * 60 * 1000,
+    // Always enabled — never blocks on location
+    enabled: true,
   });
 }

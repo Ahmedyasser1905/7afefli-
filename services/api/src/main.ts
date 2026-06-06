@@ -40,6 +40,19 @@ async function bootstrap() {
   app.enableShutdownHooks();
 
   // ── Body size limit — protect against oversized payloads ─────────────────
+  // IMPORTANT: The Chargily webhook route needs the raw body for HMAC signature
+  // verification. We apply express.raw() BEFORE the global JSON parser so the
+  // rawBody buffer is available in req.rawBody for that specific route.
+  app.use(
+    '/api/v1/payments/webhook',
+    express.raw({ type: 'application/json' }),
+    (req: express.Request & { rawBody?: Buffer }, _res: express.Response, next: express.NextFunction) => {
+      if (Buffer.isBuffer(req.body)) {
+        req.rawBody = req.body;
+      }
+      next();
+    },
+  );
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 

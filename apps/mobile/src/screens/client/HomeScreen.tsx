@@ -15,13 +15,27 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, radius, shadows } from '../../theme';
-import { useNearbySalons } from '../../hooks/salons/useNearbySalons';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../lib/apiClient';
 import { SalonCard } from '../../components/salon/SalonCard';
 import { SalonMapView } from '../../components/map/SalonMapView';
 import Ionicons from "@react-native-vector-icons/ionicons";
 import type { Salon } from '@barberdz/shared/types';
+
+function getDistanceKm(
+  user: { latitude: number; longitude: number },
+  salon: { latitude: number; longitude: number }
+): number {
+  const R = 6371;
+  const dLat = ((salon.latitude - user.latitude) * Math.PI) / 180;
+  const dLon = ((salon.longitude - user.longitude) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((user.latitude * Math.PI) / 180) *
+      Math.cos((salon.latitude * Math.PI) / 180) *
+      Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 const FILTER_OPTIONS = [
   { id: 'nearby', label: '📍 À proximité' },
@@ -91,12 +105,11 @@ export function HomeScreen() {
     };
   }, []);
 
-  // 2. Fetch salons from backend (nearby — requires location)
-  const { data: salons = [], isLoading, refetch } = useNearbySalons(location);
-
-  // 2b. Fetch ALL salons for the map so they appear when zooming out
-  const { data: allSalonsForMap = [] } = useQuery<Salon[]>({
-    queryKey: ['all-salons-map'],
+  // Fetch ALL salons once — used for both list (filtered) and map display.
+  // The nearby sort is applied client-side using the Haversine formula when location is available,
+  // eliminating the duplicate network request previously made by useNearbySalons.
+  const { data: allSalons = [], isLoading, refetch } = useQuery<Salon[]>({
+    queryKey: ['home-salons-all'],
     queryFn: async () => {
       const data = await apiClient.get<Salon[]>('/salons?limit=100');
       return data ?? [];
@@ -104,8 +117,18 @@ export function HomeScreen() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Use all salons for the map, so users see them when zooming out
-  const mapSalons = allSalonsForMap;
+  // Sort by proximity when location is available, else by rating
+  const salons = useMemo(() => {
+    if (!location) return allSalons;
+    return [...allSalons].sort((a, b) => {
+      if (a.is_sponsored !== b.is_sponsored) return a.is_sponsored ? -1 : 1;
+      const distA = getDistanceKm(location, a);
+      const distB = getDistanceKm(location, b);
+      return distA - distB;
+    });
+  }, [allSalons, location]);
+
+  const mapSalons = allSalons;
 
   // 3. Client-side filtering & sorting
   const filteredSalons = useMemo(() => {

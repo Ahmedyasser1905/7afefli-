@@ -138,7 +138,9 @@ export class SalonsService {
         close_time: dto.close_time ?? '21:00',
         working_days: dto.working_days ?? [1, 2, 3, 4, 5, 6],
         subscription_status: 'Trial',
-        trial_ends_at: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(), // 3 months trial
+        trial_ends_at: new Date(
+          Date.now() + parseInt(process.env.TRIAL_DAYS ?? '90', 10) * 24 * 60 * 60 * 1000,
+        ).toISOString(),
       })
       .select()
       .single();
@@ -337,6 +339,50 @@ export class SalonsService {
       .eq('salon_id', salonId);
     if (error) throw new InternalServerErrorException(error.message);
     return { success: true };
+  }
+
+  /**
+   * Generate a Supabase signed upload URL for portfolio photos.
+   * Checks plan quota before issuing the URL so direct uploads still respect limits.
+   */
+  async getPortfolioUploadUrl(salonId: string, fileName: string, userId: string) {
+    // Verify ownership and check plan quota
+    const { data: salon } = await this.supabase.adminClient
+      .from('salons')
+      .select('owner_id, subscriptions:user_subscriptions(status, plans(*))')
+      .eq('id', salonId)
+      .single();
+
+    if (!salon || salon.owner_id !== userId) throw new ForbiddenException('Accès refusé');
+
+    const subs = salon.subscriptions as any[];
+    const sub = subs?.[0];
+    const maxPhotos = sub?.plans?.max_portfolio_photos ?? 3;
+
+    if (maxPhotos !== -1) {
+      const { count } = await this.supabase.adminClient
+        .from('portfolio_photos')
+        .select('*', { count: 'exact', head: true })
+        .eq('salon_id', salonId);
+
+      if ((count || 0) >= maxPhotos) {
+        throw new ForbiddenException(`Votre plan actuel est limité à ${maxPhotos} photo(s). Passez à un plan supérieur.`);
+      }
+    }
+
+    // Generate a signed upload URL (valid 5 minutes)
+    const storagePath = `${salonId}/${Date.now()}_${fileName.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+    const { data, error } = await this.supabase.adminClient.storage
+      .from('portfolio')
+      .createSignedUploadUrl(storagePath);
+
+    if (error) throw new InternalServerErrorException(`Impossible de générer l'URL d'upload: ${error.message}`);
+
+    return {
+      signedUrl: data.signedUrl,
+      storagePath,
+      token: data.token,
+    };
   }
 
   /**

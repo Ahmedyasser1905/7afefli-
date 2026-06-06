@@ -22,11 +22,9 @@ import { SalonCard } from '../../components/salon/SalonCard';
 import { SalonMapView } from '../../components/map/SalonMapView';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import type { Salon } from '@barberdz/shared/types';
+import { WILAYAS_WITH_ALL } from '@barberdz/shared/constants/wilayas';
 
-const WILAYAS = [
-  'Toutes', 'Alger', 'Oran', 'Constantine', 'Blida', 'Sétif',
-  'Annaba', 'Batna', 'Tlemcen', 'Béjaïa', 'Tizi Ouzou',
-];
+const WILAYAS = WILAYAS_WITH_ALL;
 
 const SORT_OPTIONS = [
   { id: 'rating', label: '⭐ Avis' },

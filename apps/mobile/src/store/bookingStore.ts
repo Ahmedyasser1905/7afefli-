@@ -46,7 +46,7 @@ export const useBookingStore = create<BookingState>((set) => ({
   setSlot: (slot) => set({ selectedSlot: slot }),
   setStep: (step) => set({ currentStep: step }),
   setPhone: (phone) => set({ clientPhone: phone }),
-  nextStep: () => set((s) => ({ currentStep: Math.min(s.currentStep + 1, 3) })),
+  nextStep: () => set((s) => ({ currentStep: Math.min(s.currentStep + 1, 4) })),
   prevStep: () => set((s) => ({ currentStep: Math.max(s.currentStep - 1, 0) })),
 
   resetBooking: () =>

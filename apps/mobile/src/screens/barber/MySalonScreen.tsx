@@ -131,26 +131,29 @@ export function MySalonScreen() {
     setUploading(true);
 
     try {
-      const fileName = `${salon.id}/${Date.now()}.jpg`;
-      
-      // Upload to storage
-      const { error: uploadError } = await supabase.storage
-        .from('portfolio')
-        .upload(fileName, decode(base64Str), {
-          contentType: 'image/jpeg',
-        });
+      const fileName = `photo_${Date.now()}.jpg`;
 
-      if (uploadError) {
-        if (uploadError.message.includes('bucket')) {
-          throw new Error("Le bucket 'portfolio' n'existe pas. Veuillez l'ajouter dans Supabase.");
-        }
-        throw uploadError;
+      // Step 1: Get a signed upload URL from our backend (quota-checked)
+      const { signedUrl, storagePath } = await apiClient.post<{
+        signedUrl: string;
+        storagePath: string;
+        token: string;
+      }>(`/salons/${salon.id}/portfolio/upload-url`, { fileName });
+
+      // Step 2: Upload directly to Supabase using the signed URL
+      const byteArray = decode(base64Str);
+      const uploadRes = await fetch(signedUrl, {
+        method: 'PUT',
+        body: byteArray,
+        headers: { 'Content-Type': 'image/jpeg' },
+      });
+
+      if (!uploadRes.ok) {
+        throw new Error('Upload échoué');
       }
 
-      // Insert record
-      await apiClient.post(`/salons/${salon.id}/portfolio`, {
-        storagePath: fileName,
-      });
+      // Step 3: Register the photo in the backend (creates the DB record)
+      await apiClient.post(`/salons/${salon.id}/portfolio`, { storagePath });
 
       Toast.show({
         type: 'success',

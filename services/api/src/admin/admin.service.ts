@@ -2,6 +2,7 @@
 
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
+import { invalidateRoleCache } from '../auth/auth.guard';
 
 @Injectable()
 export class AdminService {
@@ -84,6 +85,10 @@ export class AdminService {
       .select()
       .single();
     if (error) throw new Error(error.message);
+
+    // Invalidate the role cache so the change takes effect immediately
+    invalidateRoleCache(userId);
+
     return data;
   }
 
@@ -167,6 +172,17 @@ export class AdminService {
     const { data, error } = await this.supabase.adminClient
       .from('salons')
       .update({ is_sponsored: true, sponsored_until: sponsoredUntil.toISOString() })
+      .eq('id', salonId)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
+  }
+
+  async unsponsorSalon(salonId: string) {
+    const { data, error } = await this.supabase.adminClient
+      .from('salons')
+      .update({ is_sponsored: false, sponsored_until: null })
       .eq('id', salonId)
       .select()
       .single();
