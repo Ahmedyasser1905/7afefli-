@@ -44,6 +44,10 @@
 1. **Refactored `SalonMapView.tsx`**:
    * Changed `mapHtml` to be completely static (compiled exactly once, `[]` dependencies).
    * Implemented `window.updateSalons` inside the map's script block for both MapLibre GL and Leaflet fallbacks.
+   * **Migrated CDNs**: Changed map resource sources from `unpkg.com` to the highly stable and fast `cdn.jsdelivr.net` to prevent blocked or extremely slow CDN loads in Algeria.
+   * **Synchronous Initialization**: Declared `updateSalons`, `selectSalon`, and user location methods, and posted the `MAP_READY` message synchronously right after map initialization. This avoids getting stuck in a loading state if tile downloads (`map.on('load')`) are delayed.
+   * **Diagnostic Overlay**: Added a `window.onerror` handler at the top of the HTML page that catches any runtime JavaScript errors (e.g. WebGL failures or script loading errors) and displays them directly on the map container in red text for easier debugging.
+   * **Clean Fallback Container**: Cleared the inner HTML of the map container and deleted `container._leaflet_id` before loading Leaflet as a fallback to avoid instantiation errors if MapLibre fails.
    * Created a `useEffect` that serializes the salons array and calls `updateSalons(JSON.stringify(salonsData))` via `injectJavaScript` only when the data changes, avoiding WebView reloads.
    * Added `window.selectSalon(salonId)` which recenters the map and opens the popup dynamically when a card is selected.
 2. **Added Bidirectional Synchronisation**:
