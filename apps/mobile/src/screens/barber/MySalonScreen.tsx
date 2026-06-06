@@ -37,7 +37,7 @@ export function MySalonScreen() {
   const [isEditSalonVisible, setIsEditSalonVisible] = useState(false);
   const [isEditLocationVisible, setIsEditLocationVisible] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [editingService, setEditingService] = useState<any | null>(null);
+  const [editingService, setEditingService] = useState<Record<string, unknown> | null>(null);
   const [respondingReview, setRespondingReview] = useState<string | null>(null);
   const [responseText, setResponseText] = useState('');
 
@@ -338,7 +338,7 @@ export function MySalonScreen() {
             ) : services.length === 0 ? (
               <Text style={styles.emptyText}>Aucun service configuré.</Text>
             ) : (
-              services.map((service: any) => (
+              services.map((service: Record<string, unknown>) => (
                 <View key={service.id} style={styles.serviceCard}>
                   <View style={styles.serviceInfo}>
                     <Text style={styles.serviceName}>{service.service_name}</Text>
@@ -375,7 +375,7 @@ export function MySalonScreen() {
               <Text style={styles.emptyText}>Votre portfolio est vide.</Text>
             ) : (
               <View style={styles.grid}>
-                {photos.map((photo: any) => (
+                {photos.map((photo: Record<string, unknown>) => (
                   <View key={photo.id} style={styles.gridImageContainer}>
                     <Image source={{ uri: photo.url }} style={styles.gridImage} resizeMode="cover" />
                     <TouchableOpacity
@@ -402,7 +402,7 @@ export function MySalonScreen() {
             {staff.length === 0 ? (
               <Text style={styles.emptyText}>Aucun barbier dans votre équipe.</Text>
             ) : (
-              staff.map((member: any) => {
+              staff.map((member: Record<string, unknown>) => {
                 const avatarUrl = member.avatar_url || member.profiles?.avatar_url;
                 return (
                   <View key={member.id} style={styles.staffCard}>
@@ -440,7 +440,7 @@ export function MySalonScreen() {
             {reviews.length === 0 ? (
               <Text style={styles.emptyText}>Aucun avis pour l'instant.</Text>
             ) : (
-              reviews.map((review: any) => (
+              reviews.map((review: Record<string, unknown>) => (
                 <View key={review.id} style={styles.reviewCard}>
                   <View style={styles.reviewHeader}>
                     <Text style={styles.reviewName}>{review.profiles?.full_name || 'Client anonyme'}</Text>

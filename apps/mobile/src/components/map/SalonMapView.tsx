@@ -80,9 +80,9 @@ export function SalonMapView({
 html,body{width:100%;height:100%;overflow:hidden;background:#1a1a2e}
 #map{width:100%;height:100%}
 #status{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#888;font-family:sans-serif;font-size:13px;text-align:center}
-.marker{width:32px;height:32px;background:#E8A020;border-radius:50%;border:2.5px solid #0F0F0F;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(232,160,32,0.6);cursor:pointer;transition:transform 0.15s}
-.marker:active{transform:scale(1.1)}
-.marker svg{width:16px;height:16px}
+.marker{width:32px;height:32px;background:#E8A020;border-radius:50%;border:2.5px solid #0F0F0F;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(232,160,32,0.6);cursor:pointer}
+.marker:active{opacity:0.85}
+.marker svg{width:16px;height:16px;pointer-events:none}
 .user-dot{width:14px;height:14px;background:#4A90D9;border-radius:50%;border:2.5px solid #fff;box-shadow:0 0 0 4px rgba(74,144,217,0.2)}
 .maplibregl-ctrl-attrib{display:none!important}
 .maplibregl-popup-content{border-radius:14px;padding:14px;font-family:sans-serif;background:#1a1a2e;color:#eee;border:1px solid rgba(255,255,255,0.08);box-shadow:0 4px 20px rgba(0,0,0,0.5)}
@@ -180,18 +180,20 @@ function initMapLibre(){
       }
     };
 
-    // Salon markers
+    // Salon markers — data-sid prevents JS closure from capturing wrong ID
     DATA.forEach(function(s){
       var el=document.createElement('div');el.className='marker';el.innerHTML=scissorsSvg;
+      el.setAttribute('data-sid', s.id);
       el.onclick=function(e){
         e.stopPropagation();
-        var dirBtn=HAS_USER?'<button class="p-btn p-dir" onclick="mglRoute('+s.lng+','+s.lat+')">Itin\\u00e9raire</button>':'';
+        var sid=el.getAttribute('data-sid');
+        var dirBtn=HAS_USER?'<button class="p-btn p-dir" onclick="mglRoute('+s.lng+','+s.lat+')">Itin\u00e9raire</button>':'';
         new maplibregl.Popup({offset:18,closeButton:true,maxWidth:'240px'})
           .setLngLat([s.lng,s.lat])
-          .setHTML('<div class="p-name">'+s.name+'</div><div class="p-info">\\u2B50 '+s.rating+' \\u00B7 '+s.wilaya+'</div><div class="p-actions"><button class="p-btn p-view" onclick="window.ReactNativeWebView.postMessage(\\''+s.id+'\\')">Voir salon</button>'+dirBtn+'</div>')
+          .setHTML('<div class="p-name">'+s.name+'</div><div class="p-info">\u2B50 '+s.rating+' \u00B7 '+s.wilaya+'</div><div class="p-actions"><button class="p-btn p-view" onclick="window.ReactNativeWebView.postMessage(\''+sid+'\')">Voir salon</button>'+dirBtn+'</div>')
           .addTo(map);
       };
-      new maplibregl.Marker({element:el}).setLngLat([s.lng,s.lat]).addTo(map);
+      new maplibregl.Marker({element:el,anchor:'center'}).setLngLat([s.lng,s.lat]).addTo(map);
     });
     // Fit bounds
     if(HAS_USER){
@@ -258,8 +260,9 @@ function initLeaflet(){
     };
 
     DATA.forEach(function(s){
-      var dirBtn=HAS_USER?'<button class="p-btn p-dir" onclick="lfRoute('+s.lng+','+s.lat+')">Itin\\u00e9raire</button>':'';
-      var popup='<div class="p-name">'+s.name+'</div><div class="p-info">\\u2B50 '+s.rating+' \\u00B7 '+s.wilaya+'</div><div class="p-actions"><button class="p-btn p-view" onclick="window.ReactNativeWebView.postMessage(\\''+s.id+'\\')">Voir salon</button>'+dirBtn+'</div>';
+      var sid=s.id;
+      var dirBtn=HAS_USER?'<button class="p-btn p-dir" onclick="lfRoute('+s.lng+','+s.lat+')">Itin\u00e9raire</button>':'';
+      var popup='<div class="p-name">'+s.name+'</div><div class="p-info">\u2B50 '+s.rating+' \u00B7 '+s.wilaya+'</div><div class="p-actions"><button class="p-btn p-view" onclick="window.ReactNativeWebView.postMessage(\''+sid+'\')">Voir salon</button>'+dirBtn+'</div>';
       L.marker([s.lat,s.lng],{icon:icon}).addTo(map).bindPopup(popup,{maxWidth:240});
     });
 

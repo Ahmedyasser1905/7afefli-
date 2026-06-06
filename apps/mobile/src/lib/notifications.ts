@@ -217,7 +217,7 @@ export async function triggerLocalNotification(payload: {
 // 5. GET ALL SCHEDULED NOTIFICATIONS (debug)
 // ─────────────────────────────────────────────────────────
 
-export async function getScheduledNotifications(): Promise<any[]> {
+export async function getScheduledNotifications(): Promise<Record<string, unknown>[]> {
   try {
     const Notif = getNotificationsModule();
     if (!Notif) return [];

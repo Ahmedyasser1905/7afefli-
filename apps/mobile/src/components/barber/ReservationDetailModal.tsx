@@ -17,7 +17,7 @@ import { formatTime, formatDZD } from '@barberdz/shared/utils/formatters';
 interface ReservationDetailModalProps {
   visible: boolean;
   onClose: () => void;
-  reservation: any | null;
+  reservation: Record<string, unknown> | null;
   onCancel?: (id: string) => void;
   onConfirm?: (id: string) => void;
   onComplete?: (id: string) => void;
@@ -56,9 +56,9 @@ export function ReservationDetailModal({
 }: ReservationDetailModalProps) {
   if (!reservation) return null;
 
-  const client = reservation.profiles as any | undefined;
-  const service = reservation.services as any | undefined;
-  const salonStaff = reservation.salon_staff as any | undefined;
+  const client = reservation.profiles as Record<string, unknown> | undefined;
+  const service = reservation.services as Record<string, unknown> | undefined;
+  const salonStaff = reservation.salon_staff as Record<string, unknown> | undefined;
   const status = reservation.status as string;
   const id = reservation.id as string;
   const notes = reservation.notes as string | null;
@@ -87,7 +87,7 @@ export function ReservationDetailModal({
 
   // Staff display name
   const staffName = salonStaff
-    ? ((salonStaff.custom_name as string) || ((salonStaff.profiles as any)?.full_name as string) || '')
+    ? ((salonStaff.custom_name as string) || ((salonStaff.profiles as Record<string, unknown>)?.full_name as string) || '')
     : '';
 
   // Format appointment date

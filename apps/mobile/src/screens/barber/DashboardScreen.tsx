@@ -56,15 +56,18 @@ export function DashboardScreen() {
 
   const salonId = salon?.id ?? null;
 
-  // Fetch bookings — day mode uses ?date=, month/all fetch everything
+  // Fetch bookings — day mode uses ?date= for server-side filter; month/all fetch all then filter client-side
   const { data: bookingsRaw = [], isLoading: isBookingsLoading, refetch } = useQuery<Reservation[]>({
-    queryKey: ['barber-reservations', salonId, viewMode === 'day' ? viewDate : viewMode],
+    queryKey: ['barber-reservations', salonId, viewMode === 'day' ? viewDate : 'all'],
     queryFn: async () => {
       if (!salonId) return [];
+      // Day mode: server-side date filter (fast)
+      // Month/All mode: fetch all without date filter (client-side filter below)
       const url = viewMode === 'day'
         ? `/reservations/salon/${salonId}?date=${viewDate}`
         : `/reservations/salon/${salonId}`;
-      return apiClient.get<Reservation[]>(url);
+      const data = await apiClient.get<Reservation[]>(url);
+      return data ?? [];
     },
     enabled: !!salonId,
     staleTime: 0,
@@ -113,18 +116,43 @@ export function DashboardScreen() {
     return `${String(t.getUTCHours()).padStart(2, '0')}:${String(t.getUTCMinutes()).padStart(2, '0')}`;
   };
 
-  // Period navigation helpers
-  const goToPrevDay  = () => { const d = new Date(viewDate + 'T00:00:00'); d.setDate(d.getDate() - 1); setViewDate(d.toISOString().split('T')[0]); };
-  const goToNextDay  = () => { const d = new Date(viewDate + 'T00:00:00'); d.setDate(d.getDate() + 1); setViewDate(d.toISOString().split('T')[0]); };
-  const goToPrevMonth = () => { const [y, m] = viewMonth.split('-').map(Number); const d = new Date(y, m - 2, 1); setViewMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`); };
-  const goToNextMonth = () => { const [y, m] = viewMonth.split('-').map(Number); const d = new Date(y, m, 1); setViewMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`); };
+  // Period navigation helpers — parse without UTC shift
+  const goToPrevDay  = useCallback(() => {
+    setViewDate((prev) => {
+      const [y, m, d] = prev.split('-').map(Number);
+      const dt = new Date(y, m - 1, d - 1);
+      return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+    });
+  }, []);
+  const goToNextDay  = useCallback(() => {
+    setViewDate((prev) => {
+      const [y, m, d] = prev.split('-').map(Number);
+      const dt = new Date(y, m - 1, d + 1);
+      return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+    });
+  }, []);
+  const goToPrevMonth = useCallback(() => {
+    setViewMonth((prev) => {
+      const [y, m] = prev.split('-').map(Number);
+      const dt = new Date(y, m - 2, 1);
+      return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`;
+    });
+  }, []);
+  const goToNextMonth = useCallback(() => {
+    setViewMonth((prev) => {
+      const [y, m] = prev.split('-').map(Number);
+      const dt = new Date(y, m, 1);
+      return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`;
+    });
+  }, []);
 
-  // Human-readable period label
+  // Human-readable period label — parse date locally to avoid UTC shift
   const periodLabel = useMemo(() => {
     if (viewMode === 'day') {
-      const d = new Date(viewDate + 'T00:00:00');
+      const [y, m, d] = viewDate.split('-').map(Number);
+      const dt = new Date(y, m - 1, d);
       if (viewDate === today()) return "Aujourd'hui";
-      return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+      return dt.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
     }
     if (viewMode === 'month') {
       const [y, m] = viewMonth.split('-').map(Number);
@@ -540,7 +568,7 @@ export function DashboardScreen() {
   }, [unblockTime]);
 
   // Render a CRÉNEAU BLOQUÉ item as a distinct locked card
-  const renderBlockedItem = ({ item }: { item: any }) => (
+  const renderBlockedItem = ({ item }: { item: Record<string, unknown> }) => (
     <View style={styles.blockedCard}>
       <View style={styles.blockedLeft}>
         <View style={styles.blockedIconWrap}>
@@ -571,7 +599,7 @@ export function DashboardScreen() {
     </View>
   );
 
-  const renderBookingItem = ({ item }: { item: any }) => {
+  const renderBookingItem = ({ item }: { item: Record<string, unknown> }) => {
     const client = item.profiles;
     const service = item.services;
 

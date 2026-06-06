@@ -14,7 +14,7 @@ const Tab = createBottomTabNavigator();
 export function AdminTabNavigator() {
   return (
     <Tab.Navigator
-      screenOptions={({ route }: { route: any }) => ({
+      screenOptions={({ route }: { route: Record<string, unknown> }) => ({
         headerShown: false,
         tabBarStyle: {
           backgroundColor: colors.carbon,
