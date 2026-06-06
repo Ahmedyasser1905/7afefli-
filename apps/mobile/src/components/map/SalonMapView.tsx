@@ -78,16 +78,18 @@ export function SalonMapView({
   // ── Inject salons when map is ready or salons change ──
   useEffect(() => {
     if (!mapReady || !webViewRef.current) return;
+    const encoded = encodeURIComponent(serializedSalons);
     webViewRef.current.injectJavaScript(
-      `if(window.updateSalons){window.updateSalons(JSON.parse(${JSON.stringify(serializedSalons)}));}true;`
+      `if(window.updateSalons){window.updateSalons(JSON.parse(decodeURIComponent("${encoded}")));}true;`
     );
   }, [serializedSalons, mapReady]);
 
   // ── Inject selection when active salon changes ──
   useEffect(() => {
     if (!mapReady || !selectedSalonId || !webViewRef.current) return;
+    const encodedId = encodeURIComponent(JSON.stringify(selectedSalonId));
     webViewRef.current.injectJavaScript(
-      `if(window.selectSalon){window.selectSalon(${JSON.stringify(selectedSalonId)});}true;`
+      `if(window.selectSalon){window.selectSalon(JSON.parse(decodeURIComponent("${encodedId}")));}true;`
     );
   }, [selectedSalonId, mapReady]);
 
