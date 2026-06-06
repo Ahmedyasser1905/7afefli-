@@ -1,6 +1,8 @@
 -- Migration: Create find_nearby_salons RPC function
 -- Purpose: Find approved salons near user coordinates sorted by sponsorship status and distance.
 
+DROP FUNCTION IF EXISTS find_nearby_salons(double precision, double precision, double precision, integer);
+
 CREATE OR REPLACE FUNCTION find_nearby_salons(
   user_lat double precision,
   user_lng double precision,
@@ -31,6 +33,7 @@ RETURNS TABLE (
   created_at timestamp with time zone,
   updated_at timestamp with time zone,
   force_closed boolean,
+  is_manually_closed boolean,
   image_url TEXT,
   distance_meters double precision
 )
@@ -62,6 +65,7 @@ BEGIN
     s.created_at,
     s.updated_at,
     s.force_closed,
+    s.is_manually_closed,
     s.image_url,
     ST_Distance(
       ST_SetSRID(ST_MakePoint(user_lng, user_lat), 4326)::geography,

@@ -190,7 +190,7 @@ export function AdminDashboardScreen() {
             {item.open_time?.substring(0, 5) || '—'} - {item.close_time?.substring(0, 5) || '—'}
           </Text>
         </View>
-        {item.force_closed && (
+        {item.is_manually_closed && (
           <View style={styles.metaItem}>
             <Ionicons name="lock-closed" size={14} color={colors.error} />
             <Text style={[styles.metaText, { color: colors.error }]}>Fermé</Text>
