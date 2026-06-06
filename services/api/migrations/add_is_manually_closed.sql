@@ -1,4 +1,4 @@
--- Migration: Add is_manually_closed to salons and update create_reservation_safe RPC
+-- Migration: Add is_manually_closed to salons and update create_reservation_safe RPC & check_reservation_overlap trigger
 
 -- Add column
 ALTER TABLE salons
@@ -72,5 +72,85 @@ BEGIN
   ) RETURNING * INTO v_reservation;
   
   RETURN row_to_json(v_reservation);
+END;
+$function$;
+
+-- Update check_reservation_overlap trigger function to check is_manually_closed
+CREATE OR REPLACE FUNCTION public.check_reservation_overlap()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+  conflict_count INTEGER;
+  is_block       BOOLEAN;
+BEGIN
+  -- Skip overlap check if reservation is being cancelled
+  IF NEW.status = 'Cancelled' THEN
+    RETURN NEW;
+  END IF;
+
+  -- Check if the salon is manually closed
+  IF EXISTS (
+    SELECT 1 FROM public.salons
+    WHERE id = NEW.salon_id AND is_manually_closed = true
+  ) THEN
+    RAISE EXCEPTION 'booking_conflict: Ce salon est temporairement fermé.' USING ERRCODE = 'P0001';
+  END IF;
+
+  -- Detect if the new record is a barber-initiated block
+  is_block := (NEW.notes IS NOT NULL AND NEW.notes ILIKE '%NEAU BLOQU%');
+
+  IF is_block THEN
+    -- For blocks: only conflict with REAL client reservations (not other blocks)
+    SELECT COUNT(*)
+    INTO conflict_count
+    FROM public.reservations
+    WHERE
+      salon_id = NEW.salon_id
+      AND appointment_date = NEW.appointment_date
+      AND status IN ('Confirmed', 'Pending')
+      AND (notes IS NULL OR notes NOT ILIKE '%NEAU BLOQU%')
+      AND id != COALESCE(NEW.id, gen_random_uuid())
+      AND (
+        (NEW.staff_id IS NOT NULL AND staff_id = NEW.staff_id)
+        OR
+        (NEW.barber_id IS NOT NULL AND barber_id = NEW.barber_id)
+        OR
+        (NEW.staff_id IS NULL AND NEW.barber_id IS NULL AND staff_id IS NULL AND barber_id IS NULL)
+      )
+      AND NEW.start_time < end_time
+      AND NEW.end_time > start_time;
+
+    IF conflict_count > 0 THEN
+      RAISE EXCEPTION 'booking_conflict: Ce créneau a une réservation client active. Impossible de le bloquer.' USING ERRCODE = 'P0001';
+    END IF;
+
+    RETURN NEW;
+  END IF;
+
+  -- Normal client reservation: conflicts with any active reservation OR block
+  SELECT COUNT(*)
+  INTO conflict_count
+  FROM public.reservations
+  WHERE
+    salon_id = NEW.salon_id
+    AND appointment_date = NEW.appointment_date
+    AND status IN ('Confirmed', 'Pending')
+    AND id != COALESCE(NEW.id, gen_random_uuid())
+    AND (
+      (NEW.staff_id IS NOT NULL AND staff_id = NEW.staff_id)
+      OR
+      (NEW.barber_id IS NOT NULL AND barber_id = NEW.barber_id)
+      OR
+      (NEW.staff_id IS NULL AND NEW.barber_id IS NULL AND staff_id IS NULL AND barber_id IS NULL)
+    )
+    AND NEW.start_time < end_time
+    AND NEW.end_time > start_time;
+
+  IF conflict_count > 0 THEN
+    RAISE EXCEPTION 'booking_conflict: Ce créneau est déjà réservé ou bloqué.' USING ERRCODE = 'P0001';
+  END IF;
+
+  RETURN NEW;
 END;
 $function$;

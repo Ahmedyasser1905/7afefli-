@@ -8,6 +8,7 @@ Ce document présente l'audit et le rapport d'implémentation pour la logique d'
 
 ### Base de données (Supabase / Postgres)
 * **RPC Database** : Mise à jour de la fonction `create_reservation_safe`
+* **Trigger Database** : Mise à jour de la fonction trigger `check_reservation_overlap`
 * **Migration SQL** : [add_is_manually_closed.sql](file:///c:/Users/dz%20laptops/Desktop/projets/Barber/services/api/migrations/add_is_manually_closed.sql)
 
 ### Shared Packages
@@ -51,6 +52,7 @@ La logique d'état des salons est centralisée sur le backend et renvoie de mani
    * `ReservationsService.create` intercepte et rejette la réservation avec une `BadRequestException` si `is_manually_closed` est vrai.
 3. **Vérification Base de Données (Postgres)** :
    * L'advisory lock et l'insertion sécurisée via la fonction RPC `create_reservation_safe` vérifient le flag `is_manually_closed` directement dans la table `salons` et déclenchent une exception Postgres si le salon est fermé.
+   * La fonction trigger `check_reservation_overlap` intercepte également tout insert/update physique direct (hors RPC) et lève une exception `booking_conflict` si `is_manually_closed` est vrai, garantissant une intégrité absolue au niveau de la donnée.
 
 ---
 
@@ -68,7 +70,7 @@ L'ordre de priorité appliqué à tout moment est :
 ### Supabase
 * Ajout d'une colonne `is_manually_closed` (BOOLEAN DEFAULT FALSE) sur la table `salons`.
 * Création de l'index `idx_salons_is_manually_closed` pour optimiser le filtrage.
-* Modification de la fonction `create_reservation_safe` pour lever une exception Postgres en cas de fermeture manuelle.
+* Modification de la fonction `create_reservation_safe` et de la fonction trigger `check_reservation_overlap` pour lever des exceptions Postgres en cas de fermeture manuelle.
 
 ### Backend
 * Centralisation de la logique horaire et du fuseau horaire algérien dans `salons.service.ts` via le helper `enrichSalon`.
@@ -87,6 +89,8 @@ L'ordre de priorité appliqué à tout moment est :
    * *Correction* : Si le salon est 24H, la timeline force automatiquement `openHour = 0` et `closeHour = 24`.
 2. **Doublons de validation** : Les clients pouvaient auparavant bypasser l'interface web/mobile pour réserver en dehors des heures de travail car le backend ne validait pas les jours et heures de travail au moment de la création physique de la réservation.
    * *Correction* : La fonction Postgres `create_reservation_safe` et le backend bloquent désormais de façon étanche toute réservation si le salon est fermé manuellement.
+3. **Contournement de la sécurité de données** : Si un insert direct était fait sans appeler le RPC, le salon fermé manuellement pouvait accepter la réservation.
+   * *Correction* : Ajout de la validation de fermeture manuelle directement dans le trigger Postgres `check_reservation_overlap` s'exécutant sur chaque insert/update physique de la table `reservations`.
 
 ---
 
@@ -94,4 +98,4 @@ L'ordre de priorité appliqué à tout moment est :
 
 * **Build NestJS** : Vérifié sans erreur (`npm run build` OK).
 * **Compilation TypeScript** : Compilé avec succès sur le frontend mobile (`npx tsc --noEmit` OK).
-* **Validation SQL** : Migration appliquée avec succès sur la base Supabase et vérification de la structure et des index.
+* **Validation SQL** : Migration appliquée avec succès sur la base Supabase et vérification de la structure, des index et du déclenchement des triggers Postgres.
