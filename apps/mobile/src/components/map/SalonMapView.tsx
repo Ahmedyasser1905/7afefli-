@@ -260,7 +260,7 @@ function initMapLibre(){
           var dirBtn=HAS_USER?'<button class="p-btn p-dir" onclick="mglRoute('+s.lng+','+s.lat+')">Itin\u00e9raire</button>':'';
           new maplibregl.Popup({offset:18,closeButton:true,maxWidth:'240px'})
             .setLngLat([s.lng,s.lat])
-            .setHTML('<div class="p-name">'+s.name+'</div><div class="p-info">\u2B50 '+s.rating+' \u00B7 '+s.wilaya+'</div><div class="p-actions"><button class="p-btn p-view" onclick="safePostMessage(JSON.stringify({type:\'SALON_PRESS\', salonId:\''+s.id+'\'}))">Voir salon</button>'+dirBtn+'</div>')
+            .setHTML('<div class="p-name">'+s.name+'</div><div class="p-info">\u2B50 '+s.rating+' \u00B7 '+s.wilaya+'</div><div class="p-actions"><button class="p-btn p-view" onclick="safePostMessage(JSON.stringify({type:\\\'SALON_PRESS\\\', salonId:\\\''+s.id+'\\\'}))">Voir salon</button>'+dirBtn+'</div>')
             .addTo(map);
         };
         var m = new maplibregl.Marker({element:el,anchor:'center'}).setLngLat([s.lng,s.lat]).addTo(map);
@@ -282,7 +282,7 @@ function initMapLibre(){
       var dirBtn=HAS_USER?'<button class="p-btn p-dir" onclick="mglRoute('+s.lng+','+s.lat+')">Itin\u00e9raire</button>':'';
       new maplibregl.Popup({offset:18,closeButton:true,maxWidth:'240px'})
         .setLngLat([s.lng,s.lat])
-        .setHTML('<div class="p-name">'+s.name+'</div><div class="p-info">\u2B50 '+s.rating+' \u00B7 '+s.wilaya+'</div><div class="p-actions"><button class="p-btn p-view" onclick="safePostMessage(JSON.stringify({type:\'SALON_PRESS\', salonId:\''+s.id+'\'}))">Voir salon</button>'+dirBtn+'</div>')
+        .setHTML('<div class="p-name">'+s.name+'</div><div class="p-info">\u2B50 '+s.rating+' \u00B7 '+s.wilaya+'</div><div class="p-actions"><button class="p-btn p-view" onclick="safePostMessage(JSON.stringify({type:\\\'SALON_PRESS\\\', salonId:\\\''+s.id+'\\\'}))">Voir salon</button>'+dirBtn+'</div>')
         .addTo(map);
     };
 
@@ -344,7 +344,7 @@ function initLeaflet(){
 
         DATA.forEach(function(s){
           var dirBtn=HAS_USER?'<button class="p-btn p-dir" onclick="lfRoute('+s.lng+','+s.lat+')">Itin\u00e9raire</button>':'';
-          var popup='<div class="p-name">'+s.name+'</div><div class="p-info">\u2B50 '+s.rating+' \u00B7 '+s.wilaya+'</div><div class="p-actions"><button class="p-btn p-view" onclick="safePostMessage(JSON.stringify({type:\'SALON_PRESS\', salonId:\''+s.id+'\'}))">Voir salon</button>'+dirBtn+'</div>';
+          var popup='<div class="p-name">'+s.name+'</div><div class="p-info">\u2B50 '+s.rating+' \u00B7 '+s.wilaya+'</div><div class="p-actions"><button class="p-btn p-view" onclick="safePostMessage(JSON.stringify({type:\\\'SALON_PRESS\\\', salonId:\\\''+s.id+'\\\'}))">Voir salon</button>'+dirBtn+'</div>';
           
           var m = L.marker([s.lat,s.lng],{icon:icon}).addTo(map).bindPopup(popup,{maxWidth:240});
           m.on('click', function(){
