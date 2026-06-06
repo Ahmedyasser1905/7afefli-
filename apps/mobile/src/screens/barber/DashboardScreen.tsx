@@ -338,18 +338,18 @@ export function DashboardScreen() {
   }, [updateStatus]);
 
   const toggleSalonStatus = useMutation({
-    mutationFn: async (forceClosed: boolean) => {
-      await apiClient.patch(`/salons/${salonId}`, { force_closed: forceClosed });
+    mutationFn: async (isClosed: boolean) => {
+      await apiClient.patch(`/salons/${salonId}`, { is_manually_closed: isClosed });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['barber-salon'] });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     },
-    onError: (error) => {
+    onError: (error: any) => {
       Toast.show({
         type: 'error',
         text1: 'Erreur',
-        text2: error.message
+        text2: error.message || 'Erreur lors du changement de statut'
       });
     }
   });
@@ -384,8 +384,8 @@ export function DashboardScreen() {
             </View>
           </View>
           <TouchableOpacity
-            style={[styles.statusToggleButton, salon?.force_closed ? styles.statusClosed : styles.statusOpen]}
-            onPress={() => toggleSalonStatus.mutate(!salon?.force_closed)}
+            style={[styles.statusToggleButton, salon?.is_manually_closed ? styles.statusClosed : styles.statusOpen]}
+            onPress={() => toggleSalonStatus.mutate(!salon?.is_manually_closed)}
             disabled={toggleSalonStatus.isPending}
             activeOpacity={0.8}
           >
@@ -395,7 +395,7 @@ export function DashboardScreen() {
               <>
                 <View style={[styles.statusToggleDot, { backgroundColor: colors.ink }]} />
                 <Text style={styles.statusToggleText}>
-                  {salon?.force_closed ? 'Fermé' : 'Ouvert'}
+                  {salon?.is_manually_closed ? 'Fermé' : 'Ouvert'}
                 </Text>
               </>
             )}
@@ -403,7 +403,7 @@ export function DashboardScreen() {
         </View>
 
         {/* Salon Closed Banner */}
-        {salon?.force_closed && (
+        {salon?.is_manually_closed && (
           <View style={{ backgroundColor: 'rgba(239,68,68,0.15)', borderRadius: radius.md, padding: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md }}>
             <Ionicons name="close-circle" size={20} color="#EF4444" />
             <Text style={{ fontFamily: 'DMSans_500Medium', fontSize: 13, color: '#EF4444', flex: 1 }}>SALON FERMÉ — Les clients ne peuvent pas réserver</Text>

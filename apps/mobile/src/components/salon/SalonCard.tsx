@@ -16,6 +16,49 @@ const DEFAULT_THUMB = 'https://images.unsplash.com/photo-1621605815971-fbc98d665
 export const SalonCard = React.memo(function SalonCard({ salon, onPress, selected }: SalonCardProps) {
   const displayImage = salon.image_url || (salon.is_sponsored ? DEFAULT_COVER : DEFAULT_THUMB);
 
+  const renderStatusBadge = (statusLabel?: string) => {
+    let text = 'Fermé';
+    let dotColor = '#EF4444';
+    let textColor = '#EF4444';
+    let bgColor = 'rgba(239, 68, 68, 0.12)';
+
+    if (statusLabel === 'manually_closed') {
+      text = 'Fermeture temporaire';
+      dotColor = '#F59E0B'; // Orange
+      textColor = '#F59E0B';
+      bgColor = 'rgba(245, 158, 11, 0.12)';
+    } else if (statusLabel === 'open_24h') {
+      text = '24H/24';
+      dotColor = '#10B981'; // Green
+      textColor = '#10B981';
+      bgColor = 'rgba(16, 185, 129, 0.12)';
+    } else if (statusLabel === 'open' || salon.is_currently_open) {
+      text = 'Ouvert';
+      dotColor = '#10B981'; // Green
+      textColor = '#10B981';
+      bgColor = 'rgba(16, 185, 129, 0.12)';
+    }
+
+    return (
+      <View style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: bgColor,
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 4,
+        alignSelf: 'flex-start',
+        gap: 5,
+        marginTop: 4
+      }}>
+        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: dotColor }} />
+        <Text style={{ fontFamily: 'DMSans_700Bold', fontSize: 10, color: textColor, textTransform: 'uppercase' }}>
+          {text}
+        </Text>
+      </View>
+    );
+  };
+
   if (salon.is_sponsored) {
     // Sponsored Card (Large Hero style)
     return (
@@ -58,6 +101,7 @@ export const SalonCard = React.memo(function SalonCard({ salon, onPress, selecte
                 {salon.address || `${salon.wilaya}, Algérie`}
               </Text>
             </View>
+            {renderStatusBadge(salon.status_label)}
           </View>
           <View style={styles.heroRatingContainer}>
             <Ionicons name="star" size={14} color={colors.amber} style={{ marginRight: 2 }} />
@@ -96,6 +140,7 @@ export const SalonCard = React.memo(function SalonCard({ salon, onPress, selecte
         <Text style={styles.regularDescription} numberOfLines={1}>
           {salon.address || `${salon.wilaya}, Algérie`}
         </Text>
+        {renderStatusBadge(salon.status_label)}
 
         <View style={styles.regularBottomRow}>
           <Text style={styles.distanceLabel}>
@@ -234,7 +279,7 @@ const styles = StyleSheet.create({
   regularInfo: {
     flex: 1,
     justifyContent: 'space-between',
-    height: 80,
+    minHeight: 80,
   },
   regularTopRow: {
     flexDirection: 'row',

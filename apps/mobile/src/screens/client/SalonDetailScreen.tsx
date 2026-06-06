@@ -107,20 +107,9 @@ export function SalonDetailScreen() {
   }
 
   // Open hours status
-  const now = new Date();
-  const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   const openTimeStr = salon.open_time ? salon.open_time.substring(0, 5) : '09:00';
   const closeTimeStr = salon.close_time ? salon.close_time.substring(0, 5) : '20:00';
-  
-  let isTimeOpen = false;
-  if (openTimeStr < closeTimeStr) {
-    isTimeOpen = currentTime >= openTimeStr && currentTime < closeTimeStr;
-  } else {
-    // Spans midnight (e.g. 11:00 to 00:00 or 20:00 to 02:00)
-    isTimeOpen = currentTime >= openTimeStr || currentTime < closeTimeStr;
-  }
-  
-  const isOpen = !salon.force_closed && isTimeOpen;
+  const isOpen = !!salon.is_currently_open;
 
   const displayCover = salon.image_url || DEFAULT_COVER;
 
@@ -184,12 +173,44 @@ export function SalonDetailScreen() {
           <View style={styles.infoCard}>
             <View style={styles.infoTitleRow}>
               <Text style={styles.salonName}>{salon.name}</Text>
-              <View style={[styles.statusBadge, isOpen ? styles.statusBadgeOpen : styles.statusBadgeClosed]}>
-                <View style={[styles.statusDot, isOpen ? styles.dotGreen : styles.dotRed]} />
-                <Text style={[styles.statusText, isOpen ? styles.textGreen : styles.textRed]}>
-                  {isOpen ? `Ouvert • Ferme à ${closeTimeStr}` : (salon.force_closed ? 'Fermé exceptionnellement' : 'Fermé')}
-                </Text>
-              </View>
+              {(() => {
+                const label = salon.status_label;
+                let text = 'Fermé';
+                let dotStyle = styles.dotRed;
+                let textStyle = styles.textRed;
+                let badgeStyle = styles.statusBadgeClosed;
+
+                if (label === 'manually_closed') {
+                  text = 'Fermeture temporaire';
+                  dotStyle = styles.dotOrange;
+                  textStyle = styles.textOrange;
+                  badgeStyle = styles.statusBadgeWarning;
+                } else if (label === 'open_24h') {
+                  text = '24H/24';
+                  dotStyle = styles.dotGreen;
+                  textStyle = styles.textGreen;
+                  badgeStyle = styles.statusBadgeOpen;
+                } else if (label === 'open') {
+                  text = `Ouvert • Ferme à ${closeTimeStr}`;
+                  dotStyle = styles.dotGreen;
+                  textStyle = styles.textGreen;
+                  badgeStyle = styles.statusBadgeOpen;
+                } else {
+                  text = `Fermé • Ouvre à ${openTimeStr}`;
+                  dotStyle = styles.dotRed;
+                  textStyle = styles.textRed;
+                  badgeStyle = styles.statusBadgeClosed;
+                }
+
+                return (
+                  <View style={[styles.statusBadge, badgeStyle]}>
+                    <View style={[styles.statusDot, dotStyle]} />
+                    <Text style={[styles.statusText, textStyle]}>
+                      {text}
+                    </Text>
+                  </View>
+                );
+              })()}
             </View>
 
             <View style={styles.infoMetaRow}>
@@ -352,14 +373,21 @@ export function SalonDetailScreen() {
           <Text style={styles.priceLabel}>Prix Estimé</Text>
           <Text style={styles.priceValue}>{estimatedPrice} DZD</Text>
         </View>
-        <TouchableOpacity
-          style={[styles.bookButton, selectedServices.size === 0 && styles.bookButtonDisabled]}
-          onPress={handleBookingPress}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.bookButtonText}>Continuer</Text>
-          <Ionicons name="arrow-forward" size={20} color={colors.ink} style={{ marginLeft: spacing.sm }} />
-        </TouchableOpacity>
+        {salon.is_manually_closed ? (
+          <View style={[styles.bookButton, styles.bookButtonDisabled, { flexDirection: 'row', gap: 6, opacity: 0.8 }]}>
+            <Ionicons name="close-circle-outline" size={20} color={colors.ink} />
+            <Text style={styles.bookButtonText}>Salon temporairement fermé</Text>
+          </View>
+        ) : (
+          <TouchableOpacity
+            style={[styles.bookButton, selectedServices.size === 0 && styles.bookButtonDisabled]}
+            onPress={handleBookingPress}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.bookButtonText}>Continuer</Text>
+            <Ionicons name="arrow-forward" size={20} color={colors.ink} style={{ marginLeft: spacing.sm }} />
+          </TouchableOpacity>
+        )}
       </View>
     </View>
 
@@ -477,6 +505,9 @@ const styles = StyleSheet.create({
   statusBadgeClosed: {
     backgroundColor: 'rgba(231, 76, 60, 0.12)',
   },
+  statusBadgeWarning: {
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+  },
   statusDot: {
     width: 6,
     height: 6,
@@ -489,6 +520,9 @@ const styles = StyleSheet.create({
   dotRed: {
     backgroundColor: colors.error,
   },
+  dotOrange: {
+    backgroundColor: '#F59E0B',
+  },
   statusText: {
     fontFamily: 'DMSans_700Bold',
     fontSize: 11,
@@ -498,6 +532,9 @@ const styles = StyleSheet.create({
   },
   textRed: {
     color: colors.error,
+  },
+  textOrange: {
+    color: '#F59E0B',
   },
   infoMetaRow: {
     marginTop: spacing.md,

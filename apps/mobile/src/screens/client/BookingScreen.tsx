@@ -160,6 +160,27 @@ export function BookingScreen() {
     );
   }
 
+  if (salon && salon.is_manually_closed) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.headerBar}>
+          <TouchableOpacity style={styles.backButton} onPress={handleBackPress} activeOpacity={0.7}>
+            <Ionicons name="arrow-back" size={24} color={colors.amber} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Réservation</Text>
+          <View style={{ width: 40 }} />
+        </View>
+        <View style={[styles.emptyState, { flex: 1, justifyContent: 'center' }]}>
+          <Ionicons name="close-circle-outline" size={64} color="#EF4444" />
+          <Text style={[styles.emptyTitle, { marginTop: spacing.md }]}>Salon temporairement fermé</Text>
+          <Text style={[styles.emptySubtitle, { marginHorizontal: spacing.xl }]}>
+            Ce salon n'accepte pas de réservations actuellement car il est temporairement fermé. Veuillez réessayer plus tard.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   const STEPS = ['Service', 'Date', 'Barbier', 'Créneau'];
 
   return (

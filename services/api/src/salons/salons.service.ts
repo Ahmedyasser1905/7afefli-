@@ -9,6 +9,66 @@ import { UpdateSalonDto } from './dto/update-salon.dto';
 export class SalonsService {
   constructor(private readonly supabase: SupabaseService) {}
 
+  private enrichSalon(salon: any) {
+    if (!salon) return salon;
+
+    const open = salon.open_time ? salon.open_time.slice(0, 5) : null;
+    const close = salon.close_time ? salon.close_time.slice(0, 5) : null;
+
+    const is_open_24h = (open === '00:00' && close === '00:00') || (open !== null && open === close);
+    const is_manually_closed = !!salon.is_manually_closed;
+
+    let is_currently_open = false;
+
+    if (is_manually_closed) {
+      is_currently_open = false;
+    } else if (is_open_24h) {
+      is_currently_open = true;
+    } else {
+      // Normal schedule check in local Algeria time (UTC+1)
+      const today = new Date();
+      const utc = today.getTime() + today.getTimezoneOffset() * 60000;
+      const algeriaTime = new Date(utc + 3600000); // UTC+1
+      const currentDay = algeriaTime.getDay(); // 0=Sun, 1=Mon...
+      const currentTimeStr = `${String(algeriaTime.getHours()).padStart(2, '0')}:${String(algeriaTime.getMinutes()).padStart(2, '0')}`;
+
+      const isWorkingDay = salon.working_days ? salon.working_days.includes(currentDay) : true;
+
+      if (isWorkingDay && open && close) {
+        if (close < open) {
+          is_currently_open = currentTimeStr >= open || currentTimeStr < close;
+        } else {
+          is_currently_open = currentTimeStr >= open && currentTimeStr < close;
+        }
+      } else {
+        is_currently_open = false;
+      }
+    }
+
+    let status_label: 'open' | 'closed' | 'open_24h' | 'manually_closed' = 'closed';
+    if (is_manually_closed) {
+      status_label = 'manually_closed';
+    } else if (is_open_24h) {
+      status_label = 'open_24h';
+    } else if (is_currently_open) {
+      status_label = 'open';
+    } else {
+      status_label = 'closed';
+    }
+
+    return {
+      ...salon,
+      is_open_24h,
+      is_currently_open,
+      status_label,
+    };
+  }
+
+  private enrichSalons(salons: any[]) {
+    if (!salons) return salons;
+    return salons.map(s => this.enrichSalon(s));
+  }
+
   /**
    * List approved salons with optional filtering.
    */
@@ -48,7 +108,7 @@ export class SalonsService {
 
     if (error) throw new InternalServerErrorException(`Failed to fetch salons: ${error.message}`);
 
-    return data;
+    return this.enrichSalons(data);
   }
 
   /**
@@ -75,10 +135,10 @@ export class SalonsService {
         .limit(limit);
 
       if (fallbackError) throw new InternalServerErrorException(`Failed to fetch nearby salons: ${fallbackError.message}`);
-      return fallbackData;
+      return this.enrichSalons(fallbackData);
     }
 
-    return data;
+    return this.enrichSalons(data);
   }
 
   /**
@@ -102,7 +162,7 @@ export class SalonsService {
       throw new NotFoundException(`Salon with ID ${id} not found`);
     }
 
-    return data;
+    return this.enrichSalon(data);
   }
 
   /**
@@ -117,7 +177,7 @@ export class SalonsService {
 
     if (error) throw new NotFoundException(`Error fetching salon for owner ${ownerId}`);
     if (!data) throw new NotFoundException(`Salon for owner ${ownerId} not found`);
-    return data;
+    return this.enrichSalon(data);
   }
 
   /**
@@ -146,7 +206,7 @@ export class SalonsService {
       .single();
 
     if (error) throw new InternalServerErrorException(`Failed to create salon: ${error.message}`);
-    return data;
+    return this.enrichSalon(data);
   }
 
   /**
@@ -171,7 +231,7 @@ export class SalonsService {
       .single();
 
     if (error) throw new InternalServerErrorException(`Failed to update salon: ${error.message}`);
-    return data;
+    return this.enrichSalon(data);
   }
 
   /**

@@ -23,6 +23,10 @@ export interface Salon {
   average_rating: number;
   total_reviews: number;
   force_closed: boolean;
+  is_manually_closed: boolean;
+  is_open_24h?: boolean;
+  is_currently_open?: boolean;
+  status_label?: 'open' | 'closed' | 'open_24h' | 'manually_closed';
   created_at: string;
   updated_at: string;
   image_url: string | null;

@@ -210,8 +210,9 @@ export function CalendarScreen() {
   useRealtimeBookings({ salonId });
 
   // ── Calendar timeline config (dynamic from salon hours) ───────────────────
-  const openHour = salon?.open_time ? parseInt((salon.open_time as string).split(':')[0]) : 8;
-  const rawCloseHour = salon?.close_time ? parseInt((salon.close_time as string).split(':')[0]) : 22;
+  const isOpen24h = salon?.open_time === salon?.close_time || (salon?.open_time === '00:00' && salon?.close_time === '00:00');
+  const openHour = isOpen24h ? 0 : (salon?.open_time ? parseInt((salon.open_time as string).split(':')[0]) : 8);
+  const rawCloseHour = isOpen24h ? 24 : (salon?.close_time ? parseInt((salon.close_time as string).split(':')[0]) : 22);
   const closeHour = rawCloseHour === 0 ? 24 : rawCloseHour;
   const TOTAL_HOURS = Math.max(closeHour - openHour, 1);
 

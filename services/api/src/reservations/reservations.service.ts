@@ -44,7 +44,7 @@ export class ReservationsService {
         .single(),
       this.supabase.adminClient
         .from('salons')
-        .select('owner_id, subscriptions:user_subscriptions(status, plans(*))')
+        .select('owner_id, is_manually_closed, subscriptions:user_subscriptions(status, plans(*))')
         .eq('id', dto.salonId)
         .single(),
       this.supabase.adminClient
@@ -63,6 +63,10 @@ export class ReservationsService {
     }
 
     const salonData = salonResult.data as Record<string, any>;
+    if (salonData.is_manually_closed) {
+      throw new BadRequestException("Ce salon est temporairement fermé et n'accepte pas de réservations pour le moment.");
+    }
+
     const duration = serviceResult.data.duration_minutes;
     const isStaffOrOwner = salonData.owner_id === clientId || !!staffResult.data;
 

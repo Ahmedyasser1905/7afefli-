@@ -49,7 +49,7 @@ export class SlotsService {
         .single(),
       this.supabase.adminClient
         .from('salons')
-        .select('open_time, close_time, working_days')
+        .select('open_time, close_time, working_days, is_manually_closed')
         .eq('id', salonId)
         .single(),
       this.supabase.adminClient
@@ -69,6 +69,11 @@ export class SlotsService {
     }
     if (salonResult.error || !salonResult.data) {
       throw new BadRequestException('Salon not found');
+    }
+
+    const isManuallyClosed = !!salonResult.data.is_manually_closed;
+    if (isManuallyClosed) {
+      return [];
     }
 
     const duration = serviceResult.data.duration_minutes;

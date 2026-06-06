@@ -62,4 +62,8 @@ export class UpdateSalonDto {
   @IsBoolean()
   @IsOptional()
   force_closed?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  is_manually_closed?: boolean;
 }
