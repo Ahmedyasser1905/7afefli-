@@ -102,7 +102,7 @@ export function SalonMapView({
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{width:100%;height:100%;overflow:hidden;background:#1a1a2e}
 #map{width:100%;height:100%}
-#status{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#888;font-family:sans-serif;font-size:13px;text-align:center}
+#status{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#888;font-family:sans-serif;font-size:13px;text-align:center;width:80%}
 .marker{width:32px;height:32px;background:#E8A020;border-radius:50%;border:2.5px solid #0F0F0F;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(232,160,32,0.6);cursor:pointer}
 .marker:active{opacity:0.85}
 .marker svg{width:16px;height:16px;pointer-events:none}
@@ -124,10 +124,26 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1a2e}
 .leaflet-popup-tip{border-top-color:#1a1a2e}
 .leaflet-popup-close-button{color:#666;font-size:18px}
 </style>
+<script>
+// Webview diagnostic error logging
+window.onerror = function(msg, url, line, col, error) {
+  var extra = msg + "\\nline: " + line + (col ? ", col: " + col : "");
+  if (error && error.stack) {
+    extra += "\\nstack: " + error.stack;
+  }
+  var statusDiv = document.getElementById('status');
+  if (statusDiv) {
+    statusDiv.style.display = 'block';
+    statusDiv.style.color = '#ff6b6b';
+    statusDiv.innerHTML = '<strong>Erreur JS Carte:</strong><br><pre style="text-align:left;white-space:pre-wrap;font-size:10px;margin-top:10px;color:#ff8b8b;max-height:150px;overflow:auto">' + extra + '</pre>';
+  }
+  return false;
+};
+</script>
 </head>
 <body>
 <div id="map"></div>
-<div id="status">Chargement...</div>
+<div id="status">Initialisation de la carte...</div>
 <script>
 var DATA=[];
 var ULNG=${DEFAULT_LNG};
@@ -148,7 +164,12 @@ function drawRouteOSRM(lng,lat){
 
 function loadScript(url,cb,fb){
   var s=document.createElement('script');
-  s.src=url;s.onload=cb;s.onerror=fb;
+  s.src=url;
+  s.onload=cb;
+  s.onerror=function(e) {
+    console.error("Script load error: " + url, e);
+    fb();
+  };
   document.head.appendChild(s);
 }
 function loadCSS(url){
@@ -157,22 +178,31 @@ function loadCSS(url){
 }
 
 function hasWebGL(){
-  try{var c=document.createElement('canvas');return!!(c.getContext('webgl')||c.getContext('experimental-webgl'))}catch(e){return false}
+  try{
+    var c=document.createElement('canvas');
+    var gl = c.getContext('webgl') || c.getContext('experimental-webgl');
+    return !!gl;
+  }catch(e){
+    return false;
+  }
 }
 
 if(hasWebGL()){
-  loadCSS('https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css');
-  loadScript('https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js', initMapLibre, initLeaflet);
+  loadCSS('https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.css');
+  loadScript('https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.js', initMapLibre, initLeaflet);
 } else {
   initLeaflet();
 }
 
 function initMapLibre(){
   try {
-    document.getElementById('status').style.display='none';
     var map=window.map=new maplibregl.Map({
       container:'map',
-      style:{version:8,sources:{'osm':{type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256,maxzoom:19}},layers:[{id:'osm',type:'raster',source:'osm',paint:{'raster-brightness-max':0.55,'raster-contrast':0.2,'raster-saturation':-0.5}}]},
+      style:{
+        version:8,
+        sources:{'osm':{type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256,maxzoom:19}},
+        layers:[{id:'osm',type:'raster',source:'osm',paint:{'raster-brightness-max':0.55,'raster-contrast':0.2,'raster-saturation':-0.5}}]
+      },
       center:[ULNG,ULAT],
       zoom:12,
       dragRotate:true,
@@ -181,66 +211,64 @@ function initMapLibre(){
       attributionControl:false
     });
 
-    map.on('load',function(){
-      window.updateUserLocation = function(lng, lat) {
-        ULNG = lng;
-        ULAT = lat;
-        HAS_USER = true;
-        if (userMarker) {
-          userMarker.setLngLat([lng, lat]);
-        } else {
-          var uel=document.createElement('div');uel.className='user-dot';
-          userMarker=new maplibregl.Marker({element:uel}).setLngLat([lng, lat]).addTo(map);
-        }
-      };
+    document.getElementById('status').style.display='none';
 
-      window.flyToUser = function(lng, lat) {
-        map.easeTo({center:[lng,lat],zoom:13,duration:800});
-      };
+    window.updateUserLocation = function(lng, lat) {
+      ULNG = lng;
+      ULAT = lat;
+      HAS_USER = true;
+      if (userMarker) {
+        userMarker.setLngLat([lng, lat]);
+      } else {
+        var uel=document.createElement('div');uel.className='user-dot';
+        userMarker=new maplibregl.Marker({element:uel}).setLngLat([lng, lat]).addTo(map);
+      }
+    };
 
-      window.updateSalons = function(salonsData) {
-        DATA = salonsData;
-        salonMarkers.forEach(function(m){m.remove()});
-        salonMarkers = [];
+    window.flyToUser = function(lng, lat) {
+      map.easeTo({center:[lng,lat],zoom:13,duration:800});
+    };
 
-        DATA.forEach(function(s){
-          var el=document.createElement('div');el.className='marker';el.innerHTML=scissorsSvg;
-          el.setAttribute('data-sid', s.id);
-          el.onclick=function(e){
-            e.stopPropagation();
-            window.ReactNativeWebView.postMessage(JSON.stringify({type:'MARKER_CLICK', salonId:s.id}));
-            
-            var dirBtn=HAS_USER?'<button class="p-btn p-dir" onclick="mglRoute('+s.lng+','+s.lat+')">Itin\u00e9raire</button>':'';
-            new maplibregl.Popup({offset:18,closeButton:true,maxWidth:'240px'})
-              .setLngLat([s.lng,s.lat])
-              .setHTML('<div class="p-name">'+s.name+'</div><div class="p-info">\u2B50 '+s.rating+' \u00B7 '+s.wilaya+'</div><div class="p-actions"><button class="p-btn p-view" onclick="window.ReactNativeWebView.postMessage(JSON.stringify({type:\'SALON_PRESS\', salonId:\''+s.id+'\'}))">Voir salon</button>'+dirBtn+'</div>')
-              .addTo(map);
-          };
-          var m = new maplibregl.Marker({element:el,anchor:'center'}).setLngLat([s.lng,s.lat]).addTo(map);
-          salonMarkers.push(m);
-        });
+    window.updateSalons = function(salonsData) {
+      DATA = salonsData || [];
+      salonMarkers.forEach(function(m){m.remove()});
+      salonMarkers = [];
 
-        if(DATA.length>0){
-          var b=new maplibregl.LngLatBounds([DATA[0].lng,DATA[0].lat],[DATA[0].lng,DATA[0].lat]);
-          DATA.forEach(function(s){b.extend([s.lng,s.lat])});
-          map.fitBounds(b,{padding:50,maxZoom:14});
-        }
-      };
+      DATA.forEach(function(s){
+        var el=document.createElement('div');el.className='marker';el.innerHTML=scissorsSvg;
+        el.setAttribute('data-sid', s.id);
+        el.onclick=function(e){
+          e.stopPropagation();
+          window.ReactNativeWebView.postMessage(JSON.stringify({type:'MARKER_CLICK', salonId:s.id}));
+          
+          var dirBtn=HAS_USER?'<button class="p-btn p-dir" onclick="mglRoute('+s.lng+','+s.lat+')">Itin\u00e9raire</button>':'';
+          new maplibregl.Popup({offset:18,closeButton:true,maxWidth:'240px'})
+            .setLngLat([s.lng,s.lat])
+            .setHTML('<div class="p-name">'+s.name+'</div><div class="p-info">\u2B50 '+s.rating+' \u00B7 '+s.wilaya+'</div><div class="p-actions"><button class="p-btn p-view" onclick="window.ReactNativeWebView.postMessage(JSON.stringify({type:\'SALON_PRESS\', salonId:\''+s.id+'\'}))">Voir salon</button>'+dirBtn+'</div>')
+            .addTo(map);
+        };
+        var m = new maplibregl.Marker({element:el,anchor:'center'}).setLngLat([s.lng,s.lat]).addTo(map);
+        salonMarkers.push(m);
+      });
 
-      window.selectSalon = function(salonId) {
-        var s = DATA.find(function(item){return item.id === salonId;});
-        if(!s) return;
-        map.easeTo({center:[s.lng,s.lat],zoom:14,duration:600});
-        
-        var dirBtn=HAS_USER?'<button class="p-btn p-dir" onclick="mglRoute('+s.lng+','+s.lat+')">Itin\u00e9raire</button>':'';
-        new maplibregl.Popup({offset:18,closeButton:true,maxWidth:'240px'})
-          .setLngLat([s.lng,s.lat])
-          .setHTML('<div class="p-name">'+s.name+'</div><div class="p-info">\u2B50 '+s.rating+' \u00B7 '+s.wilaya+'</div><div class="p-actions"><button class="p-btn p-view" onclick="window.ReactNativeWebView.postMessage(JSON.stringify({type:\'SALON_PRESS\', salonId:\''+s.id+'\'}))">Voir salon</button>'+dirBtn+'</div>')
-          .addTo(map);
-      };
+      if(DATA.length>0){
+        var b=new maplibregl.LngLatBounds([DATA[0].lng,DATA[0].lat],[DATA[0].lng,DATA[0].lat]);
+        DATA.forEach(function(s){b.extend([s.lng,s.lat])});
+        map.fitBounds(b,{padding:50,maxZoom:14});
+      }
+    };
 
-      window.ReactNativeWebView.postMessage('MAP_READY');
-    });
+    window.selectSalon = function(salonId) {
+      var s = DATA.find(function(item){return item.id === salonId;});
+      if(!s) return;
+      map.easeTo({center:[s.lng,s.lat],zoom:14,duration:600});
+      
+      var dirBtn=HAS_USER?'<button class="p-btn p-dir" onclick="mglRoute('+s.lng+','+s.lat+')">Itin\u00e9raire</button>':'';
+      new maplibregl.Popup({offset:18,closeButton:true,maxWidth:'240px'})
+        .setLngLat([s.lng,s.lat])
+        .setHTML('<div class="p-name">'+s.name+'</div><div class="p-info">\u2B50 '+s.rating+' \u00B7 '+s.wilaya+'</div><div class="p-actions"><button class="p-btn p-view" onclick="window.ReactNativeWebView.postMessage(JSON.stringify({type:\'SALON_PRESS\', salonId:\''+s.id+'\'}))">Voir salon</button>'+dirBtn+'</div>')
+        .addTo(map);
+    };
 
     window.mglRoute=function(lng,lat){
       if(!HAS_USER)return;
@@ -254,6 +282,8 @@ function initMapLibre(){
         map.fitBounds(rb,{padding:60,maxZoom:15});
       });
     };
+
+    window.ReactNativeWebView.postMessage('MAP_READY');
   } catch(e) {
     console.error(e);
     initLeaflet();
@@ -261,70 +291,88 @@ function initMapLibre(){
 }
 
 function initLeaflet(){
-  loadCSS('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
-  loadScript('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',function(){
-    document.getElementById('status').style.display='none';
-    var map=window.map=L.map('map',{center:[ULAT,ULNG],zoom:12,zoomControl:false,attributionControl:false});
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+  try {
+    var container = document.getElementById('map');
+    if (container) {
+      container.innerHTML = '';
+      delete container._leaflet_id;
+    }
 
-    var icon=L.divIcon({html:'<div class="marker">'+scissorsSvg+'</div>',className:'',iconSize:[32,32],iconAnchor:[16,16],popupAnchor:[0,-18]});
+    loadCSS('https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css');
+    loadScript('https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js', function(){
+      document.getElementById('status').style.display='none';
+      var map=window.map=L.map('map',{center:[ULAT,ULNG],zoom:12,zoomControl:false,attributionControl:false});
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
 
-    window.updateUserLocation = function(lng, lat) {
-      ULNG = lng;
-      ULAT = lat;
-      HAS_USER = true;
-      if (userMarker) {
-        userMarker.setLatLng([lat, lng]);
-      } else {
-        userMarker=L.marker([lat,lng],{icon:L.divIcon({html:'<div class="user-dot"></div>',className:'',iconSize:[14,14],iconAnchor:[7,7]}),zIndexOffset:1000}).addTo(map);
-      }
-    };
+      var icon=L.divIcon({html:'<div class="marker">'+scissorsSvg+'</div>',className:'',iconSize:[32,32],iconAnchor:[16,16],popupAnchor:[0,-18]});
 
-    window.flyToUser = function(lng, lat) {
-      map.setView([lat, lng], 13, {animate: true});
-    };
+      window.updateUserLocation = function(lng, lat) {
+        ULNG = lng;
+        ULAT = lat;
+        HAS_USER = true;
+        if (userMarker) {
+          userMarker.setLatLng([lat, lng]);
+        } else {
+          userMarker=L.marker([lat,lng],{icon:L.divIcon({html:'<div class="user-dot"></div>',className:'',iconSize:[14,14],iconAnchor:[7,7]}),zIndexOffset:1000}).addTo(map);
+        }
+      };
 
-    window.updateSalons = function(salonsData) {
-      DATA = salonsData;
-      salonMarkers.forEach(function(m){map.removeLayer(m)});
-      salonMarkers = [];
+      window.flyToUser = function(lng, lat) {
+        map.setView([lat, lng], 13, {animate: true});
+      };
 
-      DATA.forEach(function(s){
-        var dirBtn=HAS_USER?'<button class="p-btn p-dir" onclick="lfRoute('+s.lng+','+s.lat+')">Itin\u00e9raire</button>':'';
-        var popup='<div class="p-name">'+s.name+'</div><div class="p-info">\u2B50 '+s.rating+' \u00B7 '+s.wilaya+'</div><div class="p-actions"><button class="p-btn p-view" onclick="window.ReactNativeWebView.postMessage(JSON.stringify({type:\'SALON_PRESS\', salonId:\''+s.id+'\'}))">Voir salon</button>'+dirBtn+'</div>';
-        
-        var m = L.marker([s.lat,s.lng],{icon:icon}).addTo(map).bindPopup(popup,{maxWidth:240});
-        m.on('click', function(){
-          window.ReactNativeWebView.postMessage(JSON.stringify({type:'MARKER_CLICK', salonId:s.id}));
+      window.updateSalons = function(salonsData) {
+        DATA = salonsData || [];
+        salonMarkers.forEach(function(m){map.removeLayer(m)});
+        salonMarkers = [];
+
+        DATA.forEach(function(s){
+          var dirBtn=HAS_USER?'<button class="p-btn p-dir" onclick="lfRoute('+s.lng+','+s.lat+')">Itin\u00e9raire</button>':'';
+          var popup='<div class="p-name">'+s.name+'</div><div class="p-info">\u2B50 '+s.rating+' \u00B7 '+s.wilaya+'</div><div class="p-actions"><button class="p-btn p-view" onclick="window.ReactNativeWebView.postMessage(JSON.stringify({type:\'SALON_PRESS\', salonId:\''+s.id+'\'}))">Voir salon</button>'+dirBtn+'</div>';
+          
+          var m = L.marker([s.lat,s.lng],{icon:icon}).addTo(map).bindPopup(popup,{maxWidth:240});
+          m.on('click', function(){
+            window.ReactNativeWebView.postMessage(JSON.stringify({type:'MARKER_CLICK', salonId:s.id}));
+          });
+          salonMarkers.push(m);
         });
-        salonMarkers.push(m);
-      });
 
-      if(DATA.length>0){
-        var pts=DATA.map(function(s){return[s.lat,s.lng]});
-        map.fitBounds(pts,{padding:[40,40],maxZoom:14});
-      }
-    };
+        if(DATA.length>0){
+          var pts=DATA.map(function(s){return[s.lat,s.lng]});
+          map.fitBounds(pts,{padding:[40,40],maxZoom:14});
+        }
+      };
 
-    window.selectSalon = function(salonId) {
-      var s = DATA.find(function(item){return item.id === salonId;});
-      if(!s) return;
-      map.setView([s.lat, s.lng], 14, {animate: true});
+      window.selectSalon = function(salonId) {
+        var s = DATA.find(function(item){return item.id === salonId;});
+        if(!s) return;
+        map.setView([s.lat, s.lng], 14, {animate: true});
 
-      var marker = salonMarkers.find(function(m) {
-        var latlng = m.getLatLng();
-        return Math.abs(latlng.lat - s.lat) < 0.0001 && Math.abs(latlng.lng - s.lng) < 0.0001;
-      });
-      if (marker) {
-        marker.openPopup();
-      }
-    };
+        var marker = salonMarkers.find(function(m) {
+          var latlng = m.getLatLng();
+          return Math.abs(latlng.lat - s.lat) < 0.0001 && Math.abs(latlng.lng - s.lng) < 0.0001;
+        });
+        if (marker) {
+          marker.openPopup();
+        }
+      };
 
-    setTimeout(function(){map.invalidateSize()},300);
-    window.ReactNativeWebView.postMessage('MAP_READY');
-  },function(){
-    document.getElementById('status').innerHTML='Erreur de chargement';
-  });
+      window.lfRoute=function(lng,lat){
+        if(routeLayer){map.removeLayer(routeLayer)}
+        drawRouteOSRM(lng,lat).then(function(coords){
+          routeLayer=L.polyline(coords.map(function(c){return[c[1],c[0]]}),{color:'#E8A020',weight:5,opacity:0.85}).addTo(map);
+          map.fitBounds(routeLayer.getBounds(),{padding:[50,50]});
+        });
+      };
+
+      setTimeout(function(){map.invalidateSize()},300);
+      window.ReactNativeWebView.postMessage('MAP_READY');
+    }, function(){
+      document.getElementById('status').innerHTML='Erreur de chargement Leaflet';
+    });
+  } catch(e) {
+    document.getElementById('status').innerHTML='Erreur initLeaflet: ' + e.message;
+  }
 }
 </script>
 </body>
@@ -400,6 +448,12 @@ function initLeaflet(){
         cacheEnabled={true}
         cacheMode="LOAD_CACHE_ELSE_NETWORK"
         onMessage={handleMessage}
+        onError={(syntheticEvent) => {
+          console.warn('WebView load error:', syntheticEvent.nativeEvent);
+        }}
+        onHttpError={(syntheticEvent) => {
+          console.warn('WebView HTTP error:', syntheticEvent.nativeEvent);
+        }}
       />
 
       {!mapReady && (
