@@ -229,6 +229,10 @@ function initMapLibre(){
 
     document.getElementById('status').style.display='none';
 
+    map.on('load', function() {
+      notifyReady();
+    });
+
     window.updateUserLocation = function(lng, lat) {
       ULNG = lng;
       ULAT = lat;
@@ -298,8 +302,6 @@ function initMapLibre(){
         map.fitBounds(rb,{padding:60,maxZoom:15});
       });
     };
-
-    notifyReady();
   } catch(e) {
     console.error(e);
     initLeaflet();
@@ -319,6 +321,10 @@ function initLeaflet(){
       document.getElementById('status').style.display='none';
       var map=window.map=L.map('map',{center:[ULAT,ULNG],zoom:12,zoomControl:false,attributionControl:false});
       L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+
+      map.whenReady(function() {
+        notifyReady();
+      });
 
       var icon=L.divIcon({html:'<div class="marker">'+scissorsSvg+'</div>',className:'',iconSize:[32,32],iconAnchor:[16,16],popupAnchor:[0,-18]});
 
@@ -382,7 +388,6 @@ function initLeaflet(){
       };
 
       setTimeout(function(){map.invalidateSize()},300);
-      notifyReady();
     }, function(){
       document.getElementById('status').innerHTML='Erreur de chargement Leaflet. Veuillez vérifier votre connexion internet.';
       notifyReady();
