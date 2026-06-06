@@ -384,10 +384,12 @@ function initLeaflet(){
       setTimeout(function(){map.invalidateSize()},300);
       notifyReady();
     }, function(){
-      document.getElementById('status').innerHTML='Erreur de chargement Leaflet';
+      document.getElementById('status').innerHTML='Erreur de chargement Leaflet. Veuillez vérifier votre connexion internet.';
+      notifyReady();
     });
   } catch(e) {
     document.getElementById('status').innerHTML='Erreur initLeaflet: ' + e.message;
+    notifyReady();
   }
 }
 </script>
@@ -464,9 +466,6 @@ function initLeaflet(){
         cacheEnabled={true}
         cacheMode="LOAD_CACHE_ELSE_NETWORK"
         onMessage={handleMessage}
-        onLoadEnd={() => {
-          setTimeout(() => setMapReady(true), 1000);
-        }}
         onError={(syntheticEvent) => {
           console.warn('WebView load error:', syntheticEvent.nativeEvent);
           setMapReady(true);
