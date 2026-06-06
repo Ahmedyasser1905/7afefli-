@@ -28,14 +28,14 @@ export function MyAppointmentsScreen() {
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
   const user = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
-  const [reviewReservation, setReviewReservation] = useState<Record<string, unknown> | null>(null);
+  const [reviewReservation, setReviewReservation] = useState<any | null>(null);
 
   // Fetch client reservations
   const { data: reservations = [], isLoading, refetch } = useQuery({
     queryKey: ['my-reservations', user?.id],
     queryFn: async () => {
       if (!user) return [];
-      const data = await apiClient.get<Record<string, unknown>[]>('/reservations/me');
+      const data = await apiClient.get<any[]>('/reservations/me');
       return data ?? [];
     },
     enabled: !!user,
@@ -86,7 +86,7 @@ export function MyAppointmentsScreen() {
     const todayAlg = algNow.toISOString().split('T')[0];
     const nowStr = `${String(algNow.getUTCHours()).padStart(2,'0')}:${String(algNow.getUTCMinutes()).padStart(2,'0')}`;
 
-    return reservations.filter((r: Record<string, unknown>) => {
+    return reservations.filter((r: any) => {
       const apptDate = r.appointment_date as string ?? '';
       const endTime  = (r.end_time as string ?? '').slice(0, 5);
       const isExpired = apptDate < todayAlg || (apptDate === todayAlg && !!endTime && endTime < nowStr);
@@ -96,7 +96,7 @@ export function MyAppointmentsScreen() {
     });
   }, [reservations, activeTab]);
 
-  const renderItem = ({ item }: { item: Record<string, unknown> }) => {
+  const renderItem = ({ item }: { item: any }) => {
     const salon   = item.salons;
     const service = item.services;
 

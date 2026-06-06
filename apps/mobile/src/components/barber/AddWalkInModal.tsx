@@ -68,7 +68,7 @@ export function AddWalkInModal({ visible, onClose, salonId, onSuccess }: AddWalk
   const { data: services = [] } = useQuery({
     queryKey: ['salon-services', salonId],
     queryFn: async () => {
-      const data = await apiClient.get<Record<string, unknown>[]>(`/salons/${salonId}/services`);
+      const data = await apiClient.get<any[]>(`/salons/${salonId}/services`);
       return data;
     },
     enabled: visible && !!salonId,
@@ -116,7 +116,7 @@ export function AddWalkInModal({ visible, onClose, salonId, onSuccess }: AddWalk
 
     setLoading(true);
     try {
-      const payload: Record<string, unknown> = {
+      const payload: any = {
         salonId,
         serviceId: selectedServiceId,
         appointmentDate: todayStr,
@@ -135,7 +135,7 @@ export function AddWalkInModal({ visible, onClose, salonId, onSuccess }: AddWalk
         payload.clientPhone = form.phone.trim();
       }
 
-      await apiClient.post<Record<string, unknown>>('/reservations', payload);
+      await apiClient.post<any>('/reservations', payload);
 
       // Wait 800ms for backend auto-confirm UPDATE to propagate before refetching
       await new Promise((resolve) => setTimeout(resolve, 800));

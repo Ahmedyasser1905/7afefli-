@@ -38,7 +38,7 @@ interface Coords {
 }
 
 export function ExploreScreen() {
-  const navigation = useNavigation<Record<string, unknown>>();
+  const navigation = useNavigation<any>();
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [selectedWilaya, setSelectedWilaya] = useState('Toutes');

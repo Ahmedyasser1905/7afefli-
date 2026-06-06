@@ -28,7 +28,7 @@ import { apiClient } from '../../lib/apiClient';
 interface EditProfileModalProps {
   visible: boolean;
   onClose: () => void;
-  profileData: Record<string, unknown>;
+  profileData: any;
   onSaved: () => void;
 }
 
@@ -101,7 +101,7 @@ export function EditProfileModal({ visible, onClose, profileData, onSaved }: Edi
 
     setSaving(true);
     try {
-      const updates: Record<string, unknown> = {
+      const updates: any = {
         full_name: fullName.trim(),
         phone_number: phone.trim() || null,
         updated_at: new Date().toISOString(),

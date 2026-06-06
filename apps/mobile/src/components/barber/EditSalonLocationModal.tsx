@@ -17,7 +17,7 @@ import { apiClient } from '../../lib/apiClient';
 interface EditSalonLocationModalProps {
   visible: boolean;
   onClose: () => void;
-  salon: Record<string, unknown>;
+  salon: any;
   onSaved: () => void;
 }
 

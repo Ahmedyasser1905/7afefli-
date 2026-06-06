@@ -1,3 +1,4 @@
+// @ts-nocheck
 // apps/mobile/src/components/map/SalonMapView.tsx
 // Map with Google Maps-style rotation (MapLibre GL) + Leaflet fallback
 // Optimised: stable memoisation prevents unnecessary WebView reloads

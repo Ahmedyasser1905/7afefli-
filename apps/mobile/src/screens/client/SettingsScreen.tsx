@@ -32,7 +32,7 @@ export function SettingsScreen() {
   const [pushEnabled, setPushEnabled] = useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = useState(true);
   const [selectedWilaya, setSelectedWilaya] = useState('Alger');
-  const [profileData, setProfileData] = useState<Record<string, unknown>>(null);
+  const [profileData, setProfileData] = useState<any>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isEditProfileVisible, setIsEditProfileVisible] = useState(false);
   const [isWilayaModalVisible, setIsWilayaModalVisible] = useState(false);
@@ -79,7 +79,7 @@ export function SettingsScreen() {
   const loadProfile = async () => {
     if (!user) return;
     try {
-      const data = await apiClient.get<Record<string, unknown>>('/auth/profiles/me');
+      const data = await apiClient.get<any>('/auth/profiles/me');
       if (data) {
         setProfileData(data);
         if (data.wilaya) setSelectedWilaya(data.wilaya as string);

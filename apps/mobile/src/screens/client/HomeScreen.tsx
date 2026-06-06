@@ -48,7 +48,7 @@ interface Coords {
 }
 
 export function HomeScreen() {
-  const navigation = useNavigation<Record<string, unknown>>();
+  const navigation = useNavigation<any>();
   const [location, setLocation] = useState<Coords | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set(['nearby']));

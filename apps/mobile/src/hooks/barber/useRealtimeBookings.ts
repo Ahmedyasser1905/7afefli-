@@ -85,7 +85,7 @@ export function useRealtimeBookings({
           let clientName = 'Un client';
           let serviceName = '';
           try {
-            const resData = await apiClient.get<Record<string, unknown>>(`/reservations/${reservation.id}`);
+            const resData = await apiClient.get<any>(`/reservations/${reservation.id}`);
             if (resData.profiles?.full_name) clientName = resData.profiles.full_name;
             else if (resData.client_phone) clientName = resData.client_phone;
             

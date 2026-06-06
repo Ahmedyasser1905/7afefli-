@@ -26,40 +26,40 @@ import { apiClient } from '../../lib/apiClient';
 export function AdminDashboardScreen() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'salons' | 'users' | 'reservations'>('salons');
-  const [selectedUser, setSelectedUser] = useState<Record<string, unknown> | null>(null);
+  const [selectedUser, setSelectedUser] = useState<any | null>(null);
 
   // Fetch all salons via API only — Supabase bypasses backend auth guards
-  const { data: salons = [], isLoading: salonsLoading, isRefetching: salonsRefetching, refetch: refetchSalons } = useQuery<Record<string, unknown>[]>({
+  const { data: salons = [], isLoading: salonsLoading, isRefetching: salonsRefetching, refetch: refetchSalons } = useQuery<any[]>({
     queryKey: ['admin-salons'],
-    queryFn: () => apiClient.get<Record<string, unknown>[]>('/admin/salons'),
+    queryFn: () => apiClient.get<any[]>('/admin/salons'),
     staleTime: 60 * 1000,
   });
 
   // Fetch all users via API only
-  const { data: users = [], isLoading: usersLoading, isRefetching: usersRefetching, refetch: refetchUsers } = useQuery<Record<string, unknown>[]>({
+  const { data: users = [], isLoading: usersLoading, isRefetching: usersRefetching, refetch: refetchUsers } = useQuery<any[]>({
     queryKey: ['admin-users'],
-    queryFn: () => apiClient.get<Record<string, unknown>[]>('/admin/users'),
+    queryFn: () => apiClient.get<any[]>('/admin/users'),
     staleTime: 60 * 1000,
   });
 
   // Stats via API
-  const { data: statsData } = useQuery<Record<string, unknown>>({
+  const { data: statsData } = useQuery<any>({
     queryKey: ['admin-stats'],
-    queryFn: () => apiClient.get<Record<string, unknown>>('/admin/stats'),
+    queryFn: () => apiClient.get<any>('/admin/stats'),
     staleTime: 60 * 1000,
   });
 
   // Fetch all reservations via API
-  const { data: reservations = [], isLoading: resLoading, isRefetching: resRefetching, refetch: refetchRes } = useQuery<Record<string, unknown>[]>({
+  const { data: reservations = [], isLoading: resLoading, isRefetching: resRefetching, refetch: refetchRes } = useQuery<any[]>({
     queryKey: ['admin-reservations'],
-    queryFn: () => apiClient.get<Record<string, unknown>[]>('/admin/reservations'),
+    queryFn: () => apiClient.get<any[]>('/admin/reservations'),
     staleTime: 60 * 1000,
     enabled: activeTab === 'reservations',
   });
 
   const totalSalons = statsData?.totalSalons ?? salons.length;
-  const approvedSalons = statsData?.activeSalons ?? salons.filter((s: Record<string, unknown>) => s.is_approved).length;
-  const pendingSalons = statsData?.pendingSalons ?? salons.filter((s: Record<string, unknown>) => !s.is_approved).length;
+  const approvedSalons = statsData?.activeSalons ?? salons.filter((s: any) => s.is_approved).length;
+  const pendingSalons = statsData?.pendingSalons ?? salons.filter((s: any) => !s.is_approved).length;
   const totalUsers = statsData?.totalUsers ?? users.length;
 
   // Toggle salon approval
@@ -160,7 +160,7 @@ export function AdminDashboardScreen() {
     );
   };
 
-  const renderSalonItem = ({ item }: { item: Record<string, unknown> }) => (
+  const renderSalonItem = ({ item }: { item: any }) => (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <View style={{ flex: 1 }}>
@@ -224,7 +224,7 @@ export function AdminDashboardScreen() {
     </View>
   );
 
-  const renderUserItem = ({ item }: { item: Record<string, unknown> }) => (
+  const renderUserItem = ({ item }: { item: any }) => (
     <TouchableOpacity style={styles.card} onPress={() => setSelectedUser(item)} activeOpacity={0.7}>
       <View style={styles.cardHeader}>
         <View style={styles.userAvatar}>
@@ -363,7 +363,7 @@ export function AdminDashboardScreen() {
         ) : (
           <FlatList
             data={salons}
-            keyExtractor={(item: Record<string, unknown>) => item.id}
+            keyExtractor={(item: any) => item.id}
             renderItem={renderSalonItem}
             contentContainerStyle={styles.list}
             refreshControl={<RefreshControl refreshing={salonsRefetching} onRefresh={refetchSalons} tintColor={colors.amber} />}
@@ -378,7 +378,7 @@ export function AdminDashboardScreen() {
         ) : (
           <FlatList
             data={reservations}
-            keyExtractor={(item: Record<string, unknown>) => item.id as string}
+            keyExtractor={(item: any) => item.id as string}
             renderItem={({ item }) => (
               <View style={styles.card}>
                 <View style={styles.cardHeader}>
@@ -423,7 +423,7 @@ export function AdminDashboardScreen() {
         ) : (
           <FlatList
             data={users}
-            keyExtractor={(item: Record<string, unknown>) => item.id}
+            keyExtractor={(item: any) => item.id}
             renderItem={renderUserItem}
             contentContainerStyle={styles.list}
             refreshControl={<RefreshControl refreshing={usersRefetching} onRefresh={refetchUsers} tintColor={colors.amber} />}

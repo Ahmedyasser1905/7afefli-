@@ -30,7 +30,7 @@ export function useNotificationSetup() {
       const Notifications = require('expo-notifications');
 
       subscription = Notifications.addNotificationResponseReceivedListener(
-        (response: { notification: { request: { content: { data: Record<string, unknown> } } } }) => {
+        (response: { notification: { request: { content: { data: any } } } }) => {
           const data = response.notification.request.content.data;
 
           if (!navigationRef.isReady()) return;

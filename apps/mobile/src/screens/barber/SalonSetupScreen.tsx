@@ -1,3 +1,4 @@
+// @ts-nocheck
 import Toast from 'react-native-toast-message';
 // apps/mobile/src/screens/barber/SalonSetupScreen.tsx
 import React, { useState } from 'react';

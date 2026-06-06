@@ -117,7 +117,7 @@ export function SubscriptionScreen() {
   });
 
   // Extract subscription from salon data
-  const salon = salonData as Record<string, unknown> | null;
+  const salon = salonData as any | null;
   const rawSubs = (salonData as any)?.subscriptions;
   const subRecord = Array.isArray(rawSubs) ? rawSubs[0] : rawSubs;
 
@@ -147,9 +147,9 @@ export function SubscriptionScreen() {
   const refetchSub = refetchSalon;
 
   // Derived state
-  const status = subscription?.status || (salon as Record<string, unknown>)?.subscription_status || 'Trial';
-  const trialEnds = subscription?.trial_ends_at || (salon as Record<string, unknown>)?.trial_ends_at as string | null;
-  const subEnds = subscription?.ends_at || (salon as Record<string, unknown>)?.subscription_ends_at as string | null;
+  const status = subscription?.status || (salon as any)?.subscription_status || 'Trial';
+  const trialEnds = subscription?.trial_ends_at || (salon as any)?.trial_ends_at as string | null;
+  const subEnds = subscription?.ends_at || (salon as any)?.subscription_ends_at as string | null;
   const daysLeft = status === 'Trial' ? getDaysLeft(trialEnds) : status === 'Active' ? getDaysLeft(subEnds) : 0;
 
   const isLoading = plansLoading || subLoading;

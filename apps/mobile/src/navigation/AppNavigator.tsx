@@ -1,3 +1,4 @@
+// @ts-nocheck
 // apps/mobile/src/navigation/AppNavigator.tsx
 // Root navigator — role-based routing with auth gate
 

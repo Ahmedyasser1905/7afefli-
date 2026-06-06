@@ -17,7 +17,7 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 
-export default function ForgotPasswordScreen({ navigation }: { navigation: Record<string, unknown> }) {
+export default function ForgotPasswordScreen({ navigation }: { navigation: any }) {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const setNeedsPasswordReset = useAuthStore(s => s.setNeedsPasswordReset);

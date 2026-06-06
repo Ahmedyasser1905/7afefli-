@@ -19,7 +19,7 @@ import { apiClient } from '../../lib/apiClient';
 interface LeaveReviewModalProps {
   visible: boolean;
   onClose: () => void;
-  reservation: Record<string, unknown>;
+  reservation: any;
   onSuccess: () => void;
 }
 
@@ -33,7 +33,7 @@ export function LeaveReviewModal({ visible, onClose, reservation, onSuccess }: L
     if (!reservation) return;
 
     // Guard against missing salon join — reservation must have salon data to submit
-    const salon = reservation.salons as Record<string, unknown> | null | undefined;
+    const salon = reservation.salons as any | null | undefined;
     if (!salon?.id) {
       Toast.show({
         type: 'error',
@@ -87,7 +87,7 @@ export function LeaveReviewModal({ visible, onClose, reservation, onSuccess }: L
     }
   };
 
-  const salon = reservation?.salons as Record<string, unknown> | null | undefined;
+  const salon = reservation?.salons as any | null | undefined;
 
   return (
     <Modal visible={visible} transparent animationType="slide">
