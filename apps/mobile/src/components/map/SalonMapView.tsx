@@ -66,7 +66,7 @@ export function SalonMapView({
       .filter((s) => s.latitude && s.longitude && s.latitude !== 0 && s.longitude !== 0)
       .map((s) => ({
         id: s.id,
-        name: s.name.replace(/\\/g, '').replace(/'/g, "\\'").replace(/"/g, '\\"'),
+        name: s.name || 'Salon',
         rating: s.average_rating?.toFixed(1) || 'Nouveau',
         wilaya: s.wilaya || '',
         lng: s.longitude,
@@ -79,7 +79,7 @@ export function SalonMapView({
   useEffect(() => {
     if (!mapReady || !webViewRef.current) return;
     webViewRef.current.injectJavaScript(
-      `if(window.updateSalons){window.updateSalons(${serializedSalons});}true;`
+      `if(window.updateSalons){window.updateSalons(JSON.parse(${JSON.stringify(serializedSalons)}));}true;`
     );
   }, [serializedSalons, mapReady]);
 
@@ -87,7 +87,7 @@ export function SalonMapView({
   useEffect(() => {
     if (!mapReady || !selectedSalonId || !webViewRef.current) return;
     webViewRef.current.injectJavaScript(
-      `if(window.selectSalon){window.selectSalon("${selectedSalonId}");}true;`
+      `if(window.selectSalon){window.selectSalon(${JSON.stringify(selectedSalonId)});}true;`
     );
   }, [selectedSalonId, mapReady]);
 
