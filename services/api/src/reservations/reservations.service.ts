@@ -87,7 +87,7 @@ export class ReservationsService {
         .gte('appointment_date', firstDayOfMonth)
         .lte('appointment_date', lastDayOfMonth)
         .not('status', 'eq', 'Cancelled')
-        .not('notes', 'ilike', '%CRÉNEAU BLOQUÉ%');
+        .or('notes.is.null,notes.not.ilike.%CRÉNEAU BLOQUÉ%');
 
       if ((count || 0) >= maxReservations) {
         throw new ForbiddenException(`Ce salon a atteint sa limite mensuelle de réservations (${maxReservations}). Il doit passer à un plan supérieur.`);
@@ -748,7 +748,7 @@ export class ReservationsService {
       `)
       .eq('salon_id', salonId)
       .not('status', 'eq', 'Cancelled')
-      .not('notes', 'ilike', '%CRÉNEAU BLOQUÉ%');
+      .or('notes.is.null,notes.not.ilike.%CRÉNEAU BLOQUÉ%');
 
     if (error) throw new Error(`Failed to fetch clients: ${error.message}`);
 
@@ -795,7 +795,7 @@ export class ReservationsService {
           }
         }
       } else {
-        const p = res.profiles as any;
+        const p = Array.isArray(res.profiles) ? res.profiles[0] : res.profiles;
         if (p && p.id) {
           if (!appMembersMap.has(p.id)) {
             appMembersMap.set(p.id, {
