@@ -48,6 +48,7 @@ export function ClientsScreen() {
   const user = useAuthStore((s) => s.user);
   const [search, setSearch] = useState('');
   const [selectedClient, setSelectedClient] = useState<ClientItem | null>(null);
+  const [activeFilter, setActiveFilter] = useState<'total' | 'registered' | 'walkIns'>('total');
 
   // Fetch barber's salon
   const { data: salon, isLoading: isSalonLoading } = useQuery({
@@ -121,30 +122,31 @@ export function ClientsScreen() {
     return allClients.sort((a, b) => b.totalVisits - a.totalVisits);
   }, [clientsData]);
 
-  // Filter based on search query
+  // Filter based on search query and active tab
   const filteredClients = useMemo(() => {
-    if (!search.trim()) return clientsList;
+    let result = clientsList;
+
+    if (activeFilter === 'registered') {
+      result = result.filter(c => c.isRegistered);
+    } else if (activeFilter === 'walkIns') {
+      result = result.filter(c => !c.isRegistered);
+    }
+
+    if (!search.trim()) return result;
     const query = search.toLowerCase();
-    return clientsList.filter(
+    return result.filter(
       (c) =>
         c.name.toLowerCase().includes(query) ||
         c.phone.toLowerCase().includes(query)
     );
-  }, [clientsList, search]);
+  }, [clientsList, search, activeFilter]);
 
   const stats = useMemo(() => {
-    if (clientsData?.statistics) {
-      return {
-        total: clientsData.statistics.totalClients || 0,
-        registered: clientsData.statistics.totalAppMembers || 0,
-        walkIns: clientsData.statistics.totalWalkIns || 0,
-      };
-    }
     const total = clientsList.length;
     const registered = clientsList.filter((c) => c.isRegistered).length;
     const walkIns = total - registered;
     return { total, registered, walkIns };
-  }, [clientsList, clientsData]);
+  }, [clientsList]);
 
   const handleCallClient = (phoneNumber: string) => {
     if (!phoneNumber) return;
@@ -234,20 +236,36 @@ export function ClientsScreen() {
 
       {/* Stats Summary Panel */}
       <View style={styles.statsPanel}>
-        <View style={styles.statBox}>
-          <Text style={styles.statVal}>{stats.total}</Text>
-          <Text style={styles.statLabel}>Total Clients</Text>
-        </View>
+        <TouchableOpacity 
+          style={[styles.statBox, activeFilter === 'total' && styles.statBoxActive]} 
+          onPress={() => setActiveFilter('total')}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.statVal, activeFilter === 'total' && styles.statValActive]}>{stats.total}</Text>
+          <Text style={[styles.statLabel, activeFilter === 'total' && styles.statLabelActive]}>Total Clients</Text>
+        </TouchableOpacity>
+        
         <View style={styles.statDivider} />
-        <View style={styles.statBox}>
-          <Text style={styles.statVal}>{stats.registered}</Text>
-          <Text style={styles.statLabel}>Membres App</Text>
-        </View>
+        
+        <TouchableOpacity 
+          style={[styles.statBox, activeFilter === 'registered' && styles.statBoxActive]} 
+          onPress={() => setActiveFilter('registered')}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.statVal, activeFilter === 'registered' && styles.statValActive]}>{stats.registered}</Text>
+          <Text style={[styles.statLabel, activeFilter === 'registered' && styles.statLabelActive]}>Membres App</Text>
+        </TouchableOpacity>
+        
         <View style={styles.statDivider} />
-        <View style={styles.statBox}>
-          <Text style={styles.statVal}>{stats.walkIns}</Text>
-          <Text style={styles.statLabel}>Sans RDV</Text>
-        </View>
+        
+        <TouchableOpacity 
+          style={[styles.statBox, activeFilter === 'walkIns' && styles.statBoxActive]} 
+          onPress={() => setActiveFilter('walkIns')}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.statVal, activeFilter === 'walkIns' && styles.statValActive]}>{stats.walkIns}</Text>
+          <Text style={[styles.statLabel, activeFilter === 'walkIns' && styles.statLabelActive]}>Sans RDV</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Search Input */}
@@ -425,17 +443,29 @@ const styles = StyleSheet.create({
   statBox: {
     flex: 1,
     alignItems: 'center',
+    paddingVertical: spacing.sm,
+    borderRadius: radius.sm,
+  },
+  statBoxActive: {
+    backgroundColor: 'rgba(232, 160, 32, 0.1)',
   },
   statVal: {
     fontFamily: 'Syne_700Bold',
     fontSize: 20,
     color: colors.textPrimary,
   },
+  statValActive: {
+    color: colors.amber,
+  },
   statLabel: {
     fontFamily: 'DMSans_400Regular',
     fontSize: 11,
     color: colors.textSecondary,
     marginTop: 4,
+  },
+  statLabelActive: {
+    color: colors.amber,
+    fontFamily: 'DMSans_700Bold',
   },
   statDivider: {
     width: 1,
