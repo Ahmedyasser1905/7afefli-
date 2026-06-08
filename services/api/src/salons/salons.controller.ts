@@ -12,6 +12,7 @@ import {
   Delete,
 } from '@nestjs/common';
 import { SalonsService } from './salons.service';
+import { SalonServicesService } from '../salon-services/salon-services.service';
 import { CreateSalonDto } from './dto/create-salon.dto';
 import { UpdateSalonDto } from './dto/update-salon.dto';
 import { SupabaseAuthGuard } from '../auth/auth.guard';
@@ -22,7 +23,10 @@ import { AuthenticatedUser } from '../auth/auth.guard';
 
 @Controller('salons')
 export class SalonsController {
-  constructor(private readonly salonsService: SalonsService) {}
+  constructor(
+    private readonly salonsService: SalonsService,
+    private readonly salonServicesService: SalonServicesService,
+  ) {}
 
   /**
    * GET /salons
@@ -120,7 +124,8 @@ export class SalonsController {
    * Add a staff member
    */
   @Post(':id/staff')
-  @UseGuards(SupabaseAuthGuard)
+  @UseGuards(SupabaseAuthGuard, RolesGuard)
+  @Roles('Coiffeur')
   addStaff(
     @Param('id') id: string,
     @Body() dto: { customName: string },
@@ -135,7 +140,8 @@ export class SalonsController {
   }
 
   @Delete(':id/staff/:staffId')
-  @UseGuards(SupabaseAuthGuard)
+  @UseGuards(SupabaseAuthGuard, RolesGuard)
+  @Roles('Coiffeur')
   removeStaff(
     @Param('id') id: string,
     @Param('staffId') staffId: string,
@@ -145,7 +151,8 @@ export class SalonsController {
   }
 
   @Patch(':id/staff/:staffId/avatar')
-  @UseGuards(SupabaseAuthGuard)
+  @UseGuards(SupabaseAuthGuard, RolesGuard)
+  @Roles('Coiffeur')
   updateStaffAvatar(
     @Param('id') id: string,
     @Param('staffId') staffId: string,
@@ -161,7 +168,8 @@ export class SalonsController {
   }
 
   @Post(':id/portfolio')
-  @UseGuards(SupabaseAuthGuard)
+  @UseGuards(SupabaseAuthGuard, RolesGuard)
+  @Roles('Coiffeur')
   addPortfolioPhoto(
     @Param('id') id: string,
     @Body('storagePath') storagePath: string,
@@ -177,7 +185,8 @@ export class SalonsController {
    * Coiffeur only — must own the salon.
    */
   @Post(':id/portfolio/upload-url')
-  @UseGuards(SupabaseAuthGuard)
+  @UseGuards(SupabaseAuthGuard, RolesGuard)
+  @Roles('Coiffeur')
   getPortfolioUploadUrl(
     @Param('id') id: string,
     @Body('fileName') fileName: string,
@@ -187,7 +196,8 @@ export class SalonsController {
   }
 
   @Delete(':id/portfolio/:photoId')
-  @UseGuards(SupabaseAuthGuard)
+  @UseGuards(SupabaseAuthGuard, RolesGuard)
+  @Roles('Coiffeur')
   removePortfolioPhoto(
     @Param('id') id: string,
     @Param('photoId') photoId: string,
@@ -203,5 +213,15 @@ export class SalonsController {
   @Get(':id/reviews')
   getReviews(@Param('id') id: string) {
     return this.salonsService.getReviews(id);
+  }
+
+  /**
+   * GET /salons/:id/services
+   * Alias for GET /salon-services/:salonId — matches mobile client expectation.
+   * Returns all active services for a salon (public).
+   */
+  @Get(':id/services')
+  getSalonServices(@Param('id') id: string) {
+    return this.salonServicesService.findBySalon(id);
   }
 }

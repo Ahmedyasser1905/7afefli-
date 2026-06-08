@@ -107,7 +107,7 @@ function resolveOverlaps(reservations: Reservation[]): Array<Reservation & { col
   return result;
 }
 
-const DEFAULT_AVATAR = 'https://lh3.googleusercontent.com/aida-public/AB6AXuDqBwevJA_-4C8CiV0jhFk0kQ1wMed3SXsDLtkuYojI_z1NOOr9TsG1ppWseymOF1jEuEUK3KfQn_lUckAbPgmIaSRhgIECSEyCop0h_moZW-TI7--iKZxYbB5dZpkgKIpdJVPPVXhmU_beflYOnLuUI7k4eAbhpYAKJUc2JV4h2TvxiIWmmNqIissEk6ErNlsy-GNvPrX3FNFYIJAjGjQyRcvhURmAzdffu9vrnoRvuq2K4ncxHaDMjasu4zspMlyphP4AOIGdHDxi';
+const DEFAULT_AVATAR = 'https://phfwutugsyiutqgippqg.supabase.co/storage/v1/object/public/portfolio/defaults/default-avatar.png';
 
 export function CalendarScreen() {
   const user = useAuthStore((s) => s.user);

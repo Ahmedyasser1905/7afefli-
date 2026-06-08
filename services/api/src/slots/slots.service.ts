@@ -34,10 +34,16 @@ export class SlotsService {
     date: string,        // "2025-06-15"
     barberId?: string,
   ): Promise<TimeSlot[]> {
-    // NOTE: No server-side cache — Vercel serverless isolates each invocation
-    // in its own instance with separate memory, so in-memory cache is not shared
-    // across instances and invalidation after block creation would not propagate.
-    // Client-side React Query (30s stale time) provides sufficient caching.
+    // NOTE: Upstash Redis is shared across all Vercel function instances (HTTP-based),
+    // so caching IS effective here. 90s TTL balances freshness vs DB load.
+    // Cache is invalidated by ReservationsService.invalidateSlotsCache() on every booking/block.
+    const cacheKey = `slots_v2:${salonId}:${serviceId}:${date}:${barberId ?? 'any'}`;
+    try {
+      const cached = await this.cacheManager.get<TimeSlot[]>(cacheKey);
+      if (cached && Array.isArray(cached)) return cached;
+    } catch {
+      // Cache miss or error — proceed with DB query
+    }
 
     // 1. Fetch service duration, salon hours, staff members, and existing bookings in parallel
     const [serviceResult, salonResult, staffResult, bookedResult] = await Promise.all([
@@ -203,6 +209,13 @@ export class SlotsService {
 
       return { ...slot, isAvailable };
     });
+
+    // Store in shared Redis cache — 90s TTL
+    try {
+      await this.cacheManager.set(cacheKey, finalSlots, 90 * 1000);
+    } catch {
+      // Cache write failure is non-fatal
+    }
 
     return finalSlots;
   }

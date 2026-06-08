@@ -68,7 +68,7 @@ export function ExploreScreen() {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status === 'granted') {
           locationSubscription = await Location.watchPositionAsync(
-            { accuracy: Location.Accuracy.Balanced, distanceInterval: 5, timeInterval: 5000 },
+            { accuracy: Location.Accuracy.Balanced, distanceInterval: 50, timeInterval: 30000 },
             (loc) => {
               setLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
             }

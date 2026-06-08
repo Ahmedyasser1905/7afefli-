@@ -150,7 +150,7 @@ export class SalonsService {
       .select(`
         *,
         services(*),
-        profiles!salons_owner_id_fkey(full_name, phone_number, avatar_url),
+        profiles!salons_owner_id_fkey(full_name, avatar_url),
         salon_staff(*, profiles(full_name, avatar_url)),
         portfolio_photos(*),
         reviews(*, profiles!client_id(full_name, avatar_url))
@@ -483,6 +483,8 @@ export class SalonsService {
     }
 
     // 2. Build query for reservations
+    const filterDate = date || new Date().toISOString().split('T')[0];
+
     let query = this.supabase.adminClient
       .from('reservations')
       .select('id, status, client_id, notes, service_id')
@@ -490,7 +492,6 @@ export class SalonsService {
       .not('notes', 'ilike', '%CRÉNEAU BLOQUÉ%');
 
     // 3. Apply period filter
-    const filterDate = date || new Date().toISOString().split('T')[0];
     if (period === 'day') {
       query = query.eq('appointment_date', filterDate);
     } else if (period === 'month') {
@@ -521,7 +522,7 @@ export class SalonsService {
       confirmedOrCompleted.map((r) => r.client_id).filter(Boolean),
     );
 
-    // 5. Fetch service prices for revenue calculation
+    // 5. Fetch service prices for revenue — run in parallel with any future additions
     const serviceIds = [
       ...new Set(confirmedOrCompleted.map((r) => r.service_id).filter(Boolean)),
     ];

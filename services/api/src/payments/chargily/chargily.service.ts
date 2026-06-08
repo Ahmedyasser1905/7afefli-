@@ -28,8 +28,14 @@ export class ChargilyService {
       };
     }
 
+    // Use production endpoint in production, test endpoint otherwise
+    const isProduction = process.env.NODE_ENV === 'production';
+    const chargilyBase = isProduction
+      ? 'https://pay.chargily.net/api/v2'
+      : 'https://pay.chargily.net/test/api/v2';
+
     try {
-      const response = await fetch('https://pay.chargily.net/test/api/v2/checkouts', {
+      const response = await fetch(`${chargilyBase}/checkouts`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${this.secretKey}`,
@@ -39,8 +45,8 @@ export class ChargilyService {
           amount,
           currency: 'dzd',
           description: `Abonnement ${planName} — 7afefli`,
-          success_url: 'https://7afefli.com/payment/success',
-          failure_url: 'https://7afefli.com/payment/failure',
+          success_url: process.env.PAYMENT_SUCCESS_URL || 'https://7afefli.com/payment/success',
+          failure_url: process.env.PAYMENT_FAILURE_URL || 'https://7afefli.com/payment/failure',
           webhook_endpoint: null,
           metadata: { salon_id: salonId, plan: planName },
         }),

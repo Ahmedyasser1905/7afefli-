@@ -10,6 +10,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { Request, Response } from 'express';
 import { ChargilyService } from './chargily/chargily.service';
 import { SupabaseAuthGuard, AuthenticatedUser } from '../auth/auth.guard';
@@ -36,6 +37,7 @@ export class PaymentsController {
   @UseGuards(SupabaseAuthGuard, RolesGuard)
   @Roles('Coiffeur')
   @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { ttl: 60000, limit: 5 } })  // max 5 checkout attempts per minute per user
   async createCheckout(
     @CurrentUser() user: AuthenticatedUser,
     @Body() body: { plan: string },
@@ -107,7 +109,7 @@ export class PaymentsController {
           // Fetch dynamic duration from subscription_plans
           const { data: planData } = await this.supabase.adminClient
             .from('plans')
-            .select('duration_days')
+            .select('id, duration_days, name')
             .eq('slug', (plan || 'pro').toLowerCase())
             .maybeSingle();
 
@@ -129,7 +131,8 @@ export class PaymentsController {
             .from('user_subscriptions')
             .update({
               status: 'Active',
-              plan: plan || 'Pro',
+              plan: planData?.name || plan || 'Pro',
+              plan_id: planData?.id || null,  // FK to plans table — required for limit enforcement
               starts_at: new Date().toISOString(),
               ends_at: endsAt,
             })

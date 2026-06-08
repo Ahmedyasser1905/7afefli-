@@ -206,11 +206,14 @@ export function HomeScreen() {
     };
   }, []);
 
-  // 2. Fetch ALL salons once
+  // 2. Fetch salons — pass wilaya once GPS resolves (server-side filter reduces payload)
   const { data: allSalons = [], isLoading, refetch } = useQuery<Salon[]>({
-    queryKey: ['home-salons-all'],
+    queryKey: ['home-salons', userWilaya],
     queryFn: async () => {
-      const data = await apiClient.get<Salon[]>('/salons?limit=200');
+      const wilayaParam = userWilaya
+        ? `&wilaya=${encodeURIComponent(userWilaya)}`
+        : '';
+      const data = await apiClient.get<Salon[]>(`/salons?limit=100${wilayaParam}`);
       return data ?? [];
     },
     staleTime: 5 * 60 * 1000,
@@ -231,29 +234,18 @@ export function HomeScreen() {
 
   const isPremiumClient = clientPlan?.isPremium ?? false;
 
-  // 4. Filter to user's wilaya first, then sort by proximity
-  const salonsInWilaya = useMemo(() => {
-    if (!userWilaya) return allSalons; // location not yet resolved — show all
-
-    const wilayaNorm = userWilaya.toLowerCase().trim();
-    const inWilaya = allSalons.filter(
-      (s) => s.wilaya?.toLowerCase().trim() === wilayaNorm
-    );
-
-    // If no salons match (the wilaya has no registered barbers yet), fall back to all
-    return inWilaya.length > 0 ? inWilaya : allSalons;
-  }, [allSalons, userWilaya]);
-
-  // 5. Sort by proximity within the wilaya
+  // 4. Sort by proximity — server already narrowed by wilaya
+  // Fallback: if server returned empty set (new wilaya with no salons), allSalons could be empty.
+  // In that case the query will have already fetched with wilayaParam so no extra filtering needed.
   const salons = useMemo(() => {
-    if (!location) return salonsInWilaya;
-    return [...salonsInWilaya].sort((a, b) => {
+    if (!location) return allSalons;
+    return [...allSalons].sort((a, b) => {
       if (isPremiumClient && a.is_sponsored !== b.is_sponsored) return a.is_sponsored ? -1 : 1;
       return getDistanceKm(location, a) - getDistanceKm(location, b);
     });
-  }, [salonsInWilaya, location, isPremiumClient]);
+  }, [allSalons, location, isPremiumClient]);
 
-  // 6. Apply UI filters & search on top
+  // 5. Apply UI filters & search on top
   const filteredSalons = useMemo(() => {
     let result = [...salons];
 
