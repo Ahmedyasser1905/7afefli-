@@ -123,6 +123,7 @@ export function AddWalkInModal({ visible, onClose, salonId, onSuccess }: AddWalk
         appointmentDate: todayStr,
         startTime: selectedTimeSlot,
         barberId: selectedStaffId,
+        isWalkIn: true,
         // Embed phone in notes so ClientsScreen CRM can parse it with the /Tel:\s*/ regex
         notes: [
           `[Sans RDV] Client: ${form.clientName}`,

@@ -136,6 +136,20 @@ export class ReservationsController {
   }
 
   /**
+   * GET /reservations/salon/:salonId/clients
+   * Get all aggregated unique clients (members and walk-ins) for a salon.
+   */
+  @Get('salon/:salonId/clients')
+  @UseGuards(RolesGuard)
+  @Roles('Coiffeur', 'Admin')
+  getSalonClients(
+    @Param('salonId') salonId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.reservationsService.getSalonClients(salonId, user.id);
+  }
+
+  /**
    * PATCH /reservations/:id/status
    * Update reservation status (confirm, cancel, complete).
    */

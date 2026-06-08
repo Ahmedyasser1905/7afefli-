@@ -487,7 +487,7 @@ export class SalonsService {
 
     let query = this.supabase.adminClient
       .from('reservations')
-      .select('id, status, client_id, notes, service_id')
+      .select('id, status, client_id, notes, service_id, is_walk_in')
       .eq('salon_id', salon.id)
       .not('notes', 'ilike', '%CRÉNEAU BLOQUÉ%');
 
@@ -517,10 +517,21 @@ export class SalonsService {
     const completedRows = rows.filter((r) => r.status === 'Completed');
     const cancelledRows = rows.filter((r) => r.status === 'Cancelled');
 
-    // Distinct client_id count
-    const clientIds = new Set(
-      confirmedOrCompleted.map((r) => r.client_id).filter(Boolean),
-    );
+    // Distinct client counting
+    const appMemberIds = new Set<string>();
+    const walkInKeys = new Set<string>();
+
+    confirmedOrCompleted.forEach((r) => {
+      if (r.is_walk_in) {
+        walkInKeys.add(r.notes || `walkin-${r.client_id}-${r.id}`);
+      } else if (r.client_id) {
+        appMemberIds.add(r.client_id);
+      }
+    });
+
+    const totalWalkIns = walkInKeys.size;
+    const totalAppMembers = appMemberIds.size;
+    const clientCount = totalWalkIns + totalAppMembers;
 
     // 5. Fetch service prices for revenue — run in parallel with any future additions
     const serviceIds = [
@@ -549,7 +560,9 @@ export class SalonsService {
       completedBookings: completedRows.length,
       cancelledBookings: cancelledRows.length,
       revenue,
-      clientCount: clientIds.size,
+      clientCount,
+      totalWalkIns,
+      totalAppMembers,
       period,
       date: filterDate,
     };

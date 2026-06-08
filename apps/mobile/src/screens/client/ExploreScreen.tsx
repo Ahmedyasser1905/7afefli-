@@ -81,7 +81,10 @@ export function ExploreScreen() {
       }
     })();
 
-    return () => { locationSubscription?.remove(); };
+    return () => { 
+      locationSubscription?.remove(); 
+      setSelectedSalonId(null);
+    };
   }, []);
 
   // Fetch salons — pass wilaya as query param when selected for server-side filtering
@@ -283,6 +286,7 @@ export function ExploreScreen() {
           userLocation={location}
           onSalonPress={handleMapSalonPress}
           onMarkerClick={handleMarkerClick}
+          onPopupClose={() => setSelectedSalonId(null)}
           selectedSalonId={selectedSalonId}
           height={200}
           style={styles.mapView}

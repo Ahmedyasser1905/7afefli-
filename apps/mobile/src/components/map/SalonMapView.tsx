@@ -15,20 +15,18 @@ interface SalonMapViewProps {
   userLocation: { latitude: number; longitude: number } | null;
   onSalonPress?: (salonId: string) => void;
   onMarkerClick?: (salonId: string) => void;
+  onPopupClose?: () => void;
   selectedSalonId?: string | null;
   height?: number;
   style?: unknown;
 }
-
-// Default center: Algiers
-const DEFAULT_LAT = 36.7538;
-const DEFAULT_LNG = 3.0588;
 
 export function SalonMapView({
   salons,
   userLocation,
   onSalonPress,
   onMarkerClick,
+  onPopupClose,
   selectedSalonId,
   height = 250,
   style,
@@ -86,8 +84,8 @@ export function SalonMapView({
 
   // ── Inject selection when active salon changes ──
   useEffect(() => {
-    if (!mapReady || !selectedSalonId || !webViewRef.current) return;
-    const encodedId = encodeURIComponent(JSON.stringify(selectedSalonId));
+    if (!mapReady || !webViewRef.current) return;
+    const encodedId = encodeURIComponent(JSON.stringify(selectedSalonId || null));
     webViewRef.current.injectJavaScript(
       `if(window.selectSalon){window.selectSalon(JSON.parse(decodeURIComponent("${encodedId}")));}true;`
     );
@@ -168,6 +166,7 @@ var HAS_USER=false;
 var routeLayer=null;
 var userMarker=null;
 var salonMarkers=[];
+var currentPopup=null;
 
 var scissorsSvg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23111"><path d="M9.64 7.64c.23-.5.36-1.05.36-1.64 0-2.21-1.79-4-4-4S2 3.79 2 6s1.79 4 4 4c.59 0 1.14-.13 1.64-.36L10 12l-2.36 2.36C7.14 14.13 6.59 14 6 14c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4c0-.59-.13-1.14-.36-1.64L12 14l7 7h3v-1L9.64 7.64zM6 8c-1.1 0-2-.89-2-2s.9-2 2-2 2 .89 2 2-.9 2-2 2zm0 12c-1.1 0-2-.89-2-2s.9-2 2-2 2 .89 2 2-.9 2-2 2zm6-7.5c-.28 0-.5-.22-.5-.5s.22-.5.5-.5.5.22.5.5-.22.5-.5.5zM19 3l-6 6 2 2 7-7V3h-3z"/></svg>';
 
@@ -260,12 +259,6 @@ function initMapLibre(){
         el.onclick=function(e){
           e.stopPropagation();
           safePostMessage(JSON.stringify({type:'MARKER_CLICK', salonId:s.id}));
-          
-          var dirBtn=HAS_USER?'<button class="p-btn p-dir" onclick="mglRoute('+s.lng+','+s.lat+')">Itin\u00e9raire</button>':'';
-          new maplibregl.Popup({offset:18,closeButton:true,maxWidth:'240px'})
-            .setLngLat([s.lng,s.lat])
-            .setHTML('<div class="p-name">'+s.name+'</div><div class="p-info">\u2B50 '+s.rating+' \u00B7 '+s.wilaya+'</div><div class="p-actions"><button class="p-btn p-view" onclick="safePostMessage(JSON.stringify({type:\\\'SALON_PRESS\\\', salonId:\\\''+s.id+'\\\'}))">Voir salon</button>'+dirBtn+'</div>')
-            .addTo(map);
         };
         var m = new maplibregl.Marker({element:el,anchor:'center'}).setLngLat([s.lng,s.lat]).addTo(map);
         salonMarkers.push(m);
@@ -279,15 +272,21 @@ function initMapLibre(){
     };
 
     window.selectSalon = function(salonId) {
+      if(currentPopup) { currentPopup.remove(); currentPopup = null; }
+      if(!salonId) return;
       var s = DATA.find(function(item){return item.id === salonId;});
       if(!s) return;
       map.easeTo({center:[s.lng,s.lat],zoom:14,duration:600});
       
       var dirBtn=HAS_USER?'<button class="p-btn p-dir" onclick="mglRoute('+s.lng+','+s.lat+')">Itin\u00e9raire</button>':'';
-      new maplibregl.Popup({offset:18,closeButton:true,maxWidth:'240px'})
+      currentPopup = new maplibregl.Popup({offset:18,closeButton:true,maxWidth:'240px'})
         .setLngLat([s.lng,s.lat])
         .setHTML('<div class="p-name">'+s.name+'</div><div class="p-info">\u2B50 '+s.rating+' \u00B7 '+s.wilaya+'</div><div class="p-actions"><button class="p-btn p-view" onclick="safePostMessage(JSON.stringify({type:\\\'SALON_PRESS\\\', salonId:\\\''+s.id+'\\\'}))">Voir salon</button>'+dirBtn+'</div>')
         .addTo(map);
+        
+      currentPopup.on('close', function() {
+        safePostMessage(JSON.stringify({type:'POPUP_CLOSE'}));
+      });
     };
 
     window.mglRoute=function(lng,lat){
@@ -349,10 +348,7 @@ function initLeaflet(){
         salonMarkers = [];
 
         DATA.forEach(function(s){
-          var dirBtn=HAS_USER?'<button class="p-btn p-dir" onclick="lfRoute('+s.lng+','+s.lat+')">Itin\u00e9raire</button>':'';
-          var popup='<div class="p-name">'+s.name+'</div><div class="p-info">\u2B50 '+s.rating+' \u00B7 '+s.wilaya+'</div><div class="p-actions"><button class="p-btn p-view" onclick="safePostMessage(JSON.stringify({type:\\\'SALON_PRESS\\\', salonId:\\\''+s.id+'\\\'}))">Voir salon</button>'+dirBtn+'</div>';
-          
-          var m = L.marker([s.lat,s.lng],{icon:icon}).addTo(map).bindPopup(popup,{maxWidth:240});
+          var m = L.marker([s.lat,s.lng],{icon:icon}).addTo(map);
           m.on('click', function(){
             safePostMessage(JSON.stringify({type:'MARKER_CLICK', salonId:s.id}));
           });
@@ -365,18 +361,24 @@ function initLeaflet(){
         }
       };
 
+      map.on('popupclose', function() {
+        safePostMessage(JSON.stringify({type:'POPUP_CLOSE'}));
+      });
+
       window.selectSalon = function(salonId) {
+        map.closePopup();
+        if(!salonId) return;
         var s = DATA.find(function(item){return item.id === salonId;});
         if(!s) return;
         map.setView([s.lat, s.lng], 14, {animate: true});
 
-        var marker = salonMarkers.find(function(m) {
-          var latlng = m.getLatLng();
-          return Math.abs(latlng.lat - s.lat) < 0.0001 && Math.abs(latlng.lng - s.lng) < 0.0001;
-        });
-        if (marker) {
-          marker.openPopup();
-        }
+        var dirBtn=HAS_USER?'<button class="p-btn p-dir" onclick="lfRoute('+s.lng+','+s.lat+')">Itin\u00e9raire</button>':'';
+        var popupHtml='<div class="p-name">'+s.name+'</div><div class="p-info">\u2B50 '+s.rating+' \u00B7 '+s.wilaya+'</div><div class="p-actions"><button class="p-btn p-view" onclick="safePostMessage(JSON.stringify({type:\\\'SALON_PRESS\\\', salonId:\\\''+s.id+'\\\'}))">Voir salon</button>'+dirBtn+'</div>';
+        
+        L.popup({maxWidth:240, offset:[0,-18]})
+          .setLatLng([s.lat, s.lng])
+          .setContent(popupHtml)
+          .openOn(map);
       };
 
       window.lfRoute=function(lng,lat){
@@ -446,6 +448,10 @@ function initLeaflet(){
         } else if (parsed.type === 'SALON_PRESS') {
           if (onSalonPress) {
             onSalonPress(parsed.salonId);
+          }
+        } else if (parsed.type === 'POPUP_CLOSE') {
+          if (onPopupClose) {
+            onPopupClose();
           }
         }
       } catch (e) {

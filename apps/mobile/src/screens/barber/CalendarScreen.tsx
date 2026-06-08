@@ -374,7 +374,7 @@ export function CalendarScreen() {
 
               const client = (reservation as Record<string, unknown>).profiles as Record<string, unknown> | undefined;
               const service = (reservation as Record<string, unknown>).services as Record<string, unknown> | undefined;
-              const isWalkIn = (reservation.notes as string | null)?.includes('[Sans RDV]');
+              const isWalkIn = reservation.is_walk_in === true;
 
               let walkInName = '';
               if (isWalkIn && reservation.notes) {
@@ -468,7 +468,7 @@ export function CalendarScreen() {
               pendingOtherDays.map((r) => {
                 const client = (r as Record<string, unknown>).profiles as Record<string, unknown> | undefined;
                 const service = (r as Record<string, unknown>).services as Record<string, unknown> | undefined;
-                const isWalkIn = (r.notes as string | null)?.includes('[Sans RDV]');
+                const isWalkIn = r.is_walk_in === true;
                 const [ry, rm, rd] = r.appointment_date.split('-').map(Number);
                 return (
                   <TouchableOpacity

@@ -203,6 +203,7 @@ export function HomeScreen() {
 
     return () => {
       locationSubscription?.remove();
+      setSelectedSalonId(null);
     };
   }, []);
 
@@ -390,6 +391,7 @@ export function HomeScreen() {
           userLocation={location}
           onSalonPress={(salonId) => navigation.navigate('SalonDetail', { salonId })}
           onMarkerClick={handleMarkerClick}
+          onPopupClose={() => setSelectedSalonId(null)}
           selectedSalonId={selectedSalonId}
           height={220}
         />

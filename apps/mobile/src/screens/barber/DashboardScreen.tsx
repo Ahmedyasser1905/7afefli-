@@ -628,7 +628,7 @@ export function DashboardScreen() {
     const isCancelled = effectiveStatus === 'Cancelled';
     const isCompleted = effectiveStatus === 'Completed';
 
-    const isWalkIn = item.notes?.includes('[Sans RDV]');
+    const isWalkIn = item.is_walk_in === true;
     let displayClientName = client?.full_name;
     if (isWalkIn && item.notes) {
       const match = item.notes.match(/Client:\s*(.*?)(?:\s*-\s*Tel:|\s*\n|$)/);

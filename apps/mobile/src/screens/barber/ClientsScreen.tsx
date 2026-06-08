@@ -66,108 +66,60 @@ export function ClientsScreen() {
 
   const salonId = salon?.id ?? null;
 
-  // Fetch all reservations for client aggregation
-  const { data: reservations = [], isLoading: isReservationsLoading, refetch } = useQuery({
-    queryKey: ['barber-crm-reservations', salonId],
+  // Fetch all clients using the new backend aggregated endpoint
+  const { data: clientsData = null, isLoading: isReservationsLoading, refetch } = useQuery({
+    queryKey: ['barber-crm-reservations', salonId], // Keeping the same queryKey name so invalidation works
     queryFn: async () => {
-      if (!salonId) return [];
-      const data = await apiClient.get<Record<string, unknown>[]>(`/reservations/salon/${salonId}`);
-      return data || [];
+      if (!salonId) return null;
+      const data = await apiClient.get<any>(`/reservations/salon/${salonId}/clients`);
+      return data || null;
     },
     enabled: !!salonId,
   });
 
-  // Aggregate reservations to build client directory
   const clientsList = useMemo(() => {
-    const clientsMap = new Map<string, ClientItem>();
-
-    reservations.forEach((res: Record<string, unknown>) => {
-      const isWalkIn = !res.client_id;
-      let clientId = '';
-      let clientName = 'Client de passage';
-      let clientPhone = (res.client_phone as string) || '';
-      let avatarUrl: string | null = null;
-      let loyaltyPoints = 0;
-      let isRegistered = false;
-
-      if (!isWalkIn && res.profiles) {
-        const profile = res.profiles as Record<string, unknown>;
-        // Use client_id from the reservation row (always present for registered clients)
-        clientId = res.client_id as string;
-        clientName = (profile.full_name as string) || 'Sans Nom';
-        clientPhone = (profile.phone_number as string) || (res.client_phone as string) || '';
-        avatarUrl = (profile.avatar_url as string) || null;
-        loyaltyPoints = (profile.loyalty_points as number) || 0;
-        isRegistered = true;
-      } else {
-        // Parse Walk-In client from notes
-        const notes = (res.notes as string) || '';
-        if (notes.startsWith('[Sans RDV]')) {
-          const nameMatch = notes.match(/Client:\s*([^\n]+)/);
-          const telMatch = notes.match(/Tel:\s*([^\n]+)/);
-          if (nameMatch) clientName = nameMatch[1].trim();
-          if (telMatch) {
-            clientPhone = telMatch[1].trim();
-          } else if (res.client_phone) {
-            clientPhone = res.client_phone as string;
-          }
-        }
-        clientId = clientPhone ? `walkin-${clientPhone}` : `walkin-${res.id}`;
-      }
-
-      if (!clientId) return;
-
-      // services is returned as an object {service_name, price, duration_minutes}
-      const services = res.services as Record<string, unknown> | null;
-      const price = (services?.price as number) || 0;
-
-      const appt = {
-        id: res.id as string,
-        date: res.appointment_date as string,
-        time: res.start_time as string,
-        status: res.status as string,
-        price,
-      };
-
-      if (clientsMap.has(clientId)) {
-        const existing = clientsMap.get(clientId)!;
-        existing.totalVisits += 1;
-        if (res.status !== 'Cancelled') {
-          existing.totalSpent += price;
-        }
-        existing.appointments.push(appt);
-        if (new Date(res.appointment_date) > new Date(existing.lastVisitDate)) {
-          existing.lastVisitDate = res.appointment_date;
-        }
-      } else {
-        clientsMap.set(clientId, {
-          id: clientId,
-          name: clientName,
-          phone: clientPhone,
-          avatarUrl,
-          loyaltyPoints,
-          isRegistered,
-          totalVisits: 1,
-          totalSpent: res.status !== 'Cancelled' ? price : 0,
-          lastVisitDate: res.appointment_date,
-          appointments: [appt],
-        });
-      }
-    });
-
-    // Sort appointments for each client from newest to oldest
-    clientsMap.forEach((client) => {
-      client.appointments.sort((a, b) => {
+    if (!clientsData) return [];
+    
+    // Format backend data into the UI's ClientItem structure.
+    const members = (clientsData.appMembers || []).map((m: any) => ({
+      id: m.id,
+      name: m.full_name || 'Sans Nom',
+      phone: m.phone_number || '',
+      avatarUrl: m.avatar_url || null,
+      loyaltyPoints: m.loyalty_points || 0,
+      isRegistered: true,
+      totalVisits: m.reservation_count,
+      totalSpent: m.totalSpent || 0,
+      lastVisitDate: m.lastVisitDate || '',
+      appointments: (m.appointments || []).sort((a: any, b: any) => {
         const dateCompare = b.date.localeCompare(a.date);
         return dateCompare !== 0 ? dateCompare : b.time.localeCompare(a.time);
-      });
-    });
+      }),
+    }));
+
+    const walkIns = (clientsData.walkInClients || []).map((w: any) => ({
+      id: w.id,
+      name: w.full_name || 'Client de passage',
+      phone: w.phone_number || '',
+      avatarUrl: null,
+      loyaltyPoints: 0,
+      isRegistered: false,
+      totalVisits: w.reservation_count,
+      totalSpent: w.totalSpent || 0,
+      lastVisitDate: w.lastVisitDate || '',
+      appointments: (w.appointments || []).sort((a: any, b: any) => {
+        const dateCompare = b.date.localeCompare(a.date);
+        return dateCompare !== 0 ? dateCompare : b.time.localeCompare(a.time);
+      }),
+    }));
 
     // Only include clients who have at least one non-cancelled appointment
-    return Array.from(clientsMap.values()).filter(
-      (c) => c.appointments.some((a) => a.status !== 'Cancelled')
+    const allClients = [...members, ...walkIns].filter(
+      (c) => c.appointments.some((a: any) => a.status !== 'Cancelled')
     );
-  }, [reservations, user?.id]);
+
+    return allClients.sort((a, b) => b.totalVisits - a.totalVisits);
+  }, [clientsData]);
 
   // Filter based on search query
   const filteredClients = useMemo(() => {
@@ -181,11 +133,18 @@ export function ClientsScreen() {
   }, [clientsList, search]);
 
   const stats = useMemo(() => {
+    if (clientsData?.statistics) {
+      return {
+        total: clientsData.statistics.totalClients || 0,
+        registered: clientsData.statistics.totalAppMembers || 0,
+        walkIns: clientsData.statistics.totalWalkIns || 0,
+      };
+    }
     const total = clientsList.length;
     const registered = clientsList.filter((c) => c.isRegistered).length;
     const walkIns = total - registered;
     return { total, registered, walkIns };
-  }, [clientsList]);
+  }, [clientsList, clientsData]);
 
   const handleCallClient = (phoneNumber: string) => {
     if (!phoneNumber) return;

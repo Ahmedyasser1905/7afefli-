@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsUUID,
   Matches,
+  IsBoolean,
 } from 'class-validator';
 
 export class CreateReservationDto {
@@ -42,4 +43,8 @@ export class CreateReservationDto {
   @IsOptional()
   @Matches(/^(\+213|0)[567][0-9]{8}$/, { message: 'Phone number must be a valid Algerian number' })
   clientPhone?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  isWalkIn?: boolean;
 }

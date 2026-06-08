@@ -64,7 +64,7 @@ export function ReservationDetailModal({
   const notes = reservation.notes as string | null;
 
   const isBlock = notes === 'CRÉNEAU BLOQUÉ';
-  const isWalkIn = notes?.includes('[Sans RDV]');
+  const isWalkIn = reservation.is_walk_in === true;
   const isPending = status === 'Pending';
   const isCancellable = status !== 'Cancelled' && status !== 'Completed';
 

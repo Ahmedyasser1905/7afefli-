@@ -162,6 +162,7 @@ export class ReservationsService {
         p_notes: dto.notes ?? null,
         p_client_phone: dto.clientPhone ?? null,
         p_staff_id: staffId,
+        p_is_walk_in: dto.isWalkIn ?? false,
       }
     );
 
@@ -700,6 +701,149 @@ export class ReservationsService {
     } catch (err: unknown) {
       this.logger.warn(`Slot cache invalidation failed (non-fatal): ${(err as Error).message ?? err}`);
     }
+  }
+
+  /**
+   * Get pre-aggregated clients for a salon to replace frontend calculation.
+   * Processes all non-cancelled reservations to find unique clients.
+   */
+  async getSalonClients(salonId: string, userId: string) {
+    // Verify the user owns the salon or is staff
+    const { data: salon } = await this.supabase.adminClient
+      .from('salons')
+      .select('owner_id')
+      .eq('id', salonId)
+      .single();
+
+    if (!salon) throw new NotFoundException('Salon not found');
+
+    const isOwner = salon.owner_id === userId;
+    if (!isOwner) {
+      const { data: staff } = await this.supabase.adminClient
+        .from('salon_staff')
+        .select('id')
+        .eq('salon_id', salonId)
+        .eq('profile_id', userId)
+        .maybeSingle();
+
+      if (!staff) {
+        throw new ForbiddenException('You are not authorized to view this salon\'s clients');
+      }
+    }
+
+    // Fetch all non-cancelled real reservations (ignoring blocks)
+    const { data, error } = await this.supabase.adminClient
+      .from('reservations')
+      .select(`
+        id,
+        client_id, 
+        is_walk_in, 
+        notes, 
+        client_phone,
+        appointment_date,
+        start_time,
+        status,
+        services(price),
+        profiles!reservations_client_id_fkey(id, full_name, phone_number, avatar_url, loyalty_points)
+      `)
+      .eq('salon_id', salonId)
+      .not('status', 'eq', 'Cancelled')
+      .not('notes', 'ilike', '%CRÉNEAU BLOQUÉ%');
+
+    if (error) throw new Error(`Failed to fetch clients: ${error.message}`);
+
+    const appMembersMap = new Map<string, any>();
+    const walkInMap = new Map<string, any>();
+
+    let totalAppMembers = 0;
+    let totalWalkIns = 0;
+    let returningClients = 0;
+    let newClients = 0;
+
+    for (const res of (data || [])) {
+      const servicesObj = res.services as any;
+      const price = servicesObj?.price || 0;
+      const appt = {
+        id: res.id,
+        date: res.appointment_date,
+        time: res.start_time,
+        status: res.status,
+        price,
+      };
+
+      if (res.is_walk_in) {
+        const walkInKey = res.notes || `walkin-${res.client_id}-${res.id}`;
+        if (!walkInMap.has(walkInKey)) {
+          walkInMap.set(walkInKey, {
+            id: walkInKey,
+            full_name: res.notes ? res.notes.replace('[Sans RDV] Client: ', '').replace('[Sans RDV]', '').trim() : 'Client sans RDV',
+            phone_number: res.client_phone || null,
+            is_walk_in: true,
+            reservation_count: 1,
+            totalSpent: price,
+            lastVisitDate: res.appointment_date,
+            appointments: [appt],
+          });
+          totalWalkIns++;
+        } else {
+          const client = walkInMap.get(walkInKey);
+          client.reservation_count++;
+          client.totalSpent += price;
+          client.appointments.push(appt);
+          if (new Date(res.appointment_date) > new Date(client.lastVisitDate)) {
+            client.lastVisitDate = res.appointment_date;
+          }
+        }
+      } else {
+        const p = res.profiles as any;
+        if (p && p.id) {
+          if (!appMembersMap.has(p.id)) {
+            appMembersMap.set(p.id, {
+              ...p,
+              is_walk_in: false,
+              reservation_count: 1,
+              totalSpent: price,
+              lastVisitDate: res.appointment_date,
+              appointments: [appt],
+            });
+            totalAppMembers++;
+          } else {
+            const client = appMembersMap.get(p.id);
+            client.reservation_count++;
+            client.totalSpent += price;
+            client.appointments.push(appt);
+            if (new Date(res.appointment_date) > new Date(client.lastVisitDate)) {
+              client.lastVisitDate = res.appointment_date;
+            }
+          }
+        }
+      }
+    }
+
+    const appMembers = Array.from(appMembersMap.values());
+    const walkInClients = Array.from(walkInMap.values());
+
+    // Calculate returning vs new based on combined unique clients
+    const allClients = [...appMembers, ...walkInClients];
+    for (const c of allClients) {
+      if (c.reservation_count > 1) {
+        returningClients++;
+      } else {
+        newClients++;
+      }
+    }
+
+    return {
+      appMembers,
+      walkInClients,
+      statistics: {
+        totalClients: totalAppMembers + totalWalkIns,
+        totalAppMembers,
+        totalWalkIns,
+        returningClients,
+        newClients
+      }
+    };
   }
 
 }
