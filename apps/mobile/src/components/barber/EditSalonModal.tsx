@@ -21,6 +21,7 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { decode } from 'base64-arraybuffer';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { colors, spacing, radius } from '../../theme';
@@ -69,8 +70,15 @@ export function EditSalonModal({ visible, onClose, salon, onSaved }: EditSalonMo
   const [workingDays, setWorkingDays] = useState<number[]>([0, 1, 2, 3, 4, 5, 6]);
   const [isWilayaModalVisible, setIsWilayaModalVisible] = useState(false);
   const [wilayaSearch, setWilayaSearch] = useState('');
+  const [wilayas, setWilayas] = useState<string[]>([]);
+  const [showOpenPicker, setShowOpenPicker] = useState(false);
+  const [showClosePicker, setShowClosePicker] = useState(false);
 
-  const filteredWilayas = WILAYAS.filter((w) => w.toLowerCase().includes(wilayaSearch.toLowerCase()));
+  useEffect(() => {
+    apiClient.get<string[]>('/locations/wilayas').then((data) => setWilayas(data)).catch(() => {});
+  }, []);
+
+  const filteredWilayas = wilayas.filter((w) => w.toLowerCase().includes(wilayaSearch.toLowerCase()));
 
   useEffect(() => {
     if (salon && visible) {
@@ -287,61 +295,49 @@ export function EditSalonModal({ visible, onClose, salon, onSaved }: EditSalonMo
 
             {/* Hours — Scrollable chip selectors */}
             <Text style={styles.label}>Heure d'ouverture</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: spacing.md }}>
-              <View style={{ flexDirection: 'row', gap: spacing.xs }}>
-                {TIME_CHIPS.map((t) => (
-                  <TouchableOpacity
-                    key={`open-${t}`}
-                    onPress={() => setOpenTime(t)}
-                    style={{
-                      paddingHorizontal: spacing.md,
-                      paddingVertical: spacing.sm,
-                      borderRadius: radius.md,
-                      backgroundColor: openTime === t ? colors.amber : colors.carbon,
-                      borderWidth: 1,
-                      borderColor: openTime === t ? colors.amber : 'rgba(255,255,255,0.1)',
-                    }}
-                  >
-                    <Text style={{
-                      fontFamily: 'DMSans_500Medium',
-                      fontSize: 13,
-                      color: openTime === t ? colors.ink : colors.textSecondary,
-                    }}>{t}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
+            <TouchableOpacity style={styles.inputContainer} onPress={() => setShowOpenPicker(true)}>
+              <Ionicons name="time-outline" size={18} color={colors.amber} />
+              <Text style={styles.input}>{openTime}</Text>
+            </TouchableOpacity>
+            {showOpenPicker && (
+              <DateTimePicker
+                value={new Date(`2000-01-01T${openTime}:00`)}
+                mode="time"
+                is24Hour={true}
+                display="default"
+                onChange={(event, date) => {
+                  setShowOpenPicker(false);
+                  if (date) {
+                    setOpenTime(`${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`);
+                  }
+                }}
+              />
+            )}
 
             <Text style={styles.label}>Heure de fermeture</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: spacing.lg }}>
-              <View style={{ flexDirection: 'row', gap: spacing.xs }}>
-                {TIME_CHIPS.map((t) => (
-                  <TouchableOpacity
-                    key={`close-${t}`}
-                    onPress={() => setCloseTime(t)}
-                    style={{
-                      paddingHorizontal: spacing.md,
-                      paddingVertical: spacing.sm,
-                      borderRadius: radius.md,
-                      backgroundColor: closeTime === t ? colors.amber : colors.carbon,
-                      borderWidth: 1,
-                      borderColor: closeTime === t ? colors.amber : 'rgba(255,255,255,0.1)',
-                    }}
-                  >
-                    <Text style={{
-                      fontFamily: 'DMSans_500Medium',
-                      fontSize: 13,
-                      color: closeTime === t ? colors.ink : colors.textSecondary,
-                    }}>{t}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
+            <TouchableOpacity style={styles.inputContainer} onPress={() => setShowClosePicker(true)}>
+              <Ionicons name="time-outline" size={18} color={colors.amber} />
+              <Text style={styles.input}>{closeTime}</Text>
+            </TouchableOpacity>
+            {showClosePicker && (
+              <DateTimePicker
+                value={new Date(`2000-01-01T${closeTime}:00`)}
+                mode="time"
+                is24Hour={true}
+                display="default"
+                onChange={(event, date) => {
+                  setShowClosePicker(false);
+                  if (date) {
+                    setCloseTime(`${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`);
+                  }
+                }}
+              />
+            )}
 
             {/* Working Days */}
             <Text style={styles.label}>Jours de travail</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
-              {[{ day: 0, label: 'Dim' }, { day: 1, label: 'Lun' }, { day: 2, label: 'Mar' }, { day: 3, label: 'Mer' }, { day: 4, label: 'Jeu' }, { day: 5, label: 'Ven' }, { day: 6, label: 'Sam' }].map(({ day, label }) => {
+              {Array.from({ length: 7 }, (_, i) => { const d = new Date(2023, 0, 1 + i); return { day: d.getDay(), label: new Intl.DateTimeFormat('fr-FR', { weekday: 'short' }).format(d).charAt(0).toUpperCase() + new Intl.DateTimeFormat('fr-FR', { weekday: 'short' }).format(d).slice(1) }; }).sort((a, b) => a.day - b.day).map(({ day, label }) => {
                 const isActive = workingDays.includes(day);
                 return (
                   <TouchableOpacity

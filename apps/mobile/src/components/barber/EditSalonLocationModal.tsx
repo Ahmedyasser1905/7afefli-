@@ -13,6 +13,7 @@ import { WebView } from 'react-native-webview';
 import { colors, spacing, radius } from '../../theme';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { apiClient } from '../../lib/apiClient';
+import * as Location from 'expo-location';
 
 interface EditSalonLocationModalProps {
   visible: boolean;
@@ -29,8 +30,23 @@ export function EditSalonLocationModal({ visible, onClose, salon, onSaved }: Edi
 
   useEffect(() => {
     if (salon && visible) {
-      setLat((salon.latitude as number) ?? 36.7538);
-      setLng((salon.longitude as number) ?? 3.0588);
+      if (salon.latitude !== undefined && salon.longitude !== undefined && salon.latitude !== null) {
+        setLat(salon.latitude as number);
+        setLng(salon.longitude as number);
+      } else {
+        // Fetch current device location dynamically
+        (async () => {
+          try {
+            const { status } = await Location.requestForegroundPermissionsAsync();
+            if (status !== 'granted') return;
+            const location = await Location.getCurrentPositionAsync({});
+            setLat(location.coords.latitude);
+            setLng(location.coords.longitude);
+          } catch (e) {
+            console.log('Location fetch failed, fallback to default', e);
+          }
+        })();
+      }
     }
   }, [salon, visible]);
 

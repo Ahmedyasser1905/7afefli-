@@ -29,7 +29,7 @@ export function ServiceModal({ visible, onClose, salonId, onSuccess, service }: 
     service_name: '',
     description: '',
     price: '',
-    duration_minutes: '30',
+    duration_minutes: '',
   });
 
   const isEditing = !!service;
@@ -46,7 +46,7 @@ export function ServiceModal({ visible, onClose, salonId, onSuccess, service }: 
   }, [service]);
 
   const resetAndClose = () => {
-    setForm({ service_name: '', description: '', price: '', duration_minutes: '30' });
+    setForm({ service_name: '', description: '', price: '', duration_minutes: '' });
     onClose();
   };
 
@@ -96,7 +96,7 @@ export function ServiceModal({ visible, onClose, salonId, onSuccess, service }: 
       }
       
       onSuccess();
-      setForm({ service_name: '', description: '', price: '', duration_minutes: '30' });
+      setForm({ service_name: '', description: '', price: '', duration_minutes: '' });
       onClose();
     } catch (err: unknown) {
       Toast.show({

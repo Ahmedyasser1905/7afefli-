@@ -39,17 +39,17 @@ export class CreateSalonDto {
   longitude!: number;
 
   @IsString()
-  @IsOptional()
+  @IsNotEmpty()
   @Matches(/^\d{2}:\d{2}$/, { message: 'open_time must be in HH:MM format' })
-  open_time?: string;
+  open_time!: string;
 
   @IsString()
-  @IsOptional()
+  @IsNotEmpty()
   @Matches(/^\d{2}:\d{2}$/, { message: 'close_time must be in HH:MM format' })
-  close_time?: string;
+  close_time!: string;
 
   @IsArray()
+  @IsNotEmpty()
   @IsNumber({}, { each: true })
-  @IsOptional()
-  working_days?: number[];
+  working_days!: number[];
 }

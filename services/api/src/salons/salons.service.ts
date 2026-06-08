@@ -194,9 +194,9 @@ export class SalonsService {
         address: dto.address,
         latitude: dto.latitude,
         longitude: dto.longitude,
-        open_time: dto.open_time ?? '09:00',
-        close_time: dto.close_time ?? '21:00',
-        working_days: dto.working_days ?? [1, 2, 3, 4, 5, 6],
+        open_time: dto.open_time,
+        close_time: dto.close_time,
+        working_days: dto.working_days,
         subscription_status: 'Trial',
         trial_ends_at: new Date(
           Date.now() + parseInt(process.env.TRIAL_DAYS ?? '90', 10) * 24 * 60 * 60 * 1000,
@@ -206,6 +206,25 @@ export class SalonsService {
       .single();
 
     if (error) throw new InternalServerErrorException(`Failed to create salon: ${error.message}`);
+
+    // Dynamically assign the basic/free plan
+    const { data: basicPlan } = await this.supabase.adminClient
+      .from('plans')
+      .select('id')
+      .eq('slug', 'basic')
+      .single();
+
+    if (basicPlan) {
+      await this.supabase.adminClient.from('user_subscriptions').insert({
+        user_id: ownerId,
+        salon_id: data.id,
+        plan_id: basicPlan.id,
+        status: 'active',
+        start_date: new Date().toISOString(),
+        end_date: data.trial_ends_at,
+      });
+    }
+
     return this.enrichSalon(data);
   }
 
