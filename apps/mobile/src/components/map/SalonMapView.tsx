@@ -21,6 +21,10 @@ interface SalonMapViewProps {
   style?: unknown;
 }
 
+// Default center: Algiers
+const DEFAULT_LAT = 36.7538;
+const DEFAULT_LNG = 3.0588;
+
 export function SalonMapView({
   salons,
   userLocation,
