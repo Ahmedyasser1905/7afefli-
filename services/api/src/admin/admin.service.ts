@@ -60,10 +60,59 @@ export class AdminService {
   }
 
   async deleteSalon(salonId: string) {
+    // Manual cascade delete to prevent orphaned records
+    await Promise.all([
+      this.supabase.adminClient.from('salon_staff').delete().eq('salon_id', salonId),
+      this.supabase.adminClient.from('portfolio_photos').delete().eq('salon_id', salonId),
+      this.supabase.adminClient.from('user_subscriptions').delete().eq('salon_id', salonId),
+      this.supabase.adminClient.from('reservations').delete().eq('salon_id', salonId),
+      this.supabase.adminClient.from('reviews').delete().eq('salon_id', salonId),
+      this.supabase.adminClient.from('services').delete().eq('salon_id', salonId),
+    ]);
+
     const { error } = await this.supabase.adminClient
       .from('salons')
       .delete()
       .eq('id', salonId);
+    if (error) throw new Error(error.message);
+    return { success: true };
+  }
+
+  async deleteUser(userId: string) {
+    // 1. Find and delete all owned salons (which will cascade clean up)
+    const { data: salons } = await this.supabase.adminClient
+      .from('salons')
+      .select('id')
+      .eq('owner_id', userId);
+    
+    if (salons) {
+      for (const salon of salons) {
+        await this.deleteSalon(salon.id);
+      }
+    }
+
+    // 2. Delete user's personal references
+    await Promise.all([
+      this.supabase.adminClient.from('reservations').delete().eq('client_id', userId),
+      this.supabase.adminClient.from('reviews').delete().eq('client_id', userId),
+      this.supabase.adminClient.from('salon_staff').delete().eq('profile_id', userId),
+    ]);
+
+    // 3. Delete profile
+    await this.supabase.adminClient.from('profiles').delete().eq('id', userId);
+
+    // 4. Delete Auth User
+    const { error: authError } = await this.supabase.adminClient.auth.admin.deleteUser(userId);
+    if (authError) throw new Error(`Failed to delete user auth: ${authError.message}`);
+
+    return { success: true };
+  }
+
+  async deleteReservation(reservationId: string) {
+    const { error } = await this.supabase.adminClient
+      .from('reservations')
+      .delete()
+      .eq('id', reservationId);
     if (error) throw new Error(error.message);
     return { success: true };
   }

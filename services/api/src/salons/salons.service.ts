@@ -257,6 +257,38 @@ export class SalonsService {
   }
 
   /**
+   * Delete a salon (owner only).
+   */
+  async remove(id: string, userId: string) {
+    const { data: salon } = await this.supabase.adminClient
+      .from('salons')
+      .select('owner_id')
+      .eq('id', id)
+      .single();
+
+    if (!salon) throw new NotFoundException(`Salon with ID ${id} not found`);
+    if (salon.owner_id !== userId) throw new ForbiddenException('You can only delete your own salon');
+
+    // Manual cascade delete to avoid orphaned records
+    await Promise.all([
+      this.supabase.adminClient.from('salon_staff').delete().eq('salon_id', id),
+      this.supabase.adminClient.from('portfolio_photos').delete().eq('salon_id', id),
+      this.supabase.adminClient.from('user_subscriptions').delete().eq('salon_id', id),
+      this.supabase.adminClient.from('reservations').delete().eq('salon_id', id),
+      this.supabase.adminClient.from('reviews').delete().eq('salon_id', id),
+      this.supabase.adminClient.from('services').delete().eq('salon_id', id),
+    ]);
+
+    const { error } = await this.supabase.adminClient
+      .from('salons')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw new InternalServerErrorException(`Failed to delete salon: ${error.message}`);
+    return { success: true };
+  }
+
+  /**
    * Add staff to salon
    */
   async addStaff(salonId: string, customName: string, userId: string) {

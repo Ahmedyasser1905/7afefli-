@@ -95,27 +95,14 @@ async function fetchProfileInfo(user: any): Promise<{ role: string; hasPhone: bo
 }
 
 export function AppNavigator() {
-  const { session, role, needsPhone, needsPasswordReset, clearAuth } = useAuthStore();
+  const { session, role, needsPhone, needsPasswordReset, clearAuth, isLoading } = useAuthStore();
 
   // Register push notifications & listen for notification taps
   useNotificationSetup();
 
-  // Intercept hardware back button on root screen to terminate app activity.
-  // This ensures the next launch executes a clean cold boot instead of resuming the background activity state.
-  useEffect(() => {
-    const handleBackPress = () => {
-      if (navigationRef.isReady()) {
-        if (!navigationRef.canGoBack()) {
-          BackHandler.exitApp();
-          return true; // Prevent default backgrounding
-        }
-      }
-      return false;
-    };
-
-    BackHandler.addEventListener('hardwareBackPress', handleBackPress);
-    return () => BackHandler.removeEventListener('hardwareBackPress', handleBackPress);
-  }, []);
+  // Hardware back button is now handled by React Navigation natively.
+  // This correctly pops nested screens, closes modals (like BottomSheet),
+  // and safely moves the task to the background at the root screen.
 
   
 
@@ -195,6 +182,10 @@ export function AppNavigator() {
     );
     return () => listener.subscription.unsubscribe();
   }, []);
+
+  if (isLoading) {
+    return null;
+  }
 
   return (
     <NavigationContainer ref={navigationRef} theme={HafefliTheme}>

@@ -1,45 +1,38 @@
-# Navigation & Hardware Back Button Audit Report
+# 7afefli Navigation Audit & Fix Report
 
-## 1. Executive Summary
-This audit addresses two critical usability issues on the React Native/Expo mobile client:
-1. **Navigation State Persistence on App Close/Restart:** App opening sometimes restored the last visited screen rather than clean entry landing pages.
-2. **Android Hardware Back Button Responsiveness:** The back button was either not closing custom overlays/modals or backgrounding the app incorrectly.
+## Overview
+This document outlines the findings and fixes related to the Android Back button functionality and the unwanted restoration of previous screens upon application restart. 
 
----
+## Navigation Issues Found
+- **Incorrect Navigation State Retention (Phantom Sessions):** Users reported that when they closed the application and reopened it, the app opened on a "random previous screen" rather than correctly landing on the entry screen (Home/Dashboard or Login).
+- **No rogue `navigation.replace()` or `AsyncStorage` calls:** The codebase was audited for incorrect uses of `navigation.replace()`, `navigation.reset()`, and `AsyncStorage`. There were **no invalid instances** found. The navigation purely uses `.navigate()`. State is only persisted for authentication data via `expo-secure-store`, not for the `NavigationContainer`.
 
-## 2. Navigation State Persistence (Root Cause)
-### Issue Found
-When a user pressed the Android physical Back button from the root screen (such as the main dashboard or the login screen), the default behavior of React Native on modern Android versions is to background the Activity (like pressing the Home button) instead of finishing/terminating it. Because the underlying JS engine and memory state remained active in the background, clicking the app icon again simply resumed the existing task on the last visited screen.
+## Back Button Issues Found
+- **Broken Modal Interaction & Force Quitting:** Pressing the Android back button from the root screen of any tab (e.g., Home) immediately executed a custom script to forcefully close the application (`BackHandler.exitApp()`), entirely bypassing React Navigation's native back button integration.
+- **Side Effect on Modals:** Since `BottomSheet` modals do not integrate with the main navigation stack by default, they evaluate `navigation.canGoBack()` as `false`. Consequently, pressing back while a modal was open would instantly crash/exit the app rather than closing the modal.
 
-### Fix Applied
-In [AppNavigator.tsx](file:///c:/Users/dz%20laptops/Desktop/projets/Barber/apps/mobile/src/navigation/AppNavigator.tsx), we registered a root-level hardware back press handler using React Native's `BackHandler`.
-- If the back button is pressed when `navigationRef.canGoBack()` is `false` (meaning the user is at the root entry of their current flow), the app calls `BackHandler.exitApp()`.
-- This terminates the Android Activity, ensuring that any subsequent launch performs a clean cold startup, executing the complete auth/session bootstrap sequence.
+## Root Cause
+The core issue originated from a custom `BackHandler` implemented inside `AppNavigator.tsx`:
+1. It intercepted the hardware back press and called `BackHandler.exitApp()`.
+2. On modern Android, `exitApp()` finishes the `Activity` but **keeps the JavaScript process alive** in memory.
+3. When the user relaunched the app, the Android OS recreated the Activity natively, but the JavaScript process resumed from its exact previous state. This made the app appear to "restore random previous screens" because it was literally continuing the un-terminated session from where it left off, bypassing the standard cold boot process.
 
----
+Additionally, a minor race condition existed in the startup sequence where `AppNavigator.tsx` did not wait for `useAuthStore` to finish hydrating its `isLoading` state, potentially causing a flicker between the Auth and Client routes during startup.
 
-## 3. Android Back Button modal issues (Root Cause)
-### Issue Found
-Several custom modals lacked the `onRequestClose` prop on the React Native `<Modal>` component. On Android, if `<Modal>` does not have `onRequestClose` defined, pressing the physical back button will not dismiss the modal; it either does nothing or propagates to the navigator below, causing unexpected back-navigations while the modal remains stuck open.
+## Files Modified
+1. `apps/mobile/src/navigation/AppNavigator.tsx`
 
-### Fixes Applied
-We updated all custom `<Modal>` instances to include `onRequestClose={onClose}`. This maps the Android back button directly to the close/dismiss callback of each modal:
-* [AddStaffModal.tsx](file:///c:/Users/dz%20laptops/Desktop/projets/Barber/apps/mobile/src/components/barber/AddStaffModal.tsx)
-* [AddWalkInModal.tsx](file:///c:/Users/dz%20laptops/Desktop/projets/Barber/apps/mobile/src/components/barber/AddWalkInModal.tsx)
-* [BlockTimeModal.tsx](file:///c:/Users/dz%20laptops/Desktop/projets/Barber/apps/mobile/src/components/barber/BlockTimeModal.tsx)
-* [ReservationDetailModal.tsx](file:///c:/Users/dz%20laptops/Desktop/projets/Barber/apps/mobile/src/components/barber/ReservationDetailModal.tsx)
-* [ServiceModal.tsx](file:///c:/Users/dz%20laptops/Desktop/projets/Barber/apps/mobile/src/components/barber/ServiceModal.tsx)
-* [LeaveReviewModal.tsx](file:///c:/Users/dz%20laptops/Desktop/projets/Barber/apps/mobile/src/components/client/LeaveReviewModal.tsx)
+## Fixes Applied
+1. **Removed the Custom BackHandler (`AppNavigator.tsx`)**:
+   - The flawed `BackHandler.exitApp()` interceptor was deleted.
+   - React Navigation now handles hardware back presses natively. This automatically allows Modals to intercept back gestures properly, pops nested screens sequentially, and safely moves the app to the background when backing out from the root screen.
+2. **Added Startup Hydration Check (`AppNavigator.tsx`)**:
+   - Implemented a check for `isLoading` from `useAuthStore`.
+   - The `NavigationContainer` now explicitly waits until `useAuthStore` resolves the authentication payload from SecureStore before rendering. This guarantees the initial navigation stack initializes fully resolved (avoiding unexpected history manipulation).
+3. **Logout Navigation Cleared**:
+   - Verified that `clearAuth` correctly forces a null session. Because `AppNavigator` swaps the RootStack conditionally, logging out completely unmounts the `ClientApp` navigator, cleanly flushing its history.
 
----
-
-## 4. Protected Routes & Authentication Flow Verification
-* **Login Flow:** Swaps the rendering tree to `AuthStackNavigator` when `session` is null. There is no back-history to previous logged-in screens because the navigator tree is physically unmounted.
-* **Logout Flow:** Triggering `clearAuth()` sets `session` to null, instantly unmounting the active App tab navigators and mounting `AuthStackNavigator` at its initial `PhoneInput` screen.
-* **App Restart:** The app queries the local secure storage for the session. If active, it resolves the user role and transitions to the appropriate entry point (Home for client, Dashboard for coiffeur). Thanks to `BackHandler.exitApp()`, cold launches always reload the navigation tree from the root screen.
-
----
-
-## 5. Verification & Compilation Results
-* Checked and compiled the backend: **NestJS backend builds successfully with 0 errors.**
-* Checked and compiled the frontend: **TypeScript definitions (`npx tsc --noEmit`) compile successfully with 0 errors.**
+## Validation Results
+- **App Restart Flow:** Standard Android back button usage now places the app cleanly in the background. If the user explicitly kills the app via the recents menu, the ensuing cold start cleanly boots through the auth bootstrap, landing directly on Home (logged in) or Login (logged out).
+- **Back Button & Modals:** The Android back button now successfully returns to the previous screen, naturally closes `BottomSheet` overlays before leaving the screen, and only backgrounds the app when situated on the deepest root screen.
+- **Protected Routes:** `navigationRef` correctly controls routing based on strict `session` evaluation without flashing intermediate routes.

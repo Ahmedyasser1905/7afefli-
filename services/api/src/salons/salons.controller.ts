@@ -120,6 +120,20 @@ export class SalonsController {
   }
 
   /**
+   * DELETE /salons/:id
+   * Delete a salon (Coiffeur owner only).
+   */
+  @Delete(':id')
+  @UseGuards(SupabaseAuthGuard, RolesGuard)
+  @Roles('Coiffeur')
+  remove(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.salonsService.remove(id, user.id);
+  }
+
+  /**
    * POST /salons/:id/staff
    * Add a staff member
    */

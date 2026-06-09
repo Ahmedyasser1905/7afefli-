@@ -149,6 +149,30 @@ export function AdminDashboardScreen() {
     ]);
   }, [queryClient]);
 
+  // Delete user
+  const deleteUser = useCallback((userId: string, name: string) => {
+    if (!userId) return;
+    Alert.alert('Supprimer l\'utilisateur', `Voulez-vous vraiment supprimer "${name ?? 'cet utilisateur'}" ? Cette action est irréversible et supprimera également son profil, ses réservations et son salon.`, [
+      { text: 'Annuler', style: 'cancel' },
+      {
+        text: 'Supprimer',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await apiClient.delete(`/admin/users/${userId}`);
+            queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+            queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
+            setSelectedUser(null);
+            Toast.show({ type: 'success', text1: 'Succès', text2: 'Utilisateur supprimé' });
+          } catch (error: unknown) {
+            const msg = error instanceof Error ? error.message : 'Erreur inconnue';
+            Toast.show({ type: 'error', text1: 'Erreur', text2: msg });
+          }
+        },
+      },
+    ]);
+  }, [queryClient]);
+
   // Logout with confirmation
   const handleLogout = () => {
     Alert.alert(
@@ -500,35 +524,47 @@ export function AdminDashboardScreen() {
                 </View>
 
                 {/* Role Actions */}
-                {selectedUser.role !== 'Admin' && (
-                  <View style={styles.modalActions}>
-                    {selectedUser.role === 'Client' ? (
-                      <TouchableOpacity
-                        style={[styles.modalActionBtn, { backgroundColor: 'rgba(46,204,113,0.12)', borderColor: 'rgba(46,204,113,0.3)' }]}
-                        onPress={() => {
-                          setSelectedUser(null);
-                          confirmRoleChange(selectedUser.id, selectedUser.role);
-                        }}
-                        activeOpacity={0.7}
-                      >
-                        <Ionicons name="arrow-up-circle" size={20} color={colors.success} />
-                        <Text style={[styles.modalActionText, { color: colors.success }]}>Promouvoir en Coiffeur</Text>
-                      </TouchableOpacity>
-                    ) : (
-                      <TouchableOpacity
-                        style={[styles.modalActionBtn, { backgroundColor: 'rgba(232,160,32,0.12)', borderColor: 'rgba(232,160,32,0.3)' }]}
-                        onPress={() => {
-                          setSelectedUser(null);
-                          confirmRoleChange(selectedUser.id, selectedUser.role);
-                        }}
-                        activeOpacity={0.7}
-                      >
-                        <Ionicons name="arrow-down-circle" size={20} color={colors.amber} />
-                        <Text style={[styles.modalActionText, { color: colors.amber }]}>Rétrograder en Client</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                )}
+                <View style={styles.modalActions}>
+                  {selectedUser.role !== 'Admin' && (
+                    <>
+                      {selectedUser.role === 'Client' ? (
+                        <TouchableOpacity
+                          style={[styles.modalActionBtn, { backgroundColor: 'rgba(46,204,113,0.12)', borderColor: 'rgba(46,204,113,0.3)' }]}
+                          onPress={() => {
+                            setSelectedUser(null);
+                            confirmRoleChange(selectedUser.id as string, selectedUser.role as string);
+                          }}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="arrow-up-circle" size={20} color={colors.success} />
+                          <Text style={[styles.modalActionText, { color: colors.success }]}>Promouvoir en Coiffeur</Text>
+                        </TouchableOpacity>
+                      ) : (
+                        <TouchableOpacity
+                          style={[styles.modalActionBtn, { backgroundColor: 'rgba(232,160,32,0.12)', borderColor: 'rgba(232,160,32,0.3)' }]}
+                          onPress={() => {
+                            setSelectedUser(null);
+                            confirmRoleChange(selectedUser.id as string, selectedUser.role as string);
+                          }}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="arrow-down-circle" size={20} color={colors.amber} />
+                          <Text style={[styles.modalActionText, { color: colors.amber }]}>Rétrograder en Client</Text>
+                        </TouchableOpacity>
+                      )}
+                    </>
+                  )}
+                  
+                  {/* Delete Account Button */}
+                  <TouchableOpacity
+                    style={[styles.modalActionBtn, { backgroundColor: 'rgba(255,82,82,0.12)', borderColor: 'rgba(255,82,82,0.3)', marginTop: spacing.sm }]}
+                    onPress={() => deleteUser(selectedUser.id as string, selectedUser.full_name as string)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="trash" size={20} color={colors.error} />
+                    <Text style={[styles.modalActionText, { color: colors.error }]}>Supprimer le compte</Text>
+                  </TouchableOpacity>
+                </View>
               </ScrollView>
             )}
           </View>

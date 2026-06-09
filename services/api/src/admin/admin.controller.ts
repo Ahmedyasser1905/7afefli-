@@ -9,6 +9,7 @@ import {
   Body,
   UseGuards,
   Delete,
+  ParseBoolPipe,
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { SupabaseAuthGuard } from '../auth/auth.guard';
@@ -39,7 +40,7 @@ export class AdminController {
   @Patch('salons/:id/approve')
   approveSalon(
     @Param('id') id: string,
-    @Body('approved') approved: boolean,
+    @Body('approved', ParseBoolPipe) approved: boolean,
   ) {
     return this.adminService.approveSalon(id, approved);
   }
@@ -57,6 +58,11 @@ export class AdminController {
   @Get('users')
   getAllUsers() {
     return this.adminService.getAllUsers();
+  }
+
+  @Delete('users/:id')
+  deleteUser(@Param('id') id: string) {
+    return this.adminService.deleteUser(id);
   }
 
   @Patch('users/:id/role')
@@ -94,6 +100,11 @@ export class AdminController {
   @Get('reservations')
   getAllReservations() {
     return this.adminService.getAllReservations();
+  }
+
+  @Delete('reservations/:id')
+  deleteReservation(@Param('id') id: string) {
+    return this.adminService.deleteReservation(id);
   }
 
   @Get('subscriptions')
