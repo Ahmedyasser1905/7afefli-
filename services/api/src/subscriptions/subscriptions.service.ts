@@ -40,19 +40,23 @@ export class SubscriptionsService {
     this.logger.log('Running daily subscription checks...');
     const now = new Date().toISOString();
 
-    // Fetch basic plan ID
-    const { data: basicPlan } = await this.supabase.adminClient
+    // Fetch default free plan dynamically
+    const { data: defaultPlan } = await this.supabase.adminClient
       .from('plans')
-      .select('id')
-      .eq('slug', 'basic')
+      .select('id, name')
+      .eq('price', 0)
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true })
+      .limit(1)
       .maybeSingle();
 
-    const basicPlanId = basicPlan?.id || null;
+    const defaultPlanId = defaultPlan?.id || null;
+    const defaultPlanName = defaultPlan?.name || 'Free';
 
-    // Expire trials (Fallback to Basic)
+    // Expire trials (Fallback to Default Free)
     const { data: expiredTrials, error: trialErr } = await this.supabase.adminClient
       .from('user_subscriptions')
-      .update({ status: 'Active', plan: 'Basic', plan_id: basicPlanId, trial_ends_at: null, ends_at: null })
+      .update({ status: 'Active', plan: defaultPlanName, plan_id: defaultPlanId, trial_ends_at: null, ends_at: null })
       .eq('status', 'Trial')
       .lt('trial_ends_at', now)
       .select('salon_id');
@@ -60,22 +64,22 @@ export class SubscriptionsService {
     if (trialErr) {
       this.logger.error('Failed to expire trials:', trialErr.message);
     } else if (expiredTrials?.length) {
-      this.logger.log(`Transitioned ${expiredTrials.length} trial(s) to Basic plan`);
+      this.logger.log(`Transitioned ${expiredTrials.length} trial(s) to ${defaultPlanName} plan`);
     }
 
-    // Expire active subscriptions (Fallback to Basic)
+    // Expire active subscriptions (Fallback to Default Free)
     const { data: expiredActive, error: activeErr } = await this.supabase.adminClient
       .from('user_subscriptions')
-      .update({ status: 'Active', plan: 'Basic', plan_id: basicPlanId, trial_ends_at: null, ends_at: null })
+      .update({ status: 'Active', plan: defaultPlanName, plan_id: defaultPlanId, trial_ends_at: null, ends_at: null })
       .eq('status', 'Active')
-      .neq('plan', 'Basic')
+      .neq('plan', defaultPlanName)
       .lt('ends_at', now)
       .select('salon_id');
 
     if (activeErr) {
       this.logger.error('Failed to expire active subs:', activeErr.message);
     } else if (expiredActive?.length) {
-      this.logger.log(`Transitioned ${expiredActive.length} active subscription(s) to Basic plan`);
+      this.logger.log(`Transitioned ${expiredActive.length} active subscription(s) to ${defaultPlanName} plan`);
     }
 
     // The sync trigger should have updated salon status,
@@ -122,11 +126,21 @@ export class SubscriptionsService {
     }
 
     // 3. No subscription record — return default trial based on salon data
+    const { data: defaultPlan } = await this.supabase.adminClient
+      .from('plans')
+      .select('*')
+      .eq('price', 0)
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
     return {
       id: null,
       salon_id: salon.id,
       status: salon.subscription_status || 'Trial',
-      plan: 'Basic',
+      plan: defaultPlan?.name || 'Free',
+      plan_details: defaultPlan || null,
       trial_ends_at: salon.trial_ends_at || null,
       starts_at: null,
       ends_at: null,
@@ -147,12 +161,15 @@ export class SubscriptionsService {
       .order('ends_at', { ascending: false })
       .maybeSingle();
 
-    if (subscription && subscription.plan === 'Premium') {
-      // Verify not expired
-      const now = new Date();
-      const endsAt = subscription.ends_at ? new Date(subscription.ends_at) : null;
-      if (!endsAt || endsAt > now) {
-        return { plan: 'Premium', isPremium: true };
+    if (subscription) {
+      // Look up if this plan grants premium status dynamically (we can assume client_subscriptions will eventually map to client_plans)
+      // For now, if they have an active plan, check if it's not a free one
+      if (subscription.plan !== 'Free') {
+        const now = new Date();
+        const endsAt = subscription.ends_at ? new Date(subscription.ends_at) : null;
+        if (!endsAt || endsAt > now) {
+          return { plan: subscription.plan, isPremium: true };
+        }
       }
     }
 

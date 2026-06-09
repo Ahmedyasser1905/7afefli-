@@ -14,6 +14,7 @@ import {
 import { colors, radius, spacing } from '../../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
 import { apiClient } from '../../lib/apiClient';
+import { useNavigation } from '@react-navigation/native';
 
 interface AddStaffModalProps {
   visible: boolean;
@@ -23,6 +24,7 @@ interface AddStaffModalProps {
 }
 
 export function AddStaffModal({ visible, onClose, salonId, onSuccess }: AddStaffModalProps) {
+  const navigation = useNavigation();
   const [loading, setLoading] = useState(false);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -55,11 +57,23 @@ export function AddStaffModal({ visible, onClose, salonId, onSuccess }: AddStaff
       setLastName('');
       onClose();
     } catch (err: unknown) {
-      Toast.show({
-        type: 'error',
-        text1: 'Erreur',
-        text2: (err as Error).message || 'Impossible d\'ajouter ce barbier'
-      });
+      const msg = (err as Error).message || "Impossible d'ajouter ce barbier";
+      if (msg.toLowerCase().includes('limité') || msg.toLowerCase().includes('plan')) {
+        Alert.alert('Limite atteinte', msg, [
+          { text: 'Annuler', style: 'cancel' },
+          { text: 'Voir les abonnements', onPress: () => {
+              onClose();
+              (navigation as any).navigate('Subscription');
+            }
+          }
+        ]);
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Erreur',
+          text2: msg
+        });
+      }
     } finally {
       setLoading(false);
     }

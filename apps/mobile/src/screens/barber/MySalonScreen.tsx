@@ -14,6 +14,7 @@ import {
   TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../../store/authStore';
 import { colors, spacing, radius } from '../../theme';
@@ -31,6 +32,7 @@ import { supabase } from '../../lib/supabase';
 export function MySalonScreen() {
   const user = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
+  const navigation = useNavigation();
   const [activeTab, setActiveTab] = useState<'services' | 'portfolio' | 'reviews' | 'staff'>('services');
   const [isServiceModalVisible, setIsServiceModalVisible] = useState(false);
   const [isStaffModalVisible, setIsStaffModalVisible] = useState(false);
@@ -163,11 +165,19 @@ export function MySalonScreen() {
       });
       refetchPortfolio();
     } catch (err: unknown) {
-      Toast.show({
-        type: 'error',
-        text1: 'Erreur',
-        text2: (err as Error).message || 'Erreur upload portfolio'
-      });
+      const msg = (err as Error).message || 'Erreur upload portfolio';
+      if (msg.toLowerCase().includes('limité') || msg.toLowerCase().includes('plan')) {
+        Alert.alert('Limite atteinte', msg, [
+          { text: 'Annuler', style: 'cancel' },
+          { text: 'Voir les abonnements', onPress: () => (navigation as any).navigate('Subscription') }
+        ]);
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Erreur',
+          text2: msg
+        });
+      }
     } finally {
       setUploading(false);
     }

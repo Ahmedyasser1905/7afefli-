@@ -120,6 +120,8 @@ export function SubscriptionScreen() {
   const salon = salonData as Record<string, unknown> | null;
   const rawSubs = (salonData as any)?.subscriptions;
   const subRecord = Array.isArray(rawSubs) ? rawSubs[0] : rawSubs;
+  
+  const freePlan = plans.find(p => p.price === 0);
 
   const subscription: MySubscription | null = subRecord ? {
     id: subRecord.id,
@@ -135,8 +137,8 @@ export function SubscriptionScreen() {
     id: null,
     salon_id: (salon as any).id,
     status: (salon as any).subscription_status || 'Trial',
-    plan: 'Basic',
-    plan_details: null,
+    plan: freePlan?.name || 'Free',
+    plan_details: freePlan || null,
     trial_ends_at: (salon as any).trial_ends_at || null,
     starts_at: null,
     ends_at: null,
