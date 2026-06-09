@@ -117,6 +117,20 @@ export class AdminService {
     return { success: true };
   }
 
+  async banUser(userId: string, isBanned: boolean) {
+    // Supabase Auth admin API allows banning users by setting a ban_duration
+    // 87600h is ~10 years
+    const { error } = await this.supabase.adminClient.auth.admin.updateUserById(userId, {
+      ban_duration: isBanned ? '87600h' : 'none'
+    });
+    
+    if (error) throw new Error(`Failed to update user ban status: ${error.message}`);
+    
+    // Optionally update the profile if we want to store it in DB
+    // but the Auth layer is sufficient for access denial.
+    return { success: true, isBanned };
+  }
+
   async getAllUsers() {
     const { data, error } = await this.supabase.adminClient
       .from('profiles')

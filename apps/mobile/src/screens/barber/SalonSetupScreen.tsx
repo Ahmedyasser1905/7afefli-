@@ -33,9 +33,19 @@ export function SalonSetupScreen({ onComplete }: { onComplete: () => void }) {
     address: '',
     open_time: '09:00',
     close_time: '20:00',
+    working_days: [1, 2, 3, 4, 5, 6],
     latitude: 36.7538,
     longitude: 3.0588,
   });
+
+  const toggleDay = (day: number) => {
+    setForm(prev => ({
+      ...prev,
+      working_days: prev.working_days.includes(day)
+        ? prev.working_days.filter(d => d !== day)
+        : [...prev.working_days, day].sort()
+    }));
+  };
 
   const handleCreateSalon = async () => {
     if (!form.name || !form.address) {
@@ -58,7 +68,7 @@ export function SalonSetupScreen({ onComplete }: { onComplete: () => void }) {
         close_time: form.close_time,
         latitude: form.latitude,
         longitude: form.longitude,
-        working_days: [1, 2, 3, 4, 5, 6], // Default Mon-Sat
+        working_days: form.working_days,
       });
       
       Alert.alert('Succès', 'Votre salon a été créé avec succès !', [
@@ -233,6 +243,23 @@ export function SalonSetupScreen({ onComplete }: { onComplete: () => void }) {
               />
             </View>
           </View>
+
+          <Text style={styles.label}>Jours d'ouverture</Text>
+          <View style={styles.daysRow}>
+            {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map((label, index) => {
+              const dayNum = index + 1;
+              const isSelected = form.working_days.includes(dayNum);
+              return (
+                <TouchableOpacity
+                  key={dayNum}
+                  style={[styles.dayButton, isSelected && styles.dayButtonSelected]}
+                  onPress={() => toggleDay(dayNum)}
+                >
+                  <Text style={[styles.dayText, isSelected && styles.dayTextSelected]}>{label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </ScrollView>
       ) : (
         <View style={styles.mapContainer}>
@@ -344,6 +371,34 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontFamily: 'DMSans_400Regular',
     fontSize: 15,
+  },
+  daysRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: spacing.xs,
+    marginBottom: spacing.md,
+  },
+  dayButton: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    backgroundColor: colors.carbon,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  dayButtonSelected: {
+    backgroundColor: colors.amber,
+    borderColor: colors.amber,
+  },
+  dayText: {
+    fontFamily: 'DMSans_500Medium',
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  dayTextSelected: {
+    color: colors.ink,
   },
   mapContainer: {
     flex: 1,

@@ -173,6 +173,29 @@ export function AdminDashboardScreen() {
     ]);
   }, [queryClient]);
 
+  // Ban user
+  const banUser = useCallback((userId: string, name: string) => {
+    if (!userId) return;
+    Alert.alert('Bannir l\'utilisateur', `Voulez-vous vraiment bannir "${name ?? 'cet utilisateur'}" ? Cette action bloquera son accès à la plateforme.`, [
+      { text: 'Annuler', style: 'cancel' },
+      {
+        text: 'Bannir',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await apiClient.patch(`/admin/users/${userId}/ban`, { isBanned: true });
+            queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+            setSelectedUser(null);
+            Toast.show({ type: 'success', text1: 'Succès', text2: 'Utilisateur banni' });
+          } catch (error: unknown) {
+            const msg = error instanceof Error ? error.message : 'Erreur inconnue';
+            Toast.show({ type: 'error', text1: 'Erreur', text2: msg });
+          }
+        },
+      },
+    ]);
+  }, [queryClient]);
+
   // Logout with confirmation
   const handleLogout = () => {
     Alert.alert(
@@ -555,6 +578,16 @@ export function AdminDashboardScreen() {
                     </>
                   )}
                   
+                  {/* Ban Account Button */}
+                  <TouchableOpacity
+                    style={[styles.modalActionBtn, { backgroundColor: 'rgba(255,152,0,0.12)', borderColor: 'rgba(255,152,0,0.3)', marginTop: spacing.sm }]}
+                    onPress={() => banUser(selectedUser.id as string, selectedUser.full_name as string)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="warning" size={20} color={colors.amber} />
+                    <Text style={[styles.modalActionText, { color: colors.amber }]}>Bannir le compte</Text>
+                  </TouchableOpacity>
+
                   {/* Delete Account Button */}
                   <TouchableOpacity
                     style={[styles.modalActionBtn, { backgroundColor: 'rgba(255,82,82,0.12)', borderColor: 'rgba(255,82,82,0.3)', marginTop: spacing.sm }]}

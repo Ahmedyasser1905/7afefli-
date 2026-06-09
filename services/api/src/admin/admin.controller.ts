@@ -65,6 +65,14 @@ export class AdminController {
     return this.adminService.deleteUser(id);
   }
 
+  @Patch('users/:id/ban')
+  banUser(
+    @Param('id') id: string,
+    @Body('isBanned', ParseBoolPipe) isBanned: boolean,
+  ) {
+    return this.adminService.banUser(id, isBanned);
+  }
+
   @Patch('users/:id/role')
   changeUserRole(
     @Param('id') id: string,
