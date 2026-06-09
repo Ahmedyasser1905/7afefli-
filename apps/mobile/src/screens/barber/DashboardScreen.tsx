@@ -14,7 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
 import { apiClient } from '../../lib/apiClient';
 import { colors, spacing, radius, shadows } from '../../theme';
@@ -26,18 +26,23 @@ import type { Reservation } from '@barberdz/shared/types';
 import { AddWalkInModal } from '../../components/barber/AddWalkInModal';
 import { ReservationDetailModal } from '../../components/barber/ReservationDetailModal';
 import { BlockTimeModal } from '../../components/barber/BlockTimeModal';
-
-// Stable avatar placeholder — bundled in Supabase public storage, not a Google CDN URL
 const DEFAULT_AVATAR = 'https://phfwutugsyiutqgippqg.supabase.co/storage/v1/object/public/portfolio/defaults/default-avatar.png';
 
 export function DashboardScreen() {
   const user = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
+
+  useFocusEffect(
+    useCallback(() => {
+      queryClient.invalidateQueries({ queryKey: ['barber-salon', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['my-salon', user?.id] });
+    }, [queryClient, user?.id])
+  );
+
   const [isWalkInModalVisible, setIsWalkInModalVisible] = useState(false);
   const [isBlockTimeModalVisible, setIsBlockTimeModalVisible] = useState(false);
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'Confirmed' | 'Pending' | 'Cancelled' | 'Completed'>('all');
-  // Period view
   const [viewMode, setViewMode] = useState<'day' | 'month' | 'all'>('day');
   const [viewDate, setViewDate]   = useState(today());
   const [viewMonth, setViewMonth] = useState(today().slice(0, 7)); // YYYY-MM

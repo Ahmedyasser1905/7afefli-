@@ -13,9 +13,11 @@ import {
   Alert,
   Linking,
   RefreshControl,
+  AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuthStore } from '../../store/authStore';
 import { colors, spacing, radius } from '../../theme';
 import Ionicons from '@react-native-vector-icons/ionicons';
@@ -82,6 +84,27 @@ export function SubscriptionScreen() {
   const user = useAuthStore((s) => s.user);
   const [processingPlan, setProcessingPlan] = useState<string | null>(null);
 
+  // Force refetch on screen focus
+  useFocusEffect(
+    React.useCallback(() => {
+      refetchPlans();
+      refetchSub();
+    }, [refetchPlans, refetchSub])
+  );
+
+  // Force refetch when app transitions back to active (foreground)
+  React.useEffect(() => {
+    const appStateSub = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        refetchPlans();
+        refetchSub();
+      }
+    });
+    return () => {
+      appStateSub.remove();
+    };
+  }, [refetchPlans, refetchSub]);
+
   // Fetch available plans from backend API (single source of truth)
   const {
     data: plans = [],
@@ -96,62 +119,25 @@ export function SubscriptionScreen() {
     staleTime: 5 * 60_000,
   });
 
-  // Fetch salon + subscription in one query (avoids RLS issues on subscriptions table)
+  // Fetch salon's current subscription details from backend API (single source of truth)
   const {
-    data: salonData,
-    isLoading: salonLoading,
-    refetch: refetchSalon,
-  } = useQuery({
+    data: subscription,
+    isLoading: subLoading,
+    refetch: refetchSub,
+  } = useQuery<MySubscription>({
     queryKey: ['my-salon-subscription', user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('salons')
-        .select('*, subscriptions:user_subscriptions(*, plan_details:plans(*))')
-        .eq('owner_id', user!.id)
-        .maybeSingle();
-      if (error) console.warn('Salon query error:', error.message);
+      const data = await apiClient.get<MySubscription>('/subscriptions/my-plan');
       return data;
     },
     enabled: !!user,
-    staleTime: 30_000,
+    staleTime: 10_000,
   });
 
-  // Extract subscription from salon data
-  const salon = salonData as Record<string, unknown> | null;
-  const rawSubs = (salonData as any)?.subscriptions;
-  const subRecord = Array.isArray(rawSubs) ? rawSubs[0] : rawSubs;
-  
-  const freePlan = plans.find(p => p.price === 0);
-
-  const subscription: MySubscription | null = subRecord ? {
-    id: subRecord.id,
-    salon_id: subRecord.salon_id,
-    status: subRecord.status,
-    plan: subRecord.plan_details?.name || subRecord.plan,
-    plan_details: subRecord.plan_details || null,
-    trial_ends_at: subRecord.trial_ends_at,
-    starts_at: subRecord.starts_at,
-    ends_at: subRecord.ends_at,
-    created_at: subRecord.created_at,
-  } : salon ? {
-    id: null,
-    salon_id: (salon as any).id,
-    status: (salon as any).subscription_status || 'Trial',
-    plan: freePlan?.name || 'Free',
-    plan_details: freePlan || null,
-    trial_ends_at: (salon as any).trial_ends_at || null,
-    starts_at: null,
-    ends_at: null,
-    created_at: null,
-  } : null;
-
-  const subLoading = salonLoading;
-  const refetchSub = refetchSalon;
-
   // Derived state
-  const status = subscription?.status || (salon as Record<string, unknown>)?.subscription_status || 'Trial';
-  const trialEnds = subscription?.trial_ends_at || (salon as Record<string, unknown>)?.trial_ends_at as string | null;
-  const subEnds = subscription?.ends_at || (salon as Record<string, unknown>)?.subscription_ends_at as string | null;
+  const status = subscription?.status || 'Trial';
+  const trialEnds = subscription?.trial_ends_at || null;
+  const subEnds = subscription?.ends_at || null;
   const daysLeft = status === 'Trial' ? getDaysLeft(trialEnds) : status === 'Active' ? getDaysLeft(subEnds) : 0;
 
   const isLoading = plansLoading || subLoading;
@@ -421,7 +407,7 @@ export function SubscriptionScreen() {
                         <>
                           <Ionicons name={isUpgrade ? 'arrow-up-circle' : 'card-outline'} size={18} color={colors.ink} />
                           <Text style={[styles.subscribeBtnText, styles.subscribeBtnTextRecommended]}>
-                            {isUpgrade ? 'Passer au Premium' : "S'abonner"}
+                            {isUpgrade ? `Passer à ${plan.name}` : `S'abonner à ${plan.name}`}
                           </Text>
                         </>
                       )}

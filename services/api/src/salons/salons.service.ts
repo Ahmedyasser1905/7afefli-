@@ -326,9 +326,22 @@ export class SalonsService {
     if (!salon) throw new NotFoundException(`Salon with ID ${salonId} not found`);
     if (salon.owner_id !== userId) throw new ForbiddenException('You can only add staff to your own salon');
 
+    let maxBarbers = 1;
     const subs = salon.subscriptions as any[];
     const sub = subs?.[0];
-    const maxBarbers = sub?.plans?.max_barbers ?? 1;
+    if (sub?.plans) {
+      maxBarbers = sub.plans.max_barbers;
+    } else {
+      const { data: defaultPlan } = await this.supabase.adminClient
+        .from('plans')
+        .select('max_barbers')
+        .eq('price', 0)
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      maxBarbers = defaultPlan?.max_barbers ?? 1;
+    }
 
     // Check staff count
     if (maxBarbers !== -1) {
@@ -438,9 +451,22 @@ export class SalonsService {
 
     if (!salon || salon.owner_id !== userId) throw new ForbiddenException('Accès refusé');
 
+    let maxPhotos = 3;
     const subs = salon.subscriptions as any[];
     const sub = subs?.[0];
-    const maxPhotos = sub?.plans?.max_portfolio_photos ?? 3;
+    if (sub?.plans) {
+      maxPhotos = sub.plans.max_portfolio_photos;
+    } else {
+      const { data: defaultPlan } = await this.supabase.adminClient
+        .from('plans')
+        .select('max_portfolio_photos')
+        .eq('price', 0)
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      maxPhotos = defaultPlan?.max_portfolio_photos ?? 3;
+    }
 
     if (maxPhotos !== -1) {
       const { count } = await this.supabase.adminClient

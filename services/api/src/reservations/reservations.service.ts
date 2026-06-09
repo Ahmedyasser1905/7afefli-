@@ -91,9 +91,22 @@ export class ReservationsService {
     const isStaffOrOwner = salonData.owner_id === clientId || !!staffResult.data;
 
     // Plan Enforcement: max_reservations
+    let maxReservations = 50;
     const subs = salonData.subscriptions as any[];
     const sub = subs?.[0];
-    const maxReservations = sub?.plans?.max_reservations ?? 50;
+    if (sub?.plans) {
+      maxReservations = sub.plans.max_reservations;
+    } else {
+      const { data: defaultPlan } = await this.supabase.adminClient
+        .from('plans')
+        .select('max_reservations')
+        .eq('price', 0)
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      maxReservations = defaultPlan?.max_reservations ?? 50;
+    }
 
     if (maxReservations !== -1) {
       const today = new Date();
