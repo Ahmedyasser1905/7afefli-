@@ -208,17 +208,23 @@ export function HomeScreen() {
   }, []);
 
   // 2. Fetch salons — pass wilaya once GPS resolves (server-side filter reduces payload)
-  const { data: allSalons = [], isLoading, refetch } = useQuery<Salon[]>({
+  const { data: allSalonsResponse, isLoading, refetch } = useQuery({
     queryKey: ['home-salons', userWilaya],
     queryFn: async () => {
       const wilayaParam = userWilaya
         ? `&wilaya=${encodeURIComponent(userWilaya)}`
         : '';
-      const data = await apiClient.get<Salon[]>(`/salons?limit=100${wilayaParam}`);
-      return data ?? [];
+      const data = await apiClient.get<any>(`/salons?limit=100${wilayaParam}`);
+      return data;
     },
     staleTime: 5 * 60 * 1000,
   });
+
+  const allSalons = useMemo(() => {
+    if (!allSalonsResponse) return [];
+    if (Array.isArray(allSalonsResponse)) return allSalonsResponse;
+    return allSalonsResponse.data ?? [];
+  }, [allSalonsResponse]);
 
   // 3. Client Premium plan
   const { data: clientPlan } = useQuery<{ plan: string; isPremium: boolean }>({

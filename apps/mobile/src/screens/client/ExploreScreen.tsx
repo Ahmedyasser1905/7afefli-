@@ -88,17 +88,23 @@ export function ExploreScreen() {
   }, []);
 
   // Fetch salons — pass wilaya as query param when selected for server-side filtering
-  const { data: allSalons = [], isLoading, error: queryError, refetch } = useQuery<Salon[]>({
-    queryKey: ['explore-salons', selectedWilaya],
+  const { data: allSalonsResponse, isLoading, error: queryError, refetch } = useQuery({
+    queryKey: ['explore-explore-salons', selectedWilaya],
     queryFn: async () => {
       const wilayaParam = selectedWilaya !== 'Toutes'
         ? `&wilaya=${encodeURIComponent(selectedWilaya)}`
         : '';
-      const data = await apiClient.get<Salon[]>(`/salons?limit=200${wilayaParam}`);
-      return data ?? [];
+      const data = await apiClient.get<any>(`/salons?limit=200${wilayaParam}`);
+      return data;
     },
     staleTime: 5 * 60 * 1000,
   });
+
+  const allSalons = useMemo(() => {
+    if (!allSalonsResponse) return [];
+    if (Array.isArray(allSalonsResponse)) return allSalonsResponse;
+    return allSalonsResponse.data ?? [];
+  }, [allSalonsResponse]);
 
   // Filter + search + sort (client-side, after server already narrowed by wilaya)
   const filteredSalons = useMemo(() => {
