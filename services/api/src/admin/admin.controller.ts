@@ -40,7 +40,7 @@ export class AdminController {
   @Patch('salons/:id/approve')
   approveSalon(
     @Param('id') id: string,
-    @Body('approved', ParseBoolPipe) approved: boolean,
+    @Body('approved') approved: boolean,
   ) {
     return this.adminService.approveSalon(id, approved);
   }
@@ -68,7 +68,7 @@ export class AdminController {
   @Patch('users/:id/ban')
   banUser(
     @Param('id') id: string,
-    @Body('isBanned', ParseBoolPipe) isBanned: boolean,
+    @Body('isBanned') isBanned: boolean,
   ) {
     return this.adminService.banUser(id, isBanned);
   }
