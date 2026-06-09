@@ -19,6 +19,7 @@ import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
 import PhoneEntryScreen from '../screens/auth/PhoneEntryScreen';
 import { colors } from '../theme';
 import { navigationRef } from './navigationRef';
+import { BackHandler } from 'react-native';
 
 const AuthStack = createNativeStackNavigator();
 function AuthStackNavigator() {
@@ -98,6 +99,23 @@ export function AppNavigator() {
 
   // Register push notifications & listen for notification taps
   useNotificationSetup();
+
+  // Intercept hardware back button on root screen to terminate app activity.
+  // This ensures the next launch executes a clean cold boot instead of resuming the background activity state.
+  useEffect(() => {
+    const handleBackPress = () => {
+      if (navigationRef.isReady()) {
+        if (!navigationRef.canGoBack()) {
+          BackHandler.exitApp();
+          return true; // Prevent default backgrounding
+        }
+      }
+      return false;
+    };
+
+    BackHandler.addEventListener('hardwareBackPress', handleBackPress);
+    return () => BackHandler.removeEventListener('hardwareBackPress', handleBackPress);
+  }, []);
 
   
 

@@ -80,7 +80,7 @@ export function AddStaffModal({ visible, onClose, salonId, onSuccess }: AddStaff
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide">
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <View style={styles.content}>
           <View style={styles.header}>

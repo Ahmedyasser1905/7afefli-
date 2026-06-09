@@ -90,7 +90,7 @@ export function LeaveReviewModal({ visible, onClose, reservation, onSuccess }: L
   const salon = reservation?.salons as Record<string, unknown> | null | undefined;
 
   return (
-    <Modal visible={visible} transparent animationType="slide">
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <View style={styles.content}>
           <Text style={styles.title}>Laisser un avis</Text>

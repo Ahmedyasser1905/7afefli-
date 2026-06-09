@@ -110,7 +110,7 @@ export function ServiceModal({ visible, onClose, salonId, onSuccess, service }: 
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide">
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <View style={styles.content}>
           <Text style={styles.title}>{isEditing ? 'Modifier le service' : 'Ajouter un Service'}</Text>

@@ -119,7 +119,7 @@ export function BlockTimeModal({ visible, onClose, salonId, onSuccess }: BlockTi
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide">
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <View style={styles.sheet}>
           {/* Header */}
