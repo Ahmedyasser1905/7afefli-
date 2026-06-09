@@ -256,10 +256,6 @@ export function HomeScreen() {
   const filteredSalons = useMemo(() => {
     let result = [...salons];
 
-    if (!isPremiumClient) {
-      result = result.filter((s) => !s.is_sponsored);
-    }
-
     if (activeFilters.has('top_rated')) {
       result = result.filter((s) => s.average_rating >= 4.5);
     }

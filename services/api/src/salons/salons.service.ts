@@ -121,9 +121,8 @@ export class SalonsService {
       const hasHours = !!salon.open_time && !!salon.close_time;
       const hasLogo = !!salon.image_url;
       const hasServices = salon.services && salon.services.length > 0;
-      const hasPhotos = salon.portfolio_photos && salon.portfolio_photos.length > 0;
 
-      return hasName && hasAddress && hasWilaya && hasCommune && hasPhone && hasDesc && hasCoords && hasHours && hasLogo && hasServices && hasPhotos;
+      return hasName && hasAddress && hasWilaya && hasCommune && hasPhone && hasDesc && hasCoords && hasHours && hasLogo && hasServices;
     });
 
     return {
