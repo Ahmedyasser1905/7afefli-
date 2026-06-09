@@ -84,27 +84,6 @@ export function SubscriptionScreen() {
   const user = useAuthStore((s) => s.user);
   const [processingPlan, setProcessingPlan] = useState<string | null>(null);
 
-  // Force refetch on screen focus
-  useFocusEffect(
-    React.useCallback(() => {
-      refetchPlans();
-      refetchSub();
-    }, [refetchPlans, refetchSub])
-  );
-
-  // Force refetch when app transitions back to active (foreground)
-  React.useEffect(() => {
-    const appStateSub = AppState.addEventListener('change', (nextAppState) => {
-      if (nextAppState === 'active') {
-        refetchPlans();
-        refetchSub();
-      }
-    });
-    return () => {
-      appStateSub.remove();
-    };
-  }, [refetchPlans, refetchSub]);
-
   // Fetch available plans from backend API (single source of truth)
   const {
     data: plans = [],
@@ -133,6 +112,27 @@ export function SubscriptionScreen() {
     enabled: !!user,
     staleTime: 10_000,
   });
+
+  // Force refetch on screen focus
+  useFocusEffect(
+    React.useCallback(() => {
+      refetchPlans();
+      refetchSub();
+    }, [refetchPlans, refetchSub])
+  );
+
+  // Force refetch when app transitions back to active (foreground)
+  React.useEffect(() => {
+    const appStateSub = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        refetchPlans();
+        refetchSub();
+      }
+    });
+    return () => {
+      appStateSub.remove();
+    };
+  }, [refetchPlans, refetchSub]);
 
   // Derived state
   const status = subscription?.status || 'Trial';

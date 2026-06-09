@@ -18,7 +18,7 @@ import { apiClient } from '../../lib/apiClient';
 import { useAuthStore } from '../../store/authStore';
 import { colors, typography, spacing, radius } from '../../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
-import MapView, { Marker } from 'react-native-maps';
+import { WebView } from 'react-native-webview';
 
 export function SalonSetupScreen({ onComplete, existingSalon }: { onComplete: () => void, existingSalon?: any }) {
   const user = useAuthStore((s) => s.user);
@@ -315,36 +315,133 @@ export function SalonSetupScreen({ onComplete, existingSalon }: { onComplete: ()
         <View style={styles.mapContainer}>
           <Text style={styles.mapHint}>Déplacez le marqueur ou cliquez sur la carte pour définir votre position exacte.</Text>
           <View style={styles.mapWrapper}>
-            <MapView
+            <WebView
+              source={{ html: `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * { margin: 0; padding: 0; }
+    body { background: #0F0F0F; }
+    #map { width: 100%; height: 100vh; }
+    .leaflet-control-zoom { border: none !important; }
+    .leaflet-control-zoom a { 
+      background: #1A1A1A !important; 
+      color: #E8A020 !important; 
+      border: 1px solid rgba(255,255,255,0.1) !important;
+      width: 36px !important;
+      height: 36px !important;
+      line-height: 36px !important;
+      font-size: 18px !important;
+    }
+    .search-box {
+      position: absolute; top: 12px; left: 12px; right: 12px; z-index: 1000;
+      display: flex; gap: 8px;
+    }
+    .search-box input {
+      flex: 1; padding: 10px 14px; border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.1); background: #1A1A1A;
+      color: #F5F5F5; font-size: 14px; outline: none;
+      font-family: -apple-system, sans-serif;
+    }
+    .search-box input::placeholder { color: #5A5A5A; }
+    .search-box button {
+      padding: 10px 16px; border-radius: 12px; border: none;
+      background: #E8A020; color: #0F0F0F; font-weight: 700;
+      font-size: 14px; cursor: pointer;
+    }
+    .hint-bar {
+      position: absolute; bottom: 12px; left: 12px; right: 12px; z-index: 1000;
+      background: rgba(26,26,26,0.9); border-radius: 12px; padding: 10px 14px;
+      border: 1px solid rgba(255,255,255,0.1); text-align: center;
+    }
+    .hint-bar span { color: #9A9A9A; font-size: 13px; font-family: -apple-system, sans-serif; }
+    .hint-bar b { color: #E8A020; }
+  </style>
+</head>
+<body>
+  <div class="search-box">
+    <input id="searchInput" type="text" placeholder="Rechercher une adresse..." />
+    <button onclick="searchAddress()">🔍</button>
+  </div>
+  <div id="map"></div>
+  <div class="hint-bar">
+    <span>Appuyez sur la carte ou <b>déplacez le marqueur</b> pour positionner votre salon</span>
+  </div>
+  <script>
+    var map = L.map('map', {
+      center: [${form.latitude}, ${form.longitude}],
+      zoom: 15,
+      zoomControl: true
+    });
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© OSM'
+    }).addTo(map);
+
+    var markerIcon = L.divIcon({
+      className: '',
+      html: '<div style="width:36px;height:36px;background:#E8A020;border-radius:50%;border:3px solid #0F0F0F;box-shadow:0 4px 12px rgba(232,160,32,0.4);display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:10px;background:#0F0F0F;border-radius:50%;"></div></div>',
+      iconSize: [36, 36],
+      iconAnchor: [18, 18]
+    });
+
+    var marker = L.marker([${form.latitude}, ${form.longitude}], { icon: markerIcon, draggable: true }).addTo(map);
+
+    marker.on('dragend', function(e) {
+      var pos = e.target.getLatLng();
+      window.ReactNativeWebView.postMessage(JSON.stringify({ lat: pos.lat, lng: pos.lng }));
+    });
+
+    map.on('click', function(e) {
+      marker.setLatLng(e.latlng);
+      window.ReactNativeWebView.postMessage(JSON.stringify({ lat: e.latlng.lat, lng: e.latlng.lng }));
+    });
+
+    function searchAddress() {
+      var q = document.getElementById('searchInput').value;
+      if (!q) return;
+      fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(q + ', Algeria'))
+        .then(r => r.json())
+        .then(data => {
+          if (data.length > 0) {
+            var loc = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+            map.setView(loc, 16);
+            marker.setLatLng(loc);
+            window.ReactNativeWebView.postMessage(JSON.stringify({ lat: loc[0], lng: loc[1] }));
+          }
+        })
+        .catch(function() {});
+    }
+
+    document.getElementById('searchInput').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') searchAddress();
+    });
+  </script>
+</body>
+</html>` }}
               style={styles.map}
-              initialRegion={{
-                latitude: form.latitude,
-                longitude: form.longitude,
-                latitudeDelta: 0.05,
-                longitudeDelta: 0.05,
+              onMessage={(event) => {
+                try {
+                  const data = JSON.parse(event.nativeEvent.data);
+                  if (data.lat !== undefined && data.lng !== undefined) {
+                    setForm({
+                      ...form,
+                      latitude: data.lat,
+                      longitude: data.lng,
+                    });
+                    setCoordsChosen(true);
+                  }
+                } catch (err) {}
               }}
-              onPress={(e) => {
-                setForm({
-                  ...form,
-                  latitude: e.nativeEvent.coordinate.latitude,
-                  longitude: e.nativeEvent.coordinate.longitude,
-                });
-                setCoordsChosen(true);
-              }}
-            >
-              <Marker
-                coordinate={{ latitude: form.latitude, longitude: form.longitude }}
-                draggable
-                onDragEnd={(e) => {
-                  setForm({
-                    ...form,
-                    latitude: e.nativeEvent.coordinate.latitude,
-                    longitude: e.nativeEvent.coordinate.longitude,
-                  });
-                  setCoordsChosen(true);
-                }}
-              />
-            </MapView>
+              javaScriptEnabled
+              domStorageEnabled
+              originWhitelist={['*']}
+            />
           </View>
         </View>
       )}
