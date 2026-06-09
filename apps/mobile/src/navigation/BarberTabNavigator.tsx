@@ -64,8 +64,8 @@ export function BarberTabNavigator() {
     salon.portfolio_photos && salon.portfolio_photos.length > 0
   );
 
-  if (!isComplete) {
-    return <SalonSetupScreen onComplete={refetch} existingSalon={salon} />;
+  if (!salon) {
+    return <SalonSetupScreen onComplete={refetch} existingSalon={null} />;
   }
 
   return (
