@@ -194,7 +194,7 @@ export class SalonsService {
   async findByOwner(ownerId: string) {
     const { data, error } = await this.supabase.adminClient
       .from('salons')
-      .select('*, services(*), portfolio_photos(id)')
+      .select('*, services(*), portfolio_photos(id), salon_staff(id)')
       .eq('owner_id', ownerId)
       .maybeSingle();
 

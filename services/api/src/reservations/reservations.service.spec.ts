@@ -101,7 +101,8 @@ describe('ReservationsService', () => {
         working_days: [0, 1, 2, 3, 4, 5, 6],
         image_url: 'logo_url',
         services: [{ id: 'svc1' }],
-        portfolio_photos: [{ id: 'photo1' }]
+        portfolio_photos: [{ id: 'photo1' }],
+        salon_staff: [{ id: 'staff1' }]
       },
       error: null,
     });

@@ -44,7 +44,7 @@ export class ReservationsService {
         .single(),
       this.supabase.adminClient
         .from('salons')
-        .select('owner_id, is_manually_closed, name, address, wilaya, commune, phone, description, latitude, longitude, open_time, close_time, image_url, services(id), portfolio_photos(id), subscriptions:user_subscriptions(status, plans(*))')
+        .select('owner_id, is_manually_closed, name, address, wilaya, commune, phone, description, latitude, longitude, open_time, close_time, image_url, services(id), portfolio_photos(id), salon_staff(id), subscriptions:user_subscriptions(status, plans(*))')
         .eq('id', dto.salonId)
         .single(),
       this.supabase.adminClient
@@ -77,9 +77,10 @@ export class ReservationsService {
     const hasLogo = !!salonData.image_url;
     const hasServices = salonData.services && salonData.services.length > 0;
     const hasPhotos = salonData.portfolio_photos && salonData.portfolio_photos.length > 0;
+    const hasBarbers = salonData.salon_staff && salonData.salon_staff.length > 0;
 
-    if (!hasName || !hasAddress || !hasWilaya || !hasCommune || !hasPhone || !hasDesc || !hasCoords || !hasHours || !hasLogo || !hasServices || !hasPhotos) {
-      throw new BadRequestException("Ce salon n'est pas encore prêt à recevoir des réservations. Le profil doit être complété à 100% par le coiffeur.");
+    if (!hasName || !hasAddress || !hasWilaya || !hasCommune || !hasPhone || !hasDesc || !hasCoords || !hasHours || !hasLogo || !hasServices || !hasPhotos || !hasBarbers) {
+      throw new BadRequestException("Ce salon n'est pas encore prêt à recevoir des réservations. Le profil doit être complété à 100% par le coiffeur (services, portfolio et coiffeurs requis).");
     }
 
     if (salonData.is_manually_closed) {

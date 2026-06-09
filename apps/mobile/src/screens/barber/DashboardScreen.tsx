@@ -1,8 +1,5 @@
-// @ts-nocheck
+// @ts-nocheck
 import Toast from 'react-native-toast-message';
-// apps/mobile/src/screens/barber/DashboardScreen.tsx
-// Barber's first screen — today's stats + live booking feed
-
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   View,
@@ -17,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigation } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
 import { apiClient } from '../../lib/apiClient';
 import { colors, spacing, radius, shadows } from '../../theme';
@@ -57,6 +55,16 @@ export function DashboardScreen() {
 
   const salonId = salon?.id ?? null;
 
+  const navigation = useNavigation();
+
+  const hasServices = useMemo(() => {
+    return !!(salon?.services && salon.services.length > 0);
+  }, [salon]);
+
+  const hasBarbers = useMemo(() => {
+    return !!(salon?.salon_staff && salon.salon_staff.length > 0);
+  }, [salon]);
+
   const isComplete = useMemo(() => {
     return !!(
       salon &&
@@ -71,10 +79,11 @@ export function DashboardScreen() {
       salon.open_time &&
       salon.close_time &&
       salon.image_url &&
-      salon.services && salon.services.length > 0 &&
+      hasServices &&
+      hasBarbers &&
       salon.portfolio_photos && salon.portfolio_photos.length > 0
     );
-  }, [salon]);
+  }, [salon, hasServices, hasBarbers]);
 
   // Fetch bookings — day mode uses ?date= for server-side filter; month/all fetch all then filter client-side
   const { data: bookingsRaw = [], isLoading: isBookingsLoading, refetch } = useQuery<Reservation[]>({
@@ -422,14 +431,51 @@ export function DashboardScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Salon Incomplete Banner */}
-        {!isComplete && (
-          <View style={{ backgroundColor: 'rgba(245,158,11,0.15)', borderRadius: radius.md, padding: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md, borderWidth: 1, borderColor: 'rgba(245,158,11,0.3)' }}>
-            <Ionicons name="warning" size={20} color={colors.amber} />
-            <Text style={{ fontFamily: 'DMSans_500Medium', fontSize: 13, color: colors.amber, flex: 1 }}>
-              Complétez votre profil de salon (photos, services, logo...) pour le publier et recevoir des réservations.
+        {/* Barbers / Services Required Banner */}
+        {(!hasServices || !hasBarbers) && (
+          <TouchableOpacity
+            style={{
+              backgroundColor: 'rgba(239,68,68,0.1)',
+              borderRadius: radius.md,
+              padding: spacing.md,
+              marginBottom: spacing.md,
+              borderWidth: 1,
+              borderColor: 'rgba(239,68,68,0.2)',
+            }}
+            onPress={() => navigation.navigate('Mon Salon')}
+            activeOpacity={0.8}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: 4 }}>
+              <Ionicons name="alert-circle" size={22} color="#EF4444" />
+              <Text style={{ fontFamily: 'DMSans_700Bold', fontSize: 15, color: '#EF4444' }}>
+                Réservations bloquées 🔒
+              </Text>
+            </View>
+            <Text style={{ fontFamily: 'DMSans_500Medium', fontSize: 13, color: colors.textPrimary, lineHeight: 18, marginBottom: spacing.xs }}>
+              Vous devez impérativement ajouter au moins un service et un coiffeur (barbier) à votre salon. Les clients ne pourront pas réserver de créneaux tant que ces informations ne seront pas complétées.
             </Text>
-          </View>
+            <View style={{ flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap', marginBottom: spacing.xs }}>
+              {!hasServices && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(239,68,68,0.15)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.sm }}>
+                  <Ionicons name="close-circle-outline" size={14} color="#EF4444" />
+                  <Text style={{ fontFamily: 'DMSans_700Bold', fontSize: 11, color: '#EF4444' }}>
+                    Aucun service ajouté
+                  </Text>
+                </View>
+              )}
+              {!hasBarbers && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(239,68,68,0.15)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.sm }}>
+                  <Ionicons name="close-circle-outline" size={14} color="#EF4444" />
+                  <Text style={{ fontFamily: 'DMSans_700Bold', fontSize: 11, color: '#EF4444' }}>
+                    Aucun coiffeur ajouté
+                  </Text>
+                </View>
+              )}
+            </View>
+            <Text style={{ fontFamily: 'DMSans_700Bold', fontSize: 12, color: colors.amber, textDecorationLine: 'underline', marginTop: 4 }}>
+              👉 Appuyez ici pour configurer vos services et coiffeurs
+            </Text>
+          </TouchableOpacity>
         )}
 
         {/* Salon Closed Banner */}
