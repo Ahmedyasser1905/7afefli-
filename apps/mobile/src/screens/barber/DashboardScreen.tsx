@@ -418,7 +418,12 @@ export function DashboardScreen() {
             </View>
           </View>
           <TouchableOpacity
-            style={[styles.statusToggleButton, salon?.is_manually_closed ? styles.statusClosed : styles.statusOpen]}
+            style={[
+              styles.statusToggleButton,
+              (salon?.status_label === 'open' || salon?.status_label === 'open_24h') && styles.statusOpen,
+              salon?.status_label === 'closed' && styles.statusClosed,
+              salon?.status_label === 'manually_closed' && styles.statusWarning,
+            ]}
             onPress={() => toggleSalonStatus.mutate(!salon?.is_manually_closed)}
             disabled={toggleSalonStatus.isPending}
             activeOpacity={0.8}
@@ -429,7 +434,9 @@ export function DashboardScreen() {
               <>
                 <View style={[styles.statusToggleDot, { backgroundColor: colors.ink }]} />
                 <Text style={styles.statusToggleText}>
-                  {salon?.is_manually_closed ? 'Fermé' : 'Ouvert'}
+                  {salon?.status_label === 'open_24h' ? '24H/24' :
+                   salon?.status_label === 'open' ? 'Ouvert' :
+                   salon?.status_label === 'manually_closed' ? 'Fermé (Temp)' : 'Fermé'}
                 </Text>
               </>
             )}
@@ -998,6 +1005,9 @@ const styles = StyleSheet.create({
   },
   statusClosed: {
     backgroundColor: colors.error,
+  },
+  statusWarning: {
+    backgroundColor: colors.warning,
   },
   statusToggleDot: {
     width: 6,
