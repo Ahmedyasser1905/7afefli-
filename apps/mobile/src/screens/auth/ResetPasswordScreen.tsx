@@ -89,7 +89,7 @@ export default function ResetPasswordScreen({ navigation }: any) {
         style={styles.keyboardContainer}
       >
         <View style={styles.headerBar}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <TouchableOpacity onPress={() => { if (navigation.canGoBack()) { navigation.goBack(); } }} style={styles.backButton}>
             <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerLogo}>7afefli</Text>

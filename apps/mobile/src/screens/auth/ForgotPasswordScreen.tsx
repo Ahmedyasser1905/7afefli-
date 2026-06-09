@@ -72,7 +72,7 @@ export default function ForgotPasswordScreen({ navigation }: { navigation: Recor
         style={styles.keyboardContainer}
       >
         <View style={styles.headerBar}>
-          <TouchableOpacity onPress={() => (navigation as any).goBack()} style={styles.backButton}>
+          <TouchableOpacity onPress={() => { if ((navigation as any).canGoBack()) { (navigation as any).goBack(); } }} style={styles.backButton}>
             <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerLogo}>7afefli</Text>

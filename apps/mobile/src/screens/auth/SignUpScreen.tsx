@@ -151,7 +151,7 @@ export default function SignUpScreen({ navigation }: { navigation: Record<string
       >
         {/* Custom Header Bar */}
         <View style={styles.headerBar}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <TouchableOpacity style={styles.backButton} onPress={() => { if (navigation.canGoBack()) { navigation.goBack(); } }}>
             <Ionicons name="arrow-back" size={24} color={colors.amber} />
           </TouchableOpacity>
           <Text style={styles.headerLogo}>Créer un compte</Text>

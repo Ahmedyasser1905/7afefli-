@@ -145,9 +145,23 @@ export function SalonSetupScreen({ onComplete }: { onComplete: () => void }) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.7}>
-          <Ionicons name="arrow-back" size={24} color={colors.amber} />
-        </TouchableOpacity>
+        {(step === 2 || navigation.canGoBack()) ? (
+          <TouchableOpacity 
+            style={styles.backButton} 
+            onPress={() => {
+              if (step === 2) {
+                setStep(1);
+              } else {
+                navigation.goBack();
+              }
+            }} 
+            activeOpacity={0.7}
+          >
+            <Ionicons name="arrow-back" size={24} color={colors.amber} />
+          </TouchableOpacity>
+        ) : (
+          <View style={{ height: 40, marginBottom: spacing.md }} />
+        )}
         <View style={styles.titleContainer}>
           <Text style={styles.headerTitle}>Configuration du Salon</Text>
           <Text style={styles.headerSubtitle}>

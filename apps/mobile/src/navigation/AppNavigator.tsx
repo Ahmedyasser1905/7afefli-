@@ -48,20 +48,43 @@ const HafefliTheme = {
 const RootStack = createNativeStackNavigator();
 
 // Helper: fetch role + phone from profile, returns { role, hasPhone }
-async function fetchProfileInfo(userId: string): Promise<{ role: string; hasPhone: boolean }> {
+async function fetchProfileInfo(user: any): Promise<{ role: string; hasPhone: boolean }> {
   let role = 'Client';
   let hasPhone = false;
   try {
     const { data: profile, error } = await supabase
       .from('profiles')
       .select('role, phone_number')
-      .eq('id', userId)
-      .single();
+      .eq('id', user.id)
+      .maybeSingle();
 
     if (!error && profile) {
       if (profile.role) role = profile.role;
       hasPhone = !!profile.phone_number && profile.phone_number.trim().length > 0;
-    } else if (error && error.code !== '42P17') {
+    } else if (!error && !profile) {
+      // Profile is missing, auto-create it using user metadata
+      const metaName = user.user_metadata?.full_name || 'New User';
+      const metaRole = user.user_metadata?.role || 'Client';
+      const userPhone = user.phone || null;
+      
+      const { data: newProfile, error: insertError } = await supabase
+        .from('profiles')
+        .insert({
+          id: user.id,
+          full_name: metaName,
+          phone_number: userPhone,
+          role: metaRole
+        })
+        .select('role, phone_number')
+        .maybeSingle();
+        
+      if (!insertError && newProfile) {
+        if (newProfile.role) role = newProfile.role;
+        hasPhone = !!newProfile.phone_number && newProfile.phone_number.trim().length > 0;
+      } else if (insertError) {
+        console.warn('[Auth] Error creating missing profile:', insertError.message);
+      }
+    } else if (error) {
       console.warn('[Auth] Error fetching profile:', error?.message);
     }
   } catch (err) {
@@ -91,7 +114,7 @@ export function AppNavigator() {
         }
         if (session) {
           
-          const { role, hasPhone } = await fetchProfileInfo(session.user.id);
+          const { role, hasPhone } = await fetchProfileInfo(session.user);
           
           // Set everything atomically
           useAuthStore.setState({
@@ -138,7 +161,7 @@ export function AppNavigator() {
           }
 
           
-          const { role, hasPhone } = await fetchProfileInfo(session.user.id);
+          const { role, hasPhone } = await fetchProfileInfo(session.user);
           
 
           // Set session + role + needsPhone atomically

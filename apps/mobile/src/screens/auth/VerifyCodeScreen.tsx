@@ -68,7 +68,7 @@ export default function VerifyCodeScreen({ route, navigation }: any) {
         style={styles.keyboardContainer}
       >
         <View style={styles.headerBar}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <TouchableOpacity onPress={() => { if (navigation.canGoBack()) { navigation.goBack(); } }} style={styles.backButton}>
             <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerLogo}>7afefli</Text>
@@ -121,7 +121,7 @@ export default function VerifyCodeScreen({ route, navigation }: any) {
 
             <TouchableOpacity
               style={styles.resendButton}
-              onPress={() => navigation.goBack()}
+              onPress={() => { if (navigation.canGoBack()) { navigation.goBack(); } }}
               disabled={isLoading}
             >
               <Text style={styles.resendButtonText}>Changer d'adresse e-mail</Text>
