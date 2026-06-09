@@ -26,7 +26,15 @@ export class UpdateSalonDto {
 
   @IsString()
   @IsOptional()
+  commune?: string;
+
+  @IsString()
+  @IsOptional()
   address?: string;
+
+  @IsString()
+  @IsOptional()
+  phone?: string;
 
   @IsNumber()
   @Min(-90)

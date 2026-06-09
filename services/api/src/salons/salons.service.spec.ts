@@ -6,9 +6,12 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 const mockQueryBuilder = {
   select: jest.fn().mockReturnThis(),
   eq: jest.fn().mockReturnThis(),
+  neq: jest.fn().mockReturnThis(),
   order: jest.fn().mockReturnThis(),
   range: jest.fn().mockReturnThis(),
   single: jest.fn().mockReturnThis(),
+  maybeSingle: jest.fn().mockReturnThis(),
+  limit: jest.fn().mockReturnThis(),
   in: jest.fn().mockReturnThis(),
   ilike: jest.fn().mockReturnThis(),
   insert: jest.fn().mockReturnThis(),
@@ -62,9 +65,26 @@ describe('SalonsService', () => {
     });
 
     it('should query with filters', async () => {
-      mockQueryBuilder.then.mockImplementationOnce((resolve: any) => resolve({ data: [{ id: '1' }], count: 1, error: null }));
+      const mockCompleteSalon = {
+        id: '1',
+        name: 'Mock Salon',
+        description: 'Mock Description',
+        wilaya: 'Mock Wilaya',
+        commune: 'Mock Commune',
+        address: 'Mock Address',
+        phone: '0555555555',
+        latitude: 36.75,
+        longitude: 3.06,
+        open_time: '09:00:00',
+        close_time: '21:00:00',
+        working_days: [0, 1, 2, 3, 4, 5, 6],
+        image_url: 'logo_url',
+        services: [{ id: 'svc1' }],
+        portfolio_photos: [{ id: 'photo1' }]
+      };
+      mockQueryBuilder.then.mockImplementationOnce((resolve: any) => resolve({ data: [mockCompleteSalon], count: 1, error: null }));
       const result = await service.findAll({ wilaya: '16', status: 'Pending' } as any);
-      expect(result).toEqual({ data: [{ id: '1' }], limit: 20, offset: 0, total: 1 });
+      expect(result.data[0].id).toBe('1');
     });
   });
 

@@ -81,7 +81,7 @@ export class SalonsService {
   }) {
     let query = this.supabase.adminClient
       .from('salons')
-      .select('*, services(*)', { count: 'exact' })
+      .select('*, services(*), portfolio_photos(id)', { count: 'exact' })
       .eq('is_approved', true)
       // Subscription enforcement: expired salons are hidden from public search
       .neq('subscription_status', 'Expired')
@@ -108,7 +108,30 @@ export class SalonsService {
 
     if (error) throw new InternalServerErrorException(`Failed to fetch salons: ${error.message}`);
 
-    return this.enrichSalons(data);
+    // Filter out incomplete salons from public results
+    const completeSalons = (data || []).filter(salon => {
+      const hasName = !!salon.name;
+      const hasAddress = !!salon.address;
+      const hasWilaya = !!salon.wilaya;
+      const hasCommune = !!salon.commune;
+      const hasPhone = !!salon.phone;
+      const hasDesc = !!salon.description;
+      const hasCoords = salon.latitude !== null && salon.latitude !== undefined &&
+                        salon.longitude !== null && salon.longitude !== undefined;
+      const hasHours = !!salon.open_time && !!salon.close_time;
+      const hasLogo = !!salon.image_url;
+      const hasServices = salon.services && salon.services.length > 0;
+      const hasPhotos = salon.portfolio_photos && salon.portfolio_photos.length > 0;
+
+      return hasName && hasAddress && hasWilaya && hasCommune && hasPhone && hasDesc && hasCoords && hasHours && hasLogo && hasServices && hasPhotos;
+    });
+
+    return {
+      data: this.enrichSalons(completeSalons),
+      limit,
+      offset,
+      total: count || 0,
+    };
   }
 
   /**
@@ -171,7 +194,7 @@ export class SalonsService {
   async findByOwner(ownerId: string) {
     const { data, error } = await this.supabase.adminClient
       .from('salons')
-      .select('*')
+      .select('*, services(*), portfolio_photos(id)')
       .eq('owner_id', ownerId)
       .maybeSingle();
 
@@ -191,7 +214,9 @@ export class SalonsService {
         name: dto.name,
         description: dto.description,
         wilaya: dto.wilaya,
+        commune: dto.commune,
         address: dto.address,
+        phone: dto.phone,
         latitude: dto.latitude,
         longitude: dto.longitude,
         open_time: dto.open_time,

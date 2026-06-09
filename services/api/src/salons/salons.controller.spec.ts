@@ -1,6 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { SalonsController } from './salons.controller';
 import { SalonsService } from './salons.service';
+import { SalonServicesService } from '../salon-services/salon-services.service';
+
+const mockSalonServicesService = {
+  findBySalon: jest.fn().mockResolvedValue([]),
+};
 
 const mockSalonsService = {
   findAll: jest.fn().mockResolvedValue([]),
@@ -29,6 +34,10 @@ describe('SalonsController', () => {
         {
           provide: SalonsService,
           useValue: mockSalonsService,
+        },
+        {
+          provide: SalonServicesService,
+          useValue: mockSalonServicesService,
         },
       ],
     }).compile();

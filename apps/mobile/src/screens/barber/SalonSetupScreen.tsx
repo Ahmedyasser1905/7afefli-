@@ -20,23 +20,29 @@ import { colors, typography, spacing, radius } from '../../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
 import MapView, { Marker } from 'react-native-maps';
 
-export function SalonSetupScreen({ onComplete }: { onComplete: () => void }) {
+export function SalonSetupScreen({ onComplete, existingSalon }: { onComplete: () => void, existingSalon?: any }) {
   const user = useAuthStore((s) => s.user);
   const navigation = useNavigation();
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
 
   const [form, setForm] = useState({
-    name: '',
-    description: '',
-    wilaya: 'Alger',
-    address: '',
-    open_time: '09:00',
-    close_time: '20:00',
-    working_days: [1, 2, 3, 4, 5, 6],
-    latitude: 36.7538,
-    longitude: 3.0588,
+    name: existingSalon?.name || '',
+    description: existingSalon?.description || '',
+    wilaya: existingSalon?.wilaya || 'Alger',
+    commune: existingSalon?.commune || '',
+    address: existingSalon?.address || '',
+    phone: existingSalon?.phone || '',
+    open_time: existingSalon?.open_time?.substring(0, 5) || '09:00',
+    close_time: existingSalon?.close_time?.substring(0, 5) || '20:00',
+    working_days: existingSalon?.working_days || [1, 2, 3, 4, 5, 6],
+    latitude: existingSalon?.latitude || 36.7538,
+    longitude: existingSalon?.longitude || 3.0588,
   });
+
+  const [coordsChosen, setCoordsChosen] = useState(
+    !!(existingSalon && existingSalon.latitude !== null && existingSalon.latitude !== undefined && existingSalon.latitude !== 36.7538)
+  );
 
   const toggleDay = (day: number) => {
     setForm(prev => ({
@@ -48,32 +54,57 @@ export function SalonSetupScreen({ onComplete }: { onComplete: () => void }) {
   };
 
   const handleCreateSalon = async () => {
-    if (!form.name || !form.address) {
+    if (!form.name || !form.address || !form.wilaya || !form.commune || !form.phone) {
       Toast.show({
         type: 'error',
         text1: 'Erreur',
-        text2: 'Veuillez remplir tous les champs'
+        text2: 'Veuillez remplir tous les champs obligatoires'
       });
+      return;
+    }
+
+    if (!coordsChosen) {
+      Alert.alert('Emplacement requis', "Veuillez choisir l'emplacement du salon sur la carte.");
       return;
     }
 
     setLoading(true);
     try {
-      await apiClient.post('/salons', {
-        name: form.name,
-        description: form.description || undefined,
-        wilaya: form.wilaya,
-        address: form.address,
-        open_time: form.open_time,
-        close_time: form.close_time,
-        latitude: form.latitude,
-        longitude: form.longitude,
-        working_days: form.working_days,
-      });
-      
-      Alert.alert('Succès', 'Votre salon a été créé avec succès !', [
-        { text: 'Continuer', onPress: onComplete }
-      ]);
+      if (existingSalon?.id) {
+        await apiClient.patch(`/salons/${existingSalon.id}`, {
+          name: form.name,
+          description: form.description || undefined,
+          wilaya: form.wilaya,
+          commune: form.commune,
+          address: form.address,
+          phone: form.phone,
+          open_time: form.open_time,
+          close_time: form.close_time,
+          latitude: form.latitude,
+          longitude: form.longitude,
+          working_days: form.working_days,
+        });
+        Alert.alert('Succès', 'Votre salon a été mis à jour avec succès !', [
+          { text: 'Continuer', onPress: onComplete }
+        ]);
+      } else {
+        await apiClient.post('/salons', {
+          name: form.name,
+          description: form.description || undefined,
+          wilaya: form.wilaya,
+          commune: form.commune,
+          address: form.address,
+          phone: form.phone,
+          open_time: form.open_time,
+          close_time: form.close_time,
+          latitude: form.latitude,
+          longitude: form.longitude,
+          working_days: form.working_days,
+        });
+        Alert.alert('Succès', 'Votre salon a été créé avec succès !', [
+          { text: 'Continuer', onPress: onComplete }
+        ]);
+      }
     } catch (err: unknown) {
       Toast.show({
         type: 'error',
@@ -211,6 +242,15 @@ export function SalonSetupScreen({ onComplete }: { onComplete: () => void }) {
             onChangeText={(t) => setForm({ ...form, wilaya: t })}
           />
 
+          <Text style={styles.label}>Commune</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Ex: Bab El Oued"
+            placeholderTextColor={colors.textMuted}
+            value={form.commune}
+            onChangeText={(t) => setForm({ ...form, commune: t })}
+          />
+
           <Text style={styles.label}>Adresse complète</Text>
           <TextInput
             style={styles.input}
@@ -218,6 +258,16 @@ export function SalonSetupScreen({ onComplete }: { onComplete: () => void }) {
             placeholderTextColor={colors.textMuted}
             value={form.address}
             onChangeText={(t) => setForm({ ...form, address: t })}
+          />
+
+          <Text style={styles.label}>Téléphone du salon</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Ex: 0550123456"
+            placeholderTextColor={colors.textMuted}
+            value={form.phone}
+            onChangeText={(t) => setForm({ ...form, phone: t })}
+            keyboardType="phone-pad"
           />
 
           <View style={styles.row}>
@@ -279,9 +329,21 @@ export function SalonSetupScreen({ onComplete }: { onComplete: () => void }) {
                   latitude: e.nativeEvent.coordinate.latitude,
                   longitude: e.nativeEvent.coordinate.longitude,
                 });
+                setCoordsChosen(true);
               }}
             >
-              <Marker coordinate={{ latitude: form.latitude, longitude: form.longitude }} />
+              <Marker
+                coordinate={{ latitude: form.latitude, longitude: form.longitude }}
+                draggable
+                onDragEnd={(e) => {
+                  setForm({
+                    ...form,
+                    latitude: e.nativeEvent.coordinate.latitude,
+                    longitude: e.nativeEvent.coordinate.longitude,
+                  });
+                  setCoordsChosen(true);
+                }}
+              />
             </MapView>
           </View>
         </View>

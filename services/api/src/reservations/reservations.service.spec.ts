@@ -20,6 +20,13 @@ const buildMockQuery = () => {
     select: jest.fn().mockImplementation(() => query),
     eq: jest.fn().mockImplementation(() => query),
     in: jest.fn().mockImplementation(() => query),
+    limit: jest.fn().mockImplementation(() => query),
+    gte: jest.fn().mockImplementation(() => query),
+    lte: jest.fn().mockImplementation(() => query),
+    gt: jest.fn().mockImplementation(() => query),
+    lt: jest.fn().mockImplementation(() => query),
+    not: jest.fn().mockImplementation(() => query),
+    ilike: jest.fn().mockImplementation(() => query),
     single: jest.fn(),
     maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
     update: jest.fn().mockImplementation(() => query),
@@ -79,7 +86,23 @@ describe('ReservationsService', () => {
     mockServicesQuery.maybeSingle = mockQuery.maybeSingle;
     
     mockSalonsQuery.single = jest.fn().mockResolvedValue({
-      data: { owner_id: 'barber1', open_time: '09:00:00', close_time: '21:00:00', working_days: [0, 1, 2, 3, 4, 5, 6] },
+      data: {
+        owner_id: 'barber1',
+        name: 'Mock Salon',
+        description: 'Mock Description',
+        wilaya: 'Mock Wilaya',
+        commune: 'Mock Commune',
+        address: 'Mock Address',
+        phone: '0555555555',
+        latitude: 36.75,
+        longitude: 3.06,
+        open_time: '09:00:00',
+        close_time: '21:00:00',
+        working_days: [0, 1, 2, 3, 4, 5, 6],
+        image_url: 'logo_url',
+        services: [{ id: 'svc1' }],
+        portfolio_photos: [{ id: 'photo1' }]
+      },
       error: null,
     });
     mockStaffQuery.single = mockQuery.single;
@@ -311,20 +334,20 @@ describe('ReservationsService', () => {
   // ─────────────────────────────────────────────────────────────────────────
   describe('blockTime', () => {
     it('should insert a blocked reservation record', async () => {
-      mockSupabaseAdminClient.rpc.mockResolvedValueOnce({
-        data: { id: 'block1' },
-        error: null,
-      });
+      mockQuery.maybeSingle
+        .mockResolvedValueOnce({ data: { id: 'svc1' }, error: null }) // fallbackServiceId
+        .mockResolvedValueOnce({ data: null, error: null });          // existingBlock check
+      
+      mockQuery.single.mockResolvedValueOnce({ data: { id: 'block1' }, error: null }); // insert
 
       const res = await service.blockTime('salon1', 'barber1', '2028-01-01', '14:00', '15:00');
       expect(res).toBeDefined();
     });
 
     it('should throw ConflictException if slot already booked', async () => {
-      mockSupabaseAdminClient.rpc.mockResolvedValueOnce({
-        data: null,
-        error: { message: 'slot already booked', code: 'P0001' },
-      });
+      mockQuery.maybeSingle
+        .mockResolvedValueOnce({ data: { id: 'svc1' }, error: null }) // fallbackServiceId
+        .mockResolvedValueOnce({ data: { id: 'block1', start_time: '14:00', end_time: '15:00' }, error: null }); // existingBlock check
 
       await expect(
         service.blockTime('salon1', 'barber1', '2028-01-01', '14:00', '15:00'),

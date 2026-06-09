@@ -26,7 +26,15 @@ export class CreateSalonDto {
 
   @IsString()
   @IsNotEmpty()
+  commune!: string;
+
+  @IsString()
+  @IsNotEmpty()
   address!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  phone!: string;
 
   @IsNumber()
   @Min(-90)

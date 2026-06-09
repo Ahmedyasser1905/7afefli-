@@ -47,8 +47,25 @@ export function BarberTabNavigator() {
     );
   }
 
-  if (!salon) {
-    return <SalonSetupScreen onComplete={refetch} />;
+  const isComplete = !!(
+    salon &&
+    salon.name &&
+    salon.address &&
+    salon.wilaya &&
+    salon.commune &&
+    salon.phone &&
+    salon.description &&
+    salon.latitude !== null && salon.latitude !== undefined &&
+    salon.longitude !== null && salon.longitude !== undefined &&
+    salon.open_time &&
+    salon.close_time &&
+    salon.image_url &&
+    salon.services && salon.services.length > 0 &&
+    salon.portfolio_photos && salon.portfolio_photos.length > 0
+  );
+
+  if (!isComplete) {
+    return <SalonSetupScreen onComplete={refetch} existingSalon={salon} />;
   }
 
   return (

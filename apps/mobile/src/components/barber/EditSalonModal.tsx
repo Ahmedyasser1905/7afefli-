@@ -61,7 +61,9 @@ export function EditSalonModal({ visible, onClose, salon, onSaved }: EditSalonMo
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [wilaya, setWilaya] = useState('');
+  const [commune, setCommune] = useState('');
   const [address, setAddress] = useState('');
+  const [phone, setPhone] = useState('');
   const [openTime, setOpenTime] = useState('');
   const [closeTime, setCloseTime] = useState('');
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -85,7 +87,9 @@ export function EditSalonModal({ visible, onClose, salon, onSaved }: EditSalonMo
       setName(salon.name || '');
       setDescription(salon.description || '');
       setWilaya(salon.wilaya || '');
+      setCommune(salon.commune || '');
       setAddress(salon.address || '');
+      setPhone(salon.phone || '');
       setOpenTime(salon.open_time?.substring(0, 5) || '09:00');
       setCloseTime(salon.close_time?.substring(0, 5) || '20:00');
       setImageUrl(salon.image_url || null);
@@ -118,7 +122,9 @@ export function EditSalonModal({ visible, onClose, salon, onSaved }: EditSalonMo
         name: name.trim(),
         description: description.trim() || null,
         wilaya: wilaya.trim(),
+        commune: commune.trim(),
         address: address.trim(),
+        phone: phone.trim(),
         open_time: openTime,
         close_time: closeTime,
         image_url: imageUrl,
@@ -280,6 +286,19 @@ export function EditSalonModal({ visible, onClose, salon, onSaved }: EditSalonMo
               <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
             </TouchableOpacity>
 
+            {/* Commune */}
+            <Text style={styles.label}>Commune</Text>
+            <View style={styles.inputContainer}>
+              <Ionicons name="location-outline" size={18} color={colors.amber} />
+              <TextInput
+                style={styles.input}
+                value={commune}
+                onChangeText={setCommune}
+                placeholder="Commune"
+                placeholderTextColor={colors.textMuted}
+              />
+            </View>
+
             {/* Address */}
             <Text style={styles.label}>Adresse</Text>
             <View style={styles.inputContainer}>
@@ -290,6 +309,20 @@ export function EditSalonModal({ visible, onClose, salon, onSaved }: EditSalonMo
                 onChangeText={setAddress}
                 placeholder="Adresse complète"
                 placeholderTextColor={colors.textMuted}
+              />
+            </View>
+
+            {/* Phone */}
+            <Text style={styles.label}>Téléphone du salon</Text>
+            <View style={styles.inputContainer}>
+              <Ionicons name="call-outline" size={18} color={colors.amber} />
+              <TextInput
+                style={styles.input}
+                value={phone}
+                onChangeText={setPhone}
+                placeholder="Téléphone du salon"
+                placeholderTextColor={colors.textMuted}
+                keyboardType="phone-pad"
               />
             </View>
 

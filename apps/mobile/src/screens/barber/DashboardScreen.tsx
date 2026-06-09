@@ -57,6 +57,25 @@ export function DashboardScreen() {
 
   const salonId = salon?.id ?? null;
 
+  const isComplete = useMemo(() => {
+    return !!(
+      salon &&
+      salon.name &&
+      salon.address &&
+      salon.wilaya &&
+      salon.commune &&
+      salon.phone &&
+      salon.description &&
+      salon.latitude !== null && salon.latitude !== undefined &&
+      salon.longitude !== null && salon.longitude !== undefined &&
+      salon.open_time &&
+      salon.close_time &&
+      salon.image_url &&
+      salon.services && salon.services.length > 0 &&
+      salon.portfolio_photos && salon.portfolio_photos.length > 0
+    );
+  }, [salon]);
+
   // Fetch bookings — day mode uses ?date= for server-side filter; month/all fetch all then filter client-side
   const { data: bookingsRaw = [], isLoading: isBookingsLoading, refetch } = useQuery<Reservation[]>({
     queryKey: ['barber-reservations', salonId, viewMode === 'day' ? viewDate : 'all'],
@@ -370,7 +389,7 @@ export function DashboardScreen() {
   };
 
   const renderHeader = () => {
-    const barberName = user?.user_metadata?.full_name?.split(' ')[0] || 'Ahmed';
+    const barberName = user?.user_metadata?.full_name?.split(' ')[0] || 'Barbier';
     const avatarUrl = user?.user_metadata?.avatar_url || DEFAULT_AVATAR;
 
     return (
@@ -402,6 +421,16 @@ export function DashboardScreen() {
             )}
           </TouchableOpacity>
         </View>
+
+        {/* Salon Incomplete Banner */}
+        {!isComplete && (
+          <View style={{ backgroundColor: 'rgba(245,158,11,0.15)', borderRadius: radius.md, padding: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md, borderWidth: 1, borderColor: 'rgba(245,158,11,0.3)' }}>
+            <Ionicons name="warning" size={20} color={colors.amber} />
+            <Text style={{ fontFamily: 'DMSans_500Medium', fontSize: 13, color: colors.amber, flex: 1 }}>
+              Complétez votre profil de salon (photos, services, logo...) pour le publier et recevoir des réservations.
+            </Text>
+          </View>
+        )}
 
         {/* Salon Closed Banner */}
         {salon?.is_manually_closed && (
