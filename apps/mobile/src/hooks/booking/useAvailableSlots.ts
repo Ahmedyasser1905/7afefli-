@@ -47,9 +47,11 @@ export function useAvailableSlots({
       }
 
       // Current date and time strings for filtering past slots
-      const now = new Date();
-      const currentDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-      const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      // Use Algeria local time (UTC+1) to match server-side slot filtering
+      const nowUtc = new Date();
+      const nowAlg = new Date(nowUtc.getTime() + 60 * 60 * 1000);
+      const currentDateStr = `${nowAlg.getUTCFullYear()}-${String(nowAlg.getUTCMonth() + 1).padStart(2, '0')}-${String(nowAlg.getUTCDate()).padStart(2, '0')}`;
+      const currentTimeStr = `${String(nowAlg.getUTCHours()).padStart(2, '0')}:${String(nowAlg.getUTCMinutes()).padStart(2, '0')}`;
 
       // Check if the requested date is in the past
       if (date && date < currentDateStr) {

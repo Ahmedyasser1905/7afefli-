@@ -296,7 +296,7 @@ export function BookingScreen() {
                 activeOpacity={0.8}
               >
                 <Image
-                  source={{ uri: s.avatar_url || s.profiles?.avatar_url || 'https://lh3.googleusercontent.com/aida-public/AB6AXuBRQWg_Xc-hckv32TMl23w3Cmwd60Jfa3onMRJmyq2rdcvXoTRgGi6On2KOEVTvmrS9-SbemMGS51_LEHQs1ZxegGjSR4DZA3jucMor_wY0Pxy60Z3HTFdJCRlAu-rdbbhw6Sr3Ij91hYl0I8ekc8OVsjNYqWXvUGUW8s_w6Jj3MMwDInwYRhYBiVAuft8ggvfn0pVY7IOHZmM99GtHingFPzXsqQxHIG8ereW05P_VCWdAd9cuxZHbd9-TMAwJBAzB50_1gIsUU5k-' }}
+                  source={{ uri: s.avatar_url || s.profiles?.avatar_url || 'https://phfwutugsyiutqgippqg.supabase.co/storage/v1/object/public/portfolio/defaults/default-avatar.png' }}
                   style={styles.barberAvatar}
                 />
                 <View style={styles.barberInfo}>

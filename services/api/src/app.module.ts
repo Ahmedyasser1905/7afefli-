@@ -17,6 +17,7 @@ import { PaymentsModule } from './payments/payments.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { AppController } from './app.controller';
 import { LocationsModule } from './locations/locations.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 // NOTE: redis packages are require()'d lazily inside the factories below.
 // Top-level static imports of cache-manager-ioredis and
@@ -79,6 +80,7 @@ import { LocationsModule } from './locations/locations.module';
     PaymentsModule,
     SubscriptionsModule,
     LocationsModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [

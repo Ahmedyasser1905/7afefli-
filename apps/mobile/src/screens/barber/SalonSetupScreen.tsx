@@ -28,6 +28,7 @@ export function SalonSetupScreen({ onComplete }: { onComplete: () => void }) {
 
   const [form, setForm] = useState({
     name: '',
+    description: '',
     wilaya: 'Alger',
     address: '',
     open_time: '09:00',
@@ -50,6 +51,7 @@ export function SalonSetupScreen({ onComplete }: { onComplete: () => void }) {
     try {
       await apiClient.post('/salons', {
         name: form.name,
+        description: form.description || undefined,
         wilaya: form.wilaya,
         address: form.address,
         open_time: form.open_time,
@@ -165,6 +167,17 @@ export function SalonSetupScreen({ onComplete }: { onComplete: () => void }) {
             onChangeText={(t) => setForm({ ...form, name: t })}
           />
 
+
+          <Text style={styles.label}>Description (optionnel)</Text>
+          <TextInput
+            style={[styles.input, { height: 80, textAlignVertical: 'top', paddingTop: 12 }]}
+            placeholder="Ex: Salon moderne, coupes tendance..."
+            placeholderTextColor={colors.textMuted}
+            value={form.description}
+            onChangeText={(t) => setForm({ ...form, description: t })}
+            multiline
+            numberOfLines={3}
+          />
           <Text style={styles.label}>Wilaya</Text>
           <TextInput
             style={styles.input}

@@ -6,6 +6,7 @@ import {
   IsNumber,
   IsOptional,
   Min,
+  Max,
 } from 'class-validator';
 
 export class CreateServiceDto {
@@ -19,9 +20,11 @@ export class CreateServiceDto {
 
   @IsNumber()
   @Min(0)
+  @Max(100000)
   price!: number;
 
   @IsNumber()
   @Min(5)
+  @Max(480)
   duration_minutes!: number;
 }
