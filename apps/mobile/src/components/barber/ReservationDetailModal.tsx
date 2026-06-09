@@ -161,7 +161,7 @@ export function ReservationDetailModal({
                     </View>
                     <View style={styles.detailTextCol}>
                       <Text style={styles.detailLabel}>Date</Text>
-                      <Text style={styles.detailValue} numberOfLines={1}>{dateLabel || '—'}</Text>
+                      <Text style={styles.detailValue}>{dateLabel || '—'}</Text>
                     </View>
                   </View>
 
