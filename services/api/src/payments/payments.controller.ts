@@ -131,8 +131,7 @@ export class PaymentsController {
             .from('user_subscriptions')
             .update({
               status: 'Active',
-              plan: planData?.name || plan || 'Pro',
-              plan_id: planData?.id || null,  // FK to plans table — required for limit enforcement
+              plan: planData?.id || null,  // FK to plans table (renamed from plan_id)
               starts_at: new Date().toISOString(),
               ends_at: endsAt,
             })

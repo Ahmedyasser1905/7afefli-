@@ -127,7 +127,7 @@ export function SubscriptionScreen() {
     id: subRecord.id,
     salon_id: subRecord.salon_id,
     status: subRecord.status,
-    plan: subRecord.plan,
+    plan: subRecord.plan_details?.name || subRecord.plan,
     plan_details: subRecord.plan_details || null,
     trial_ends_at: subRecord.trial_ends_at,
     starts_at: subRecord.starts_at,

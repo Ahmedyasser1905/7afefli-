@@ -56,7 +56,7 @@ export class SubscriptionsService {
     // Expire trials (Fallback to Default Free)
     const { data: expiredTrials, error: trialErr } = await this.supabase.adminClient
       .from('user_subscriptions')
-      .update({ status: 'Active', plan: defaultPlanName, plan_id: defaultPlanId, trial_ends_at: null, ends_at: null })
+      .update({ status: 'Active', plan: defaultPlanId, trial_ends_at: null, ends_at: null })
       .eq('status', 'Trial')
       .lt('trial_ends_at', now)
       .select('salon_id');
@@ -70,9 +70,9 @@ export class SubscriptionsService {
     // Expire active subscriptions (Fallback to Default Free)
     const { data: expiredActive, error: activeErr } = await this.supabase.adminClient
       .from('user_subscriptions')
-      .update({ status: 'Active', plan: defaultPlanName, plan_id: defaultPlanId, trial_ends_at: null, ends_at: null })
+      .update({ status: 'Active', plan: defaultPlanId, trial_ends_at: null, ends_at: null })
       .eq('status', 'Active')
-      .neq('plan', defaultPlanName)
+      .neq('plan', defaultPlanId)
       .lt('ends_at', now)
       .select('salon_id');
 

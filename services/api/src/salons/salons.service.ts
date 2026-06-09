@@ -245,8 +245,7 @@ export class SalonsService {
     if (defaultPlan) {
       await this.supabase.adminClient.from('user_subscriptions').insert({
         salon_id: data.id,
-        plan_id: defaultPlan.id,
-        plan: defaultPlan.name,
+        plan: defaultPlan.id,
         status: 'Trial',
         starts_at: new Date().toISOString(),
         trial_ends_at: data.trial_ends_at,
