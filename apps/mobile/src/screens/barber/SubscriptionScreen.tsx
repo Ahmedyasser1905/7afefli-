@@ -218,8 +218,8 @@ export function SubscriptionScreen() {
                 {status === 'Active' ? 'Actif' : status === 'Trial' ? 'Essai Gratuit' : 'Expiré'}
               </Text>
             </View>
-            {subscription?.plan && subscription.plan !== 'trial' && (
-              <Text style={styles.currentPlanName}>Plan {subscription.plan}</Text>
+            {subscription?.plan_details?.name && (
+              <Text style={styles.currentPlanName}>Plan {subscription.plan_details.name}</Text>
             )}
           </View>
 
@@ -286,7 +286,7 @@ export function SubscriptionScreen() {
 
         {/* Plans — Smart display based on current plan */}
         {(() => {
-          const currentSlug = subscription?.plan?.toLowerCase() || '';
+          const currentSlug = subscription?.plan_details?.slug || '';
           const isActive = status === 'Active';
 
           // Find current plan details from the catalog
