@@ -501,6 +501,17 @@ export function DashboardScreen() {
           </View>
         )}
 
+        {/* Salon Approval Pending Banner */}
+        {salon && !salon.is_approved && (
+          <View style={styles.approvalBanner}>
+            <Ionicons name="time-outline" size={16} color={colors.amber} />
+            <Text style={styles.approvalText}>
+              Votre salon est en attente de validation par notre équipe.
+              Vous recevrez une notification dès qu'il sera approuvé.
+            </Text>
+          </View>
+        )}
+
         {/* Bento Stats Grid */}
         <View style={styles.bentoContainer}>
           <View style={styles.bentoRow}>
@@ -947,6 +958,24 @@ const styles = StyleSheet.create({
   bentoContainer: {
     gap: spacing.sm,
     marginBottom: spacing.xl,
+  },
+  approvalBanner: {
+    backgroundColor: 'rgba(232,160,32,0.08)',
+    borderRadius: radius.md,
+    padding: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(232,160,32,0.25)',
+  },
+  approvalText: {
+    fontFamily: 'DMSans_500Medium',
+    fontSize: 13,
+    color: colors.amber,
+    flex: 1,
+    lineHeight: 18,
   },
   bentoRow: {
     flexDirection: 'row',

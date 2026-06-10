@@ -21,6 +21,7 @@ import { colors, spacing, radius, shadows } from '../../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
 import { formatDZD } from '@barberdz/shared/utils/formatters';
 import { LeaveReviewModal } from '../../components/client/LeaveReviewModal';
+import { cancelAppointmentReminder } from '../../lib/notifications';
 
 // ─── Type definitions ─────────────────────────────────────────────────────────────────────────
 interface SalonInfo {
@@ -85,9 +86,12 @@ export function MyAppointmentsScreen() {
   const cancelMutation = useMutation({
     mutationFn: async (reservationId: string) => {
       await apiClient.patch(`/reservations/${reservationId}/status`, { status: 'Cancelled' });
+      return reservationId;
     },
-    onSuccess: () => {
+    onSuccess: (reservationId: string) => {
       queryClient.invalidateQueries({ queryKey: ['my-reservations', user?.id] });
+      // Cancel any scheduled local reminder for this appointment
+      cancelAppointmentReminder(reservationId);
       Toast.show({
         type: 'success',
         text1: 'Succès',

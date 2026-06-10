@@ -18,6 +18,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { SupabaseService } from '../supabase/supabase.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Controller('payments')
 export class PaymentsController {
@@ -26,6 +27,7 @@ export class PaymentsController {
   constructor(
     private readonly chargily: ChargilyService,
     private readonly supabase: SupabaseService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   /**
@@ -149,6 +151,26 @@ export class PaymentsController {
               ends_at: endsAt,
             })
             .eq('salon_id', salon_id);
+
+          // 3. Notify the salon owner that their subscription is activated (fire-and-forget)
+          try {
+            const { data: salonData } = await this.supabase.adminClient
+              .from('salons')
+              .select('owner_id')
+              .eq('id', salon_id)
+              .maybeSingle();
+            if (salonData?.owner_id) {
+              this.notificationsService.createNotification(
+                salonData.owner_id,
+                'subscription_activated',
+                '\uD83D\uDCB3 Paiement confirm\u00e9',
+                `Votre abonnement ${planData?.name} a \u00e9t\u00e9 activ\u00e9 avec succ\u00e8s.`,
+                { salonId: salon_id },
+              ).catch(() => {});
+            }
+          } catch {
+            // Non-fatal notification failure
+          }
 
           this.logger.log(
             `Payment processed: salon=${salon_id}, plan=${plan}, amount=${amount} DZD, duration=${durationDays}d`,

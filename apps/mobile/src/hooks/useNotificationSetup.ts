@@ -36,15 +36,25 @@ export function useNotificationSetup() {
           if (!navigationRef.isReady()) return;
 
           // Navigate based on notification type
-          if (data.type === 'new_reservation' && data.salonId) {
+          if (data.type === 'new_booking' && data.salonId) {
             // Coiffeur: new reservation arrived — go to barber dashboard
             navigationRef.navigate('BarberApp' as never);
-          } else if (data.type === 'reservation_confirmed' && data.reservationId) {
-            // Client: reservation was confirmed — go to appointments
+          } else if (
+            data.type === 'booking_confirmed' ||
+            data.type === 'booking_cancelled' ||
+            data.type === 'completed'
+          ) {
+            // Client: status updated by barber — go to appointments
             navigationRef.navigate('ClientApp' as never);
-          } else if (data.type === 'reservation_cancelled' && data.reservationId) {
-            // Client: reservation was cancelled
-            navigationRef.navigate('ClientApp' as never);
+          } else if (
+            data.type === 'salon_approved' ||
+            data.type === 'salon_rejected' ||
+            data.type === 'new_review' ||
+            data.type === 'subscription_expiring' ||
+            data.type === 'subscription_activated'
+          ) {
+            // Barber-specific types — go to barber dashboard
+            navigationRef.navigate('BarberApp' as never);
           } else if (data.reservationId) {
             // Generic reservation notification — go to appointments
             navigationRef.navigate('ClientApp' as never);

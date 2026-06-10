@@ -1,6 +1,7 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { AuditService } from '../audit/audit.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
@@ -10,6 +11,7 @@ export class SubscriptionsService {
   constructor(
     private readonly supabase: SupabaseService,
     private readonly audit: AuditService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   /**
@@ -86,6 +88,28 @@ export class SubscriptionsService {
       this.logger.error('Failed to expire trials:', trialErr.message);
     } else if (expiredTrials?.length) {
       this.logger.log(`Downgraded ${expiredTrials.length} trial(s) → ${defaultPlanName} / Active`);
+
+      // Notify each expired trial barber
+      for (const { salon_id } of expiredTrials) {
+        try {
+          const { data: salonData } = await this.supabase.adminClient
+            .from('salons')
+            .select('owner_id')
+            .eq('id', salon_id)
+            .maybeSingle();
+          if (salonData?.owner_id) {
+            this.notificationsService.createNotification(
+              salonData.owner_id,
+              'subscription_expiring',
+              '⏰ Période d\'essai terminée',
+              'Votre période d\'essai est terminée. Passez à un plan payant pour continuer à recevoir des réservations.',
+              { salonId: salon_id },
+            ).catch(() => {});
+          }
+        } catch {
+          // Non-fatal notification failure
+        }
+      }
     }
 
     // H5 Fix: Downgrade paid subscriptions → Free Plan ('Active')
@@ -101,6 +125,28 @@ export class SubscriptionsService {
       this.logger.error('Failed to expire active subs:', activeErr.message);
     } else if (expiredActive?.length) {
       this.logger.log(`Downgraded ${expiredActive.length} subscription(s) → ${defaultPlanName} / Active`);
+
+      // Notify each expired active subscription barber
+      for (const { salon_id } of expiredActive) {
+        try {
+          const { data: salonData } = await this.supabase.adminClient
+            .from('salons')
+            .select('owner_id')
+            .eq('id', salon_id)
+            .maybeSingle();
+          if (salonData?.owner_id) {
+            this.notificationsService.createNotification(
+              salonData.owner_id,
+              'subscription_expiring',
+              '📅 Abonnement expiré',
+              'Votre abonnement a expiré. Renouvelez pour continuer à recevoir des réservations.',
+              { salonId: salon_id },
+            ).catch(() => {});
+          }
+        } catch {
+          // Non-fatal notification failure
+        }
+      }
     }
 
     // Final sync: ensures salon.subscription_status column is consistent with user_subscriptions.status

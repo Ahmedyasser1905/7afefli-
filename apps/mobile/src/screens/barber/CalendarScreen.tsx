@@ -191,7 +191,7 @@ export function CalendarScreen() {
     },
     enabled: !!salonId,
     staleTime: 0,
-    refetchInterval: 2 * 60 * 1000,
+    // No refetchInterval — useRealtimeBookings handles live updates via Supabase Realtime
   });
 
   // ── Fetch ALL pending reservations (across all dates) ─────────────────────
