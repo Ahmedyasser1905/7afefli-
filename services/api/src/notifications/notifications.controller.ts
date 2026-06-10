@@ -1,5 +1,5 @@
 // services/api/src/notifications/notifications.controller.ts
-import { Controller, Get, Patch, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Patch, Post, Body, Param, Query, UseGuards, BadRequestException, HttpCode, HttpStatus } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { SupabaseAuthGuard, AuthenticatedUser } from '../auth/auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -8,6 +8,22 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 @UseGuards(SupabaseAuthGuard)
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
+
+  /**
+   * POST /notifications/push-token
+   * Register or refresh the device's Expo push token.
+   * The mobile app calls this after login/registration.
+   */
+  @Post('push-token')
+  @HttpCode(HttpStatus.OK)
+  async savePushToken(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body('token') token: string,
+  ) {
+    if (!token) throw new BadRequestException('Push token is required');
+    await this.notificationsService.savePushToken(user.id, token);
+    return { success: true };
+  }
 
   @Get()
   getMyNotifications(

@@ -1,6 +1,3 @@
-// services/api/src/reservations/reservations.service.ts
-// Handles reservation creation with anti-double-booking trigger error handling
-
 import {
   Injectable,
   ConflictException,
@@ -17,6 +14,7 @@ import { CreateReservationDto } from './dto/create-reservation.dto';
 import { UpdateReservationStatusDto } from './dto/update-reservation-status.dto';
 import { addMinutesToTime } from '../utils/time.util';
 import { AuthenticatedUser } from '../auth/auth.guard';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class ReservationsService {
@@ -25,6 +23,7 @@ export class ReservationsService {
   constructor(
     private readonly supabase: SupabaseService,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   /**
@@ -228,12 +227,30 @@ export class ReservationsService {
       .select(`
         *,
         services(service_name, price, duration_minutes),
-        salons(name, address, wilaya)
+        salons(name, address, wilaya, owner_id)
       `)
       .eq('id', data.id)
       .single();
 
-    return enrichedData || data;
+    const result = enrichedData || data;
+
+    // 6. Push notification: inform the salon owner about the new booking (fire-and-forget)
+    try {
+      const salonOwnerId = (result as any)?.salons?.owner_id;
+      const serviceName = (result as any)?.services?.service_name ?? 'Service';
+      const salonName = (result as any)?.salons?.name ?? 'votre salon';
+      if (salonOwnerId && salonOwnerId !== clientId) {
+        this.notificationsService.createNotification(
+          salonOwnerId,
+          'new_booking',
+          '📅 Nouvelle réservation',
+          `Un client a réservé ${serviceName} le ${dto.appointmentDate} à ${dto.startTime}.`,
+          { reservationId: data.id, salonId: dto.salonId },
+        ).catch(() => {}); // fire-and-forget
+      }
+    } catch { /* ignore notification failures */ }
+
+    return result;
   }
 
   /**
@@ -597,6 +614,45 @@ export class ReservationsService {
       reservation.appointment_date,
       reservation.barber_id,
     );
+
+    // Push notification on status change (fire-and-forget)
+    try {
+      const statusMessages: Record<string, { title: string; body: string }> = {
+        Confirmed: {
+          title: '✅ Réservation confirmée',
+          body: `Votre rendez-vous du ${reservation.appointment_date} à ${reservation.start_time} a été confirmé.`,
+        },
+        Cancelled: {
+          title: '❌ Réservation annulée',
+          body: `Votre rendez-vous du ${reservation.appointment_date} à ${reservation.start_time} a été annulé.`,
+        },
+        Completed: {
+          title: '✔️ Rendez-vous terminé',
+          body: `Votre rendez-vous est terminé. Merci d'avoir utilisé 7afefli !`,
+        },
+      };
+
+      const msg = statusMessages[dto.status];
+      if (msg) {
+        const salonOwnerId = (reservation as any).salons?.owner_id as string | undefined;
+        // Notify client if barber changed status
+        if (!isClient && reservation.client_id) {
+          this.notificationsService.createNotification(
+            reservation.client_id, dto.status.toLowerCase(), msg.title, msg.body,
+            { reservationId: reservationId },
+          ).catch(() => {});
+        }
+        // Notify barber if client cancelled
+        if (isClient && dto.status === 'Cancelled' && salonOwnerId) {
+          this.notificationsService.createNotification(
+            salonOwnerId, 'booking_cancelled',
+            '⚠️ Réservation annulée',
+            `Un client a annulé son rendez-vous du ${reservation.appointment_date} à ${reservation.start_time}.`,
+            { reservationId: reservationId },
+          ).catch(() => {});
+        }
+      }
+    } catch { /* ignore notification failures */ }
 
     return data;
   }

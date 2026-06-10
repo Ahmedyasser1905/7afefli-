@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ActivityIndicator, View, StyleSheet, Text, ScrollView, LogBox } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { ActivityIndicator, View, StyleSheet, Text, ScrollView, LogBox, Linking } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -42,6 +42,65 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { err
   }
 }
 
+/**
+ * H2 Fix: Handle Chargily payment return deep links.
+ * When the barber completes checkout in the browser, Chargily redirects back to
+ * hafefli://payment/success or hafefli://payment/failure.
+ * We intercept that link here, invalidate the subscription query cache, and
+ * show a toast so the barber gets immediate in-app feedback.
+ */
+function usePaymentDeepLink() {
+  const handledRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    const handleUrl = (url: string) => {
+      // Deduplicate — Linking can fire twice for the same URL on some Android versions
+      if (handledRef.current.has(url)) return;
+      handledRef.current.add(url);
+
+      if (url.includes('hafefli://payment/success') || url.includes('payment/success')) {
+        // Invalidate subscription queries so the plan badge refreshes immediately
+        queryClient.invalidateQueries({ queryKey: ['my-plan'] });
+        queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
+        queryClient.invalidateQueries({ queryKey: ['client-plan'] });
+
+        Toast.show({
+          type: 'success',
+          text1: '✅ Paiement réussi',
+          text2: 'Votre abonnement a été activé avec succès.',
+          visibilityTime: 5000,
+        });
+      } else if (url.includes('hafefli://payment/failure') || url.includes('payment/failure')) {
+        Toast.show({
+          type: 'error',
+          text1: '❌ Paiement échoué',
+          text2: 'Le paiement n\'a pas abouti. Veuillez réessayer.',
+          visibilityTime: 5000,
+        });
+      } else if (url.includes('hafefli://payment/cancel') || url.includes('payment/cancel')) {
+        Toast.show({
+          type: 'error',
+          text1: 'Paiement annulé',
+          text2: 'Vous avez annulé le paiement.',
+          visibilityTime: 4000,
+        });
+      }
+    };
+
+    // Handle app opened from a deep link (cold start)
+    Linking.getInitialURL().then((url) => {
+      if (url) handleUrl(url);
+    }).catch(() => {});
+
+    // Handle deep links while app is already running (warm start)
+    const subscription = Linking.addEventListener('url', ({ url }) => handleUrl(url));
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+}
+
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [fontsLoaded] = useFonts({
@@ -51,6 +110,9 @@ export default function App() {
     DMSans_500Medium,
     DMSans_700Bold,
   });
+
+  // H2: Register payment deep-link handler at app root level
+  usePaymentDeepLink();
 
   // We don't render a loading container anymore; the native splash stays up
   if (!fontsLoaded) {

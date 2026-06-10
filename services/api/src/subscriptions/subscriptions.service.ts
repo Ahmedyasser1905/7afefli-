@@ -74,10 +74,12 @@ export class SubscriptionsService {
     const defaultPlanId = defaultPlan?.id || null;
     const defaultPlanName = defaultPlan?.name || 'Free';
 
-    // Expire trials (Fallback to Default Free)
+    // H5 Fix: Expire trials → status = 'Expired' (consistent with sync_all_subscription_statuses RPC).
+    // The plan_id is downgraded to free so limits are enforced, but status stays 'Expired'
+    // so the salon is hidden from public search until the owner renews.
     const { data: expiredTrials, error: trialErr } = await this.supabase.adminClient
       .from('user_subscriptions')
-      .update({ status: 'Active', plan: defaultPlanId, trial_ends_at: null, ends_at: null })
+      .update({ status: 'Expired', plan_id: defaultPlanId, trial_ends_at: null })
       .eq('status', 'Trial')
       .lt('trial_ends_at', now)
       .select('salon_id');
@@ -85,35 +87,32 @@ export class SubscriptionsService {
     if (trialErr) {
       this.logger.error('Failed to expire trials:', trialErr.message);
     } else if (expiredTrials?.length) {
-      this.logger.log(`Transitioned ${expiredTrials.length} trial(s) to ${defaultPlanName} plan`);
+      this.logger.log(`Expired ${expiredTrials.length} trial(s) → ${defaultPlanName} / Expired`);
     }
 
-    // Expire active subscriptions (Fallback to Default Free)
+    // H5 Fix: Expire paid subscriptions past ends_at → status = 'Expired'
     const { data: expiredActive, error: activeErr } = await this.supabase.adminClient
       .from('user_subscriptions')
-      .update({ status: 'Active', plan: defaultPlanId, trial_ends_at: null, ends_at: null })
+      .update({ status: 'Expired', plan_id: defaultPlanId })
       .eq('status', 'Active')
-      .neq('plan', defaultPlanId)
+      .not('plan_id', 'eq', defaultPlanId)
       .lt('ends_at', now)
       .select('salon_id');
 
     if (activeErr) {
       this.logger.error('Failed to expire active subs:', activeErr.message);
     } else if (expiredActive?.length) {
-      this.logger.log(`Transitioned ${expiredActive.length} active subscription(s) to ${defaultPlanName} plan`);
+      this.logger.log(`Expired ${expiredActive.length} subscription(s) → ${defaultPlanName} / Expired`);
     }
 
-    // The sync trigger should have updated salon status,
-    // but let's double-check for any desync
+    // Final sync: ensures salon.subscription_status column is consistent with user_subscriptions.status
     try {
-      const { error } = await this.supabase.adminClient.rpc(
-        'sync_all_subscription_statuses',
-      );
+      const { error } = await this.supabase.adminClient.rpc('sync_all_subscription_statuses');
       if (error) {
         this.logger.error('Failed to sync subscription statuses:', error.message);
       }
-    } catch (err) {
-      // Ignore if function doesn't exist
+    } catch {
+      // Ignore if function doesn't exist yet
     }
 
     this.logger.log('Daily subscription checks completed.');

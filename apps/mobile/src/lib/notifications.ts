@@ -1,10 +1,10 @@
-// @ts-nocheck
 // apps/mobile/src/lib/notifications.ts
 // Expo Push Notifications setup & utilities
 
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import { supabase } from './supabase';
+import { apiClient } from './apiClient';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 
 const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
@@ -58,11 +58,14 @@ export async function registerForPushNotifications(userId: string): Promise<void
     }
 
     // Request permissions
-    const { status: existingStatus } = await Notif.getPermissionsAsync() as unknown;
-    const finalStatus =
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { status: existingStatus } = (await Notif.getPermissionsAsync()) as any;
+    const finalStatus: string =
       existingStatus !== 'granted'
-        ? (await Notif.requestPermissionsAsync() as unknown).status
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ? ((await Notif.requestPermissionsAsync()) as any).status
         : existingStatus;
+
 
     if (finalStatus !== 'granted') {
       console.warn('[Push] Permission denied');
@@ -91,23 +94,29 @@ export async function registerForPushNotifications(userId: string): Promise<void
       await Notif.getExpoPushTokenAsync({ projectId })
     ).data;
 
-    
-
-    // Save token to profiles table
+    // 1. Save token to profiles table directly (fast path, used by server-side reads)
     const { error } = await supabase
       .from('profiles')
       .update({ push_token: token })
       .eq('id', userId);
 
     if (error) {
-      console.warn('[Push] Failed to save push token:', error.message);
-    } else {
-      
+      console.warn('[Push] Failed to save push token to Supabase:', error.message);
+    }
+
+    // 2. Also notify the backend (POST /notifications/push-token) so the NestJS
+    //    NotificationsService can validate and use the token for server-side dispatch
+    try {
+      await apiClient.post('/notifications/push-token', { token });
+    } catch {
+      // Non-fatal — the Supabase update above is sufficient for push dispatch
+      console.warn('[Push] Failed to register push token with backend');
     }
   } catch (err) {
     console.warn('[Push] Failed to register for push notifications:', err);
   }
 }
+
 
 // ─────────────────────────────────────────────────────────
 // 2. CLIENT REMINDER — 30 min before appointment

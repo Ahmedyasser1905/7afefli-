@@ -1,624 +1,499 @@
-# FULL_AUDIT_REPORT.md
-# Rapport d'Audit Complet — Projet 7afefli / BarberDZ / Hafefli
-**Date d'audit :** 10 juin 2026  
-**Repository :** https://github.com/Ahmedyasser1905/7afefli-.git  
-**Mode :** READ ONLY — Aucun fichier modifié  
-**Fichiers scannés :** 204 fichiers (TS/TSX/SQL/JSON)  
+# 7afefli (BarberDZ) — Full Project Audit Report
+**Date:** June 10, 2026  
+**Branch audited:** main (latest commit)  
+**Auditor:** Claude Sonnet 4.6  
+**Mode:** Read-only analysis — zero file modifications
 
 ---
 
-## 1. RÉSUMÉ EXÉCUTIF
+## Executive Summary
 
-Le projet est une application de gestion de salons de coiffure pour le marché algérien. Il comprend une app mobile React Native (Expo), une API NestJS déployée sur Railway, un panneau admin Next.js, et une base Supabase (PostgreSQL). Le code montre un niveau de maturité avancé avec une architecture bien pensée, des patterns de sécurité corrects (guards, RLS, audit logs), et une logique métier riche.
+7afefli is an Algerian barbershop/salon booking platform with a React Native/Expo mobile app, a NestJS 10 backend deployed on Vercel, a Next.js 14 admin portal, and Supabase (PostgreSQL + PostGIS) as the database. The project has undergone multiple audit-and-remediation cycles. This audit captures the current state across all layers after those fixes.
 
-**Progression globale estimée : 78%**
-
-Le projet est fonctionnel dans ses flux principaux (auth, réservation, gestion salon, abonnements dynamiques), mais présente des blocages critiques en base de données (migrations cassées) et des fonctionnalités importantes manquantes (favoris, notifications d'expiration, tableau admin Next.js non fonctionnel sur nouveau déploiement).
+**Overall Assessment:** The project has progressed significantly from early "DO NOT LAUNCH" status. The core booking flow is functional, security fundamentals are solid, and several critical bugs (double-booking trigger, RPC consolidation, admin prefix, RLS policy) have been fixed. However, significant gaps remain in notifications (push delivery is fully unimplemented at the backend), the mobile Admin role has only a single screen, test coverage on the mobile side is zero, and payment return deep-linking is missing. The project is approaching a beta-ready state but is not yet suitable for full public launch.
 
 ---
 
-## 2. SCORES PAR CATÉGORIE
+## Scores
 
-| Catégorie | Score | Justification |
+| Category | Score |
+|---|---|
+| Frontend (Mobile) | 72/100 |
+| Backend (NestJS API) | 79/100 |
+| Database (Supabase) | 76/100 |
+| Integration | 74/100 |
+| Security | 78/100 |
+| Performance | 72/100 |
+| Production Readiness | 65/100 |
+
+---
+
+## Phase 2 — Frontend Audit (72/100)
+
+### Working Features
+- **Authentication flow** — Phone-based Supabase auth, session restore on app start, JWT token refresh handling, hardware back button fix, `needsPhone` gate, `needsPasswordReset` gate, profile auto-creation when missing. Fully functional.
+- **Home Screen** — GPS-based location, `watchPositionAsync` with 50 m threshold, wilaya bounding-box geocoding, dual data source (`/salons/nearby` PostGIS → wilaya fallback), search, filter pills (nearby, top_rated, beard, haircut, keratin), `SalonMapView` with marker sync to list, pull-to-refresh. Solid implementation.
+- **Explore Screen** — Full-text search with 300 ms debounce, wilaya dropdown (all 58 wilayas), sort by rating/distance/price, map/list toggle, GPS location. Well-integrated.
+- **Salon Detail Screen** — Full salon info, gallery with photo viewer, services with multi-selection, staff list, reviews display, "Book Now" CTA, favorite toggle (add/remove via API). Functional.
+- **Booking Flow (4-step wizard)** — Service → Date → Barber (optional, skipped if no staff) → Slot. `is_manually_closed` guard, slot picker with real-time API fetch, client phone input, `scheduleAppointmentReminder` notification scheduling, `BookingConfirmScreen` with animation and details. End-to-end working.
+- **My Appointments Screen** — Upcoming/Past tabs, cancel mutation, leave review modal trigger. Working.
+- **Favorites Screen** — Lists favorited salons, remove-from-favorites mutation. Working.
+- **Settings/Profile Screen** — Profile load from API, edit modal, wilaya selector, push toggle (stored in SecureStore), logout. Working.
+- **Barber Dashboard** — Day/Month/All view modes, server-side date filter for day mode, walk-in modal, block-time modal, reservation detail modal, realtime subscription hook (`useRealtimeBookings`). Solid.
+- **Barber Calendar Screen** — Full timeline visualization with `HOUR_HEIGHT = 88px`, overlap resolution into columns, walk-in add, reservation detail. Good quality.
+- **Barber Clients Screen** — Aggregated CRM view calling `/reservations/salon/:id/clients`, registered vs walk-in tab, search, per-client appointment history. Working.
+- **Barber MySalon Screen** — Services, portfolio, reviews, staff tabs. Service CRUD, staff add/remove, portfolio upload (Supabase Storage direct upload via signed URL), review response. Functional.
+- **Barber Subscription Screen** — Fully dynamic (fetches from `/subscriptions/my-plan` and `/subscriptions/plans`), plan cards, Chargily checkout via `Linking.openURL`. Works.
+- **Salon Setup Screen** — Multi-step wizard (name/details → hours/days → map), WebView-based MapLibre map for location picking. Working.
+- **Map Component (`SalonMapView`)** — WebView + MapLibre GL, stable HTML (compiled once), dynamic salon/user injection via `injectJavaScript`, zoom/reset controls, marker popup. Well-implemented.
+- **Admin Dashboard Screen (mobile)** — Salon approval/rejection, user list with role change/ban/delete, reservations list, stats panel. Functional within its limited scope.
+
+### Incomplete / Missing Features
+
+**CRITICAL GAP — No push notification delivery from backend.** The mobile app registers for push notifications (`registerForPushNotifications`), stores the token… in `notifications.ts` lib. However, there is **no endpoint in the NestJS backend to receive and store push tokens**. The `NotificationsService.createNotification()` writes to the `notifications` in-app table, but never sends an actual Expo push notification. Barbers never receive a push when a client books. Clients never receive confirmation pushes. The in-app notification list endpoint exists (`GET /notifications`) but push delivery is completely absent.
+
+**CRITICAL GAP — No payment return deep-link handler.** After Chargily redirects back to `hafefli://payment/success` (or failure), there is no React Native deep-link handler in `App.tsx` or anywhere else to catch the return and update the UI. The barber is left at a blank browser page with no confirmation inside the app. The `app.json` has `scheme: "hafefli"` configured, but nothing handles the inbound link.
+
+**Missing — Admin role in mobile is severely limited.** The `AdminTabNavigator` has only 2 tabs: `AdminDashboardScreen` and `SettingsScreen`. There are no subscription management, payments, or detailed audit log views on mobile. The web admin portal (`apps/admin`) covers this, but the mobile admin experience is very basic.
+
+**Missing — Notification bell / badge UI on client/barber side.** There is no notification center screen, no unread badge on any tab, and no UI component to display in-app notifications fetched from `/notifications`. The backend endpoint exists; the UI does not.
+
+**Missing — Password reset screen completion.** `ResetPasswordScreen` is registered in the navigator and `ForgotPasswordScreen` exists, but the `VerifyCodeScreen` is not linked to the reset flow properly — it's only in the Auth stack.
+
+**Missing — Loyalty points display.** The DB has `profiles.loyalty_points`, the trigger is set. But no screen in the mobile app shows a user's loyalty points balance.
+
+**Incomplete — Dark mode toggle is cosmetic.** `SettingsScreen` has a "Dark Mode" switch, but toggling it does nothing — the app is always in dark mode. The preference is not persisted or applied to a theme context.
+
+**Incomplete — Push notification preference toggle.** The toggle persists via `SecureStore`, but there is no mechanism to actually unregister from push on the Expo side when disabled.
+
+### Bugs
+
+- `BookingScreen`: `selectedServiceIds` syncing uses `useEffect` that fires after render, causing a flash of Step 0 before jumping to Step 1 when pre-selected services are passed.
+- `BarberTabNavigator`: the `isComplete` salon completeness check is computed but never used to surface a visual warning to the barber that their profile is incomplete.
+- `SettingsScreen`: uses `ALL_WILAYAS` as a hardcoded array (duplicating data already in `packages/shared/constants/wilayas.ts`), creating a maintenance divergence risk.
+- `AdminDashboardScreen` (mobile): uses `apiClient.get('/admin/salons')` which returns **all** salons including unapproved ones, making the pending count confusing (it mixes data from `statsData` and raw list).
+
+**Frontend Completion: 74%**
+
+---
+
+## Phase 3 — Backend Audit (79/100)
+
+### Working Endpoints
+
+| Module | Endpoint | Status |
 |---|---|---|
-| **Frontend Mobile** | 74/100 | Bon design, navigation correcte, 27 fichiers en @ts-nocheck, favoris absents, double polling |
-| **Backend NestJS** | 82/100 | Architecture solide, guards corrects, endpoints complets, 2 bugs logique métier (mois-31, fallback Chargily) |
-| **Base de données** | 58/100 | Migrations critiques cassées (colonne `date`, RLS `user_id`, RPCs absentes), mais schéma global bien conçu |
-| **Intégration** | 73/100 | Types partagés désynchronisés (commune, phone, force_closed, is_walk_in), admin panel URL buggée |
-| **Sécurité** | 79/100 | Bons guards NestJS, RLS présente, Chargily webhook signé, role cache non distribué, injection .or() mineure |
-| **Performance** | 72/100 | Redis présent, cache slots correct, mais getSalonClients sans pagination + double polling dashboard |
-| **Production Readiness** | 65/100 | Bloqué par les 4 migrations SQL critiques non applicables en l'état |
+| Auth | POST /auth/verify | ✅ |
+| Auth | GET /auth/profiles/me | ✅ |
+| Auth | PATCH /auth/profiles | ✅ |
+| Auth | DELETE /auth/account | ✅ |
+| Salons | GET /salons | ✅ wilaya filter, pagination |
+| Salons | GET /salons/nearby | ✅ PostGIS RPC with fallback |
+| Salons | GET /salons/my-salon | ✅ |
+| Salons | GET /salons/my-salon/stats | ✅ day/month/all periods |
+| Salons | GET /salons/favorites | ✅ |
+| Salons | GET /salons/:id | ✅ enriched with is_open |
+| Salons | POST /salons | ✅ Coiffeur only |
+| Salons | PATCH /salons/:id | ✅ owner check |
+| Salons | DELETE /salons/:id | ✅ owner check |
+| Salons | GET/POST/DELETE :id/staff | ✅ |
+| Salons | PATCH :id/staff/:staffId/avatar | ✅ |
+| Salons | GET/POST/DELETE :id/portfolio | ✅ |
+| Salons | POST :id/portfolio/upload-url | ✅ signed URL with quota check |
+| Salons | GET :id/reviews | ✅ |
+| Salons | GET :id/services | ✅ |
+| Salons | GET/POST/DELETE :id/favorite | ✅ |
+| Reservations | POST /reservations | ✅ `create_reservation_safe` RPC |
+| Reservations | POST /reservations/block | ✅ |
+| Reservations | DELETE /reservations/block/:id | ✅ |
+| Reservations | GET /reservations/me | ✅ |
+| Reservations | GET /reservations/salon/:id | ✅ |
+| Reservations | GET /reservations/salon/:id/clients | ✅ aggregated CRM |
+| Reservations | GET /reservations/:id | ✅ |
+| Reservations | PATCH /reservations/:id/status | ✅ |
+| Reservations | DELETE /reservations/:id | ✅ |
+| Slots | GET /slots | ✅ Redis-cached 90s TTL |
+| Reviews | POST /reviews | ✅ |
+| Reviews | PATCH /reviews/:id/response | ✅ |
+| Salon-services | Full CRUD | ✅ |
+| Subscriptions | GET /subscriptions/plans | ✅ dynamic DB |
+| Subscriptions | GET /subscriptions/my-plan | ✅ |
+| Subscriptions | GET /subscriptions/my-client-plan | ✅ |
+| Payments | POST /payments/checkout | ✅ dynamic pricing, rate-limited |
+| Payments | POST /payments/webhook | ✅ HMAC verify, salon exists check |
+| Notifications | GET /notifications | ✅ |
+| Notifications | GET /notifications/unread-count | ✅ |
+| Notifications | PATCH /notifications/read-all | ✅ |
+| Notifications | PATCH /notifications/:id/read | ✅ |
+| Locations | GET /locations/wilayas | ✅ |
+| Admin | Full CRUD (salons, users, reservations, subs, stats, audit) | ✅ |
+
+### Missing / Broken Endpoints
+
+**CRITICAL — No `POST /notifications/push-token` endpoint.** The mobile app's `registerForPushNotifications()` function calls this endpoint to register the Expo push token. It does not exist in the NestJS backend. This means all push notifications are silently dropped.
+
+**CRITICAL — No push notification dispatch.** `NotificationsService.createNotification()` writes to the DB table but never calls the Expo Push API. There is no `expo-server-sdk` or equivalent in `package.json`. When a reservation is created, confirmed, or cancelled, no push is sent.
+
+**HIGH — `NotificationsModule` is not imported into `ReservationsModule`.** Even if push were implemented, `ReservationsService` has no reference to `NotificationsService`. New bookings, status changes, and cancellations generate zero notifications.
+
+**MEDIUM — No `GET /admin/payments` endpoint.** The admin web portal's `payments/page.tsx` falls back to a direct Supabase client query for the payments list (bypassing the backend entirely). This violates the principle of all admin operations going through authenticated API endpoints.
+
+**MEDIUM — No client subscription purchase flow.** `GET /subscriptions/my-client-plan` exists, but there is no `POST /payments/client-checkout` endpoint for clients to actually purchase a premium plan. Client premium is effectively non-functional beyond free-tier.
+
+**LOW — `GET /reservations/salon/:id` has no date-range guard.** With no `limit` parameter and no RLS on admin calls, a salon with years of data could return an unbounded dataset.
+
+### Logic / Security Observations
+
+- `salonsService.findAll()`: the `services` join in the SELECT returns all service data inside the salons list endpoint, making the response payload very large for paginated lists. Services are only needed on the detail view.
+- `salonsService.findNearby()`: the RPC result is missing `services` data (the RPC doesn't JOIN to services), so client-side service-based filtering (beard/haircut/keratin) will return empty results from the nearby endpoint. The wilaya fallback does include services.
+- Subscription cron: `handleDailySubscriptionChecks` transitions expired subscriptions to the free plan (status stays `Active`) instead of setting `status = 'Expired'`. This conflicts with `sync_all_subscription_statuses()` which sets `Expired`. The two routines disagree on the terminal state.
+- `auth.guard.ts` role cache TTL is 5 minutes. An admin who changes a user's role will not see the effect for up to 5 minutes. For the admin-ban flow there is a `invalidateRoleCache(id)` call, but role changes via `PATCH /admin/users/:id/role` do **not** call it.
+
+**Backend Completion: 82%**
 
 ---
 
-## 3. PROGRESSION GLOBALE
+## Phase 4 — Database Audit (76/100)
+
+### Tables Used by Code
+`profiles`, `salons`, `services`, `salon_staff`, `reservations`, `reviews`, `portfolio_photos`, `user_subscriptions`, `plans`, `client_subscriptions`, `payments`, `notifications`, `wilayas`, `salon_favorites`, `audit_logs`
+
+### Migration Coverage
+The `supabase/migrations/` directory now contains all canonical migrations post-audit:
+- `20260610000000_critical_fixes.sql` — Overlap trigger fix, RLS on `user_subscriptions`, 5 RPCs (`create_reservation_safe`, `expire_*`, `sync_all_subscription_statuses`), `find_nearby_salons`, `wilayas` table, loyalty trigger, performance indexes.
+- `20260610010000_salon_favorites.sql` — `salon_favorites` table with RLS.
+- Earlier migrations covering subscription plans, notifications, walk-in flag, review responses, etc.
+
+### RLS Policy Assessment
+
+| Table | Select | Insert | Update | Delete | Notes |
+|---|---|---|---|---|---|
+| profiles | ✅ | ✅ | ✅ | — | |
+| salons | ✅ | ✅ | ✅ owner | ✅ owner | |
+| user_subscriptions | ✅ owner via salon | — | Admin only | — | **Missing INSERT policy** for initial sub creation |
+| reservations | ✅ | ✅ | ✅ | ✅ | |
+| reviews | ✅ | ✅ Client | ✅ owner | — | |
+| salon_favorites | ✅ own | ✅ own | — | ✅ own | ✅ Fixed in latest migration |
+| notifications | ✅ own | service_role | service_role | — | |
+| plans | public read | — | — | — | |
+| client_subscriptions | ✅ own | — | service_role | — | **Missing INSERT for clients** |
+| payments | service_role | service_role | — | — | Admin panel bypasses via direct Supabase |
+| audit_logs | Admin only | service_role | — | — | |
+
+**CRITICAL — `user_subscriptions` has no INSERT RLS policy.** When a new salon is created and the backend tries to create the initial subscription record (via `service_role`), it bypasses RLS. But if RLS enforcement is tightened, initial subscription creation will fail. The `WITH CHECK` constraint is also absent.
+
+**HIGH — `find_nearby_salons` RPC does not return `services` data.** The function returns salon columns but no services JOIN, breaking service-based filter pills (beard/haircut/keratin) on HomeScreen when GPS results are used.
+
+**HIGH — `create_reservation_safe` overlap check only fires when `p_staff_id OR p_barber_id` is non-null.** For bookings with no specific barber (`NULL, NULL`), the overlap check is skipped entirely:
+```sql
+AND (
+  (p_staff_id  IS NOT NULL AND staff_id  = p_staff_id)
+  OR
+  (p_barber_id IS NOT NULL AND barber_id = p_barber_id)
+)
+```
+A salon-wide double-booking can occur when clients book "any barber" if no staff filtering is applied.
+
+**MEDIUM — `sync_all_subscription_statuses` sets expired subs to `'Expired'` but the cron in `SubscriptionsService.handleDailySubscriptionChecks()` sets them back to `'Active'` (free plan).** The two mechanisms conflict and will toggle the status on each run.
+
+**MEDIUM — No `push_tokens` table.** Push notification tokens have no persistent storage anywhere in the database schema. The feature cannot be implemented without it.
+
+**LOW — No composite unique index on `reservations(salon_id, barber_id, appointment_date, start_time)`.** The advisory lock + overlap SELECT provides runtime safety, but there is no DB-level uniqueness constraint as a last-resort safeguard.
+
+**Database Completion: 76%**
+
+---
+
+## Phase 5 — Integration Audit (74/100)
+
+### Verified End-to-End Flows
+
+| Flow | Status | Notes |
+|---|---|---|
+| Auth (phone/OTP → profile → role routing) | ✅ Working | |
+| Client books appointment | ✅ Working | Service→Date→Barber→Slot→Confirm |
+| Barber adds walk-in | ✅ Working | |
+| Barber blocks time | ✅ Working | |
+| Salon creation + setup | ✅ Working | |
+| Salon edit (details, location, hours) | ✅ Working | |
+| Service CRUD | ✅ Working | |
+| Portfolio upload (signed URL) | ✅ Working | |
+| Staff add/remove | ✅ Working | |
+| Favorites add/remove | ✅ Working | |
+| Subscription checkout (Chargily) | ✅ Working | checkout_url opens in browser |
+| Webhook payment activation | ✅ Working | HMAC verified |
+| Admin approve/reject salon | ✅ Working | |
+| Admin ban/delete user | ✅ Working | |
+| Review submission + barber response | ✅ Working | |
+| Slot availability with Redis cache | ✅ Working | |
+| Nearby salons (PostGIS) | ✅ Working | |
+
+### Broken / Missing Integration Flows
+
+**BROKEN — Service filter pills on HomeScreen when GPS is used.** `find_nearby_salons` RPC returns salon rows without `services`. The `filteredSalons` logic in `HomeScreen` does `s.services?.some(...)` which returns `undefined` → all service filters silently match nothing when the nearby RPC is used.
+
+**BROKEN — Payment return deep link.** After Chargily redirects to `hafefli://payment/success`, nothing happens in the app. The subscription status will eventually update via webhook, but the barber has no in-app confirmation.
+
+**BROKEN — Push notifications end-to-end.** Mobile registers token → sends to backend → 404 (no endpoint). Booking event → backend writes to `notifications` table → no push sent. Mobile notification bell → no UI exists.
+
+**BROKEN — Client premium subscription purchase.** The `SubscriptionScreen` is only in the barber tab. There is no client-side flow to purchase a premium client plan. `GET /subscriptions/my-client-plan` always returns `{ plan: 'Free', isPremium: false }`.
+
+**MISSING — Booking confirmation to barber.** When a client books, the barber only learns about it via the realtime Supabase subscription on `DashboardScreen`. There is no notification, no email, no push.
+
+**MISSING — Cancellation notifications.** When a barber cancels a reservation, the client receives no notification. The reverse is also true.
+
+**INTEGRATION MISMATCH — `BookingConfirmScreen` reservation field access.** The screen accesses `reservation.salons` (plural) and `reservation.services` (plural) — the shape returned by the `/reservations/:id` endpoint. This should be verified as the endpoint returns a joined Supabase row; the plural table names are the Supabase default join alias and should work, but it creates fragile coupling.
+
+**INTEGRATION MISMATCH — Admin payments page.** The admin portal's `payments/page.tsx` fetches the payment list directly from Supabase (client-side) rather than through the API. No backend endpoint exists for `GET /admin/payments` (only `GET /admin/revenue` for aggregates).
+
+**Integration Completion: 72%**
+
+---
+
+## Phase 6 — Role Audit
+
+### CLIENT ROLE — 76% complete
+
+**Implemented:** Auth/registration, home map + nearby salons, explore/search, salon detail (info, services, gallery, reviews), full booking flow (4 steps, slot picker, confirmation screen), my appointments (upcoming/past, cancel, leave review), favorites (add/remove, list), profile edit, settings (wilaya, push preference), logout.
+
+**Missing/Broken:**
+- No in-app notification center or bell badge
+- No loyalty points display
+- Dark mode toggle is cosmetic (non-functional)
+- No premium client subscription purchase flow
+- No payment return handling after subscription attempt
+- Push notifications are not received
+
+### BARBER/COIFFEUR ROLE — 80% complete
+
+**Implemented:** Salon setup wizard (multi-step, map picker), dashboard (day/month/all views, filter by status, realtime updates), calendar (full timeline, overlap-aware), clients CRM (registered vs walk-in, search, call button), my salon (services, portfolio, staff, reviews with response), subscription management (dynamic plans, Chargily checkout).
+
+**Missing/Broken:**
+- No push notification receipt on new bookings
+- No in-app notification bell
+- Chargily checkout returns to browser with no app confirmation
+- Salon completeness warning not shown when `isComplete = false`
+- No advanced statistics (revenue charts, busiest hours) — partially exists in backend stats endpoint, not surfaced in mobile
+
+### ADMIN ROLE (Mobile) — 45% complete
+
+**Implemented:** Salon list with approve/reject, user list with ban/role-change/delete, reservations list, platform stats.
+
+**Missing:**
+- No subscription management
+- No payment history view
+- No audit log view
+- No sponsorship management (the backend has `POST /admin/salons/:id/sponsor` but no mobile UI)
+- No revenue charts
+- Only 2 tabs (AdminDashboard + Settings)
+
+### ADMIN ROLE (Web Portal) — 78% complete
+
+**Implemented:** Login with Supabase SSR auth, middleware role guard, dashboard (stats, revenue, audit logs), salons page (list all, approve, delete), users page (list, ban, role change), reservations page (list, delete), subscriptions page (list), payments page (revenue stats + direct Supabase list).
+
+**Missing/Broken:**
+- Sponsorship management UI (backend endpoint exists, no web UI)
+- Payment list fetched from Supabase directly (no backend endpoint; security gap)
+- No plan management (create/edit subscription plans)
+- No export/reporting beyond CSV audit log
+
+---
+
+## Phase 7 — Maps Audit
+
+### Working Parts
+- **`SalonMapView` component** — MapLibre GL via WebView with Leaflet fallback. HTML compiled once to prevent re-render. Salon and user location injected dynamically via `injectJavaScript`. Popup with salon name/rating. Zoom in/out/reset controls. Compass-style 3D pitch support. Correctly filters out salons with `lat=0/lng=0`.
+- **HomeScreen map** — 220px height, synced to filtered salon list, marker click scrolls list to matching salon.
+- **ExploreScreen map** — Full-screen toggle, shows all searched salons.
+- **SalonDetail map** — Shows salon location via `EditSalonLocationModal` (WebView + Leaflet with Nominatim search).
+- **SalonSetupScreen location picker** — WebView + MapLibre, tap-to-place marker, Nominatim geocoding search box. Coords propagated to form.
+- **Wilaya bounding-box geocoding** — 58 wilayas defined in `HomeScreen`, GPS coords → wilaya name. Works correctly.
+- **PostGIS nearby search** — `find_nearby_salons` RPC with 50 km radius, fallback to wilaya text filter.
+
+### Missing/Broken Parts
+- **No route drawing** — No navigation route from user to salon.
+- **No search-by-location circle overlay** — The map does not visualize the 50 km search radius.
+- **Service filter pills broken with GPS results** — `find_nearby_salons` returns no services data; beard/haircut/keratin filters fail silently.
+- **SalonDetail does not have its own map view.** The detail screen has no embedded map showing the salon location (only shows address text). The `EditSalonLocationModal` is the barber-side location editor, not a client-facing view.
+
+**Maps Completion: 68%**
+
+---
+
+## Phase 8 — Subscription Audit
+
+### Truly Dynamic ✅
+- Plan catalog: fetched from `plans` table (`GET /subscriptions/plans`)
+- Pricing: read from `plans.price` in the checkout endpoint (no hardcoded amounts)
+- Duration: `plans.duration_days` drives `ends_at` calculation in webhook
+- Max reservations: `plans.max_reservations` enforced per booking
+- Max portfolio photos: `plans.max_portfolio_photos` enforced in `getPortfolioUploadUrl`
+- Max barbers: available on plan object (not enforced in `addStaff` — see below)
+- Features array: fully dynamic, rendered in mobile plan cards
+
+### Partially Hardcoded / Gaps
+- **`max_barbers` not enforced.** `salonsService.addStaff()` does not check `plans.max_barbers` before adding staff. A salon on the free plan can add unlimited barbers.
+- **Client subscriptions are non-functional.** `client_subscriptions` table exists, `GET /subscriptions/my-client-plan` reads it, but there is no way for a client to create a subscription (no checkout endpoint, no purchase UI).
+- **Subscription cron conflict.** The daily cron sets expired subs to `Active + free plan`, while `sync_all_subscription_statuses` sets them to `Expired`. These run independently and disagree.
+- **No subscription renewal / upgrade flow.** Webhook only handles initial activation. There is no upsert logic — a second payment for the same salon would try to create a duplicate record.
+
+**Subscription Completion: 72%**
+
+---
+
+## Phase 9 — Salon Management Audit
+
+### Implemented ✅
+- Create salon (multi-step wizard with map)
+- Edit salon basic info (name, description, address, wilaya, commune, phone)
+- Edit salon location (separate modal with map picker)
+- Edit working hours (open/close time, working days)
+- Edit main salon image (Supabase Storage)
+- Services: create, edit, delete
+- Staff: add (custom name), remove, update avatar
+- Portfolio photos: upload via signed URL, delete
+- Working hours displayed to clients, `is_currently_open` computed server-side
+- `is_manually_closed` toggle (temporarily close salon)
+- Review responses (barber replies to client reviews)
+- Reservations: view, confirm, cancel, mark complete
+- Block time slots
+
+### Missing / Broken
+- **No `max_barbers` enforcement** when adding staff via API
+- **No service ordering** — services display in DB insertion order, no drag-to-reorder
+- **No salon visibility toggle** beyond `is_manually_closed` (no soft-draft mode)
+- **No delete salon option in mobile UI** (backend endpoint exists, no mobile UI)
+- **Portfolio quota check at upload** — the check correctly returns 403 if over limit, but the mobile UI doesn't display a clear quota indicator (how many photos remain)
+- **Salon completeness warning not surfaced** — `isComplete` is computed in `BarberTabNavigator` but not passed to any screen to warn the barber
+
+---
+
+## Completion Percentages
 
 ```
-Frontend:        ████████████████████░░░░  74%
-Backend:         ████████████████████░░░░  82%
-Database:        ██████████████░░░░░░░░░░  58%
-Integration:     ██████████████████░░░░░░  73%
-Security:        ████████████████████░░░░  79%
-Performance:     ██████████████████░░░░░░  72%
-Production:      ████████████████░░░░░░░░  65%
+Frontend completion:    74%
+Backend completion:     82%
+Database completion:    76%
+Integration completion: 72%
 
-PROGRESSION GLOBALE :  78% terminé
+Global Project Completion: ~76%
 ```
 
 ---
 
-## 4. AUDIT FRONTEND
+## High Priority Issues
 
-### Score : 74/100
+### H1 — No Push Notification Backend (Critical Gap)
+**Impact:** Barbers miss new booking alerts. Clients miss confirmation/cancellation updates. Core engagement feature completely absent.  
+**Fix:** Create `push_tokens` table, add `POST /auth/push-token` endpoint, integrate `expo-server-sdk` into backend, call `NotificationsService.sendPush()` from `ReservationsService` on create/update.
 
-#### Ce qui fonctionne bien ✅
-- Navigation role-based (Client / Coiffeur / Admin) correctement implémentée
-- Auth flow complet : login téléphone, OTP, inscription, reset mot de passe
-- HomeScreen : carte MapLibre + liste salons par wilaya, filtres fonctionnels
-- ExploreScreen : recherche, filtres par wilaya, liste complète
-- DashboardScreen (Barber) : vues Jour/Mois/Tout, statistiques calculées, temps réel via Realtime
-- SubscriptionScreen : entièrement dynamique depuis l'API, affiche état Trial/Active/Expired
-- AdminDashboardScreen : gestion salons, utilisateurs, réservations via apiClient
-- BookingScreen : sélection service/barbier/créneau/date, flux complet
-- SalonDetailScreen : détail complet, portfolio, avis, bouton réserver
-- CalendarScreen : vue calendrier des réservations du salon
-- ClientsScreen : séparation App Members vs Walk-in fonctionnelle
-- SalonSetupScreen : formulaire complet avec carte de positionnement
-- MySalonScreen : gestion services, staff, portfolio, horaires, toggle fermeture
+### H2 — Payment Return Deep Link Missing
+**Impact:** After Chargily payment, barber is stranded in a browser with no in-app confirmation. Subscription update happens via webhook, but the app never refreshes.  
+**Fix:** Add `Linking.addEventListener` in App.tsx for `hafefli://payment/success` and `hafefli://payment/failure`, invalidate the subscription query on return, show a confirmation toast.
 
-#### Problèmes détectés ⚠️
+### H3 — `create_reservation_safe` NULL barber overlap skipped
+**Impact:** Double-booking possible when `p_staff_id IS NULL AND p_barber_id IS NULL` (any-barber bookings). The overlap `WHERE` clause requires at least one to be non-null.  
+**Fix:** In the RPC, add a branch that checks for any staff overlap when both are null: `OR (p_staff_id IS NULL AND p_barber_id IS NULL)`.
 
-**[CRITICAL] — Migration DB cassée rend tout le booking impossible**
-- Fichier : `supabase/migrations/20260609140000_audit_fixes.sql`
-- Colonne `date` au lieu de `appointment_date` dans le trigger anti-doublon
-- Impact : toutes les réservations crashent si cette migration est appliquée
+### H4 — `find_nearby_salons` RPC Missing `services` Data
+**Impact:** Service-based filter pills (beard/haircut/keratin) on HomeScreen silently return no results when GPS-based nearby search is used.  
+**Fix:** Add a subquery or lateral JOIN to the RPC to include services array, or fetch services separately in a follow-up query in the backend fallback.
 
-**[CRITICAL] — 27 fichiers en `@ts-nocheck`**
-- Tous les screens, navigateurs, hooks, composants
-- Impact : aucune erreur TypeScript remontée, bugs silencieux en production
+### H5 — Subscription Cron vs Trigger State Conflict
+**Impact:** Expired subscriptions oscillate between `Active` (free) and `Expired` on each daily cron run, causing salons to appear and disappear from search.  
+**Fix:** Align `handleDailySubscriptionChecks` to also set `status = 'Expired'` (matching `sync_all_subscription_statuses`), then separately enforce hiding expired salons in the UI based on `ends_at` date.
 
-**[HIGH] — DashboardScreen : double polling (refetchInterval + Realtime)**
-- `refetchInterval: 2 * 60 * 1000` actif en même temps que `useRealtimeBookings`
-- Impact : requêtes redondantes, consommation data mobile inutile
-
-**[HIGH] — DashboardScreen mode "month"/"all" charge tout l'historique**
-- Requête `/reservations/salon/:id` sans filtre date retourne TOUTES les réservations
-- Filtrage ensuite en client-side
-- Impact : pour un salon actif 1 an → potentiellement 600+ réservations chargées
-
-**[HIGH] — Auto-suppression blocs expirés dans useEffect côté client**
-- `useEffect` déclenche des `DELETE` API sur les blocs expirés à chaque render
-- Impact : suppressions multiples possibles, logique devrait être côté serveur
-
-**[MEDIUM] — SalonSetupScreen : coordonnées `|| 0` détecte 0 comme falsy**
-- `latitude: existingSalon?.latitude || 36.7538`
-- Si `latitude = 0` (Null Island), le salon retombe sur les coordonnées d'Alger
-- Fix : utiliser `?? 36.7538` (nullish coalescing)
-
-**[MEDIUM] — HomeScreen : memory leak potentiel watchPositionAsync**
-- Subscription créée dans un IIFE async — si le composant se démonte avant resolve, le cleanup ne l'atteint pas
-- Impact : warning React "update on unmounted component"
-
-**[MEDIUM] — SalonDetailScreen : accès `salon.services` sans garde sur null**
-- Pendant le chargement, `salon` est undefined
-- `const services = salon?.services ?? []` — OK sur cette ligne, mais `(salon as Record).services` ailleurs non gardé
-
-**[MEDIUM] — MyAppointmentsScreen : check `reviews` incohérent Array/Object**
-- `item.reviews.length === 0 || Object.keys(item.reviews).length === 0`
-- Si reviews est un objet Supabase, `.length` retourne `undefined`
-- Impact : bouton "Évaluer" peut apparaître après soumission d'un avis
-
-**[MEDIUM] — Favoris / Wishlist absent**
-- Prévu dans le plan produit, `isFavorited` state présent dans SalonDetailScreen mais bouton ne fait rien (setState sans API)
-- Impact : fonctionnalité visible (icône cœur) mais non fonctionnelle
-
-**[LOW] — AdminTabNavigator : seulement 2 onglets (Dashboard + Paramètres)**
-- L'admin mobile manque : gestion abonnements, revenus, logs d'audit
-- Ces fonctionnalités n'existent que dans le Next.js admin panel
-
-**[LOW] — Timezone Algeria hardcodée `+3600000` (UTC+1 fixe)**
-- `new Date(Date.now() + 60 * 60 * 1000)` dans DashboardScreen et Backend
-- Algeria est en CET (UTC+1) sans DST — actuellement correct, mais approche fragile
-- Impact mineur : l'Algérie n'applique pas le DST, risque théorique seulement
+### H6 — Role Cache Not Invalidated on Role Change
+**Impact:** After `PATCH /admin/users/:id/role`, the changed user continues to have their old role enforced for up to 5 minutes.  
+**Fix:** Call `invalidateRoleCache(userId)` inside `AdminService.changeUserRole()`.
 
 ---
 
-## 5. AUDIT BACKEND
+## Medium Priority Issues
 
-### Score : 82/100
+### M1 — `max_barbers` Not Enforced in `addStaff`
+Add a plan-limit check in `SalonsService.addStaff()` before inserting the staff record.
 
-#### Ce qui fonctionne bien ✅
-- Architecture NestJS modulaire complète (11 modules)
-- Guards SupabaseAuthGuard + RolesGuard correctement appliqués
-- GlobalPrefix `/api/v1` configuré
-- Validation globale `ValidationPipe` avec `whitelist: true`
-- Throttling global (100 req/min) + throttle spécifique sur checkout (5/min)
-- Helmet security headers
-- Sentry monitoring configuré
-- Redis cache pour les slots (90s TTL, invalidation sur réservation)
-- Supabase adminClient (service_role) pour bypass RLS côté API
-- Swagger désactivé en production
-- Audit logs via AuditService
-- Cron daily pour vérification abonnements
-- `salons.findAll()` : filtre `is_approved=true + Expired exclus + complétude salon`
-- `reservations.create()` : 8+ vérifications avant création (completude, plan, past-time, etc.)
+### M2 — No In-App Notification UI
+Create a `NotificationsScreen`, add a badge on the relevant tab, wire to `GET /notifications` and `GET /notifications/unread-count`.
 
-#### Problèmes détectés ⚠️
+### M3 — Admin Payments Endpoint Missing
+Create `GET /admin/payments` in `AdminController` returning the payments table with salon names, removing the admin portal's direct Supabase bypass.
 
-**[CRITICAL] — `getDashboardStats` : date fin de mois hardcodée à `-31`**
-- Ligne ~603 `salons.service.ts` : `.lte('appointment_date', '${yearMonth}-31')`
-- Février n'a que 28/29 jours — stats incorrectes
-- Fix : `new Date(year, month, 0).getDate()`
+### M4 — Client Premium Purchase Flow Missing
+Create `POST /payments/client-checkout` and a client-side subscription screen to allow premium client plan purchases.
 
-**[HIGH] — `findNearby` ne filtre pas `subscription_status = 'Expired'`**
-- `findAll()` filtre `.neq('subscription_status', 'Expired')` mais `findNearby()` via RPC ne le fait pas
-- Les salons expirés apparaissent sur la carte HomeScreen
-- Impact : violation logique métier
+### M5 — `user_subscriptions` Missing INSERT RLS Policy
+Add a `WITH CHECK` INSERT policy on `user_subscriptions` for service_role and salon owners.
 
-**[HIGH] — Chargily `createCheckoutUrl` : fallback mock silencieux en production**
-- Dans le bloc `catch`, retourne une URL `fallback-{timestamp}` au lieu de lever une exception
-- Impact : si Chargily est indisponible, le barber reçoit une URL invalide sans message d'erreur
+### M6 — `salons/findAll` Over-fetches Services
+The list endpoint does `select('*, services(*)')` — for a large catalog this is expensive. Switch to `select('*, services(id)', { count: 'exact' })` and fetch full services only on detail.
 
-**[HIGH] — `addStaff` : check unicité par `custom_name` uniquement**
-- `.ilike('custom_name', customName)` — mais `custom_name` est null pour les barbers liés à un profil
-- Un barber avec compte app peut être ajouté plusieurs fois
+### M7 — Loyalty Points Not Displayed
+Add loyalty points display to client `SettingsScreen` or profile section.
 
-**[MEDIUM] — `findOne` réservation utilise `.single()` sur la vérification staff**
-- Lève `PGRST116` si pas de staff trouvé → retourne 500 au lieu de 403
-- Fix : utiliser `.maybeSingle()`
+### M8 — Dark Mode Toggle Non-Functional
+Either implement a theme context / `Appearance` API integration, or remove the toggle.
 
-**[MEDIUM] — `getSalonClients` sans pagination**
-- Retourne toutes les réservations non-annulées sans `limit()`
-- Pour un salon actif 1 an : 600+ réservations chargées avec jointures profiles+services
-
-**[MEDIUM] — Role cache en mémoire (`Map`) non distribué**
-- `const roleCache = new Map()` dans `auth.guard.ts` — module-level
-- En multi-instance Railway, chaque instance a son propre cache
-- Un changement de rôle peut persister 5 min sur les autres instances
-- Fix : stocker dans Redis (déjà disponible)
-
-**[MEDIUM] — `blockTime` : injection PostgREST via `.or()` construit dynamiquement**
-- `.or('barber_id.eq.${barberId}${staffId ? ',staff_id.eq.${staffId}' : ''}')` 
-- Validé comme UUID en amont, risque limité mais pattern dangereux
-
-**[LOW] — `APP_URL` non déclaré dans `env.validation.ts`**
-- Fallback hardcodé `https://7afefli.app` si non défini
-- Impact : lien de reset password pointe vers un domaine générique
-
-**[LOW] — `deleteUser` (admin) : loop séquentielle sur salons avec `for...of`**
-- Si un user a plusieurs salons (cas impossible via contrainte DB actuellement, mais défensivement risqué)
+### M9 — Subscription Webhook Idempotency
+The webhook `UPDATE` on `user_subscriptions` does not guard against replay. Add a check for `provider_payment_id` uniqueness on the `payments` table to prevent duplicate activations.
 
 ---
 
-## 6. AUDIT BASE DE DONNÉES
+## Low Priority Issues
 
-### Score : 58/100
+### L1 — `SettingsScreen` Hardcodes Wilaya List
+Duplicates `packages/shared/constants/wilayas.ts`. Import from shared package.
 
-#### Ce qui fonctionne bien ✅
-- Schéma global cohérent (profiles, salons, services, reservations, reviews, etc.)
-- Colonnes `commune` et `phone` ajoutées à `salons` (migration 20260609153000)
-- Colonne `is_walk_in` ajoutée à `reservations`
-- `client_subscriptions` créée (migration 20260609180000)
-- `force_closed` supprimé de `salons` (migration 20260609180000)
-- `response` et `response_date` supprimés de `reviews` (migration 20260609180000)
-- RLS activée sur `reservations` avec politiques INSERT pour clients et barbers
-- RLS activée sur `client_subscriptions`
-- Trigger `prevent_salon_escalation` avec bypass service_role correctement configuré
-- Migration `auto_create_subscription` utilise `ON CONFLICT DO NOTHING` (idempotente)
-- `subscription_plan` ENUM supprimé, colonne `plan` migrée vers TEXT puis UUID FK
+### L2 — `SalonCard` Distance Display Null-Check
+`distance_km` can be undefined on wilaya-fallback results. The card should render "—" instead of "0.0 km".
 
-#### Problèmes détectés ⚠️
+### L3 — No Salon Delete UI on Mobile
+`DELETE /salons/:id` exists but no mobile screen exposes it.
 
-**[CRITICAL — BLOQUANT] — Trigger `check_reservation_overlap` : colonne `date` inexistante**
-- `supabase/migrations/20260609140000_audit_fixes.sql` ligne 11
-- `AND date = NEW.date` — la colonne s'appelle `appointment_date`
-- Impact : si migration appliquée, **100% des INSERT dans `reservations` échouent**
+### L4 — Swagger Enabled in Dev, No API Key Auth for Docs
+Swagger is disabled in production (good), but in development there is no basic auth on the docs. Consider adding a simple bearer token check for staging deployments.
 
-**[CRITICAL — BLOQUANT] — RLS `user_subscriptions` : `user_id` inexistant**
-- Même fichier ligne 38 : `USING (auth.uid() = user_id)`
-- La table `user_subscriptions` utilise `salon_id` (pas `user_id`)
-- Impact : les clients Supabase ne peuvent pas lire leur abonnement directement
+### L5 — No E2E Tests
+`test/app.e2e-spec.ts` is a stub. No end-to-end tests for critical paths (booking, payment webhook, auth).
 
-**[CRITICAL — BLOQUANT] — Trigger statuts en minuscules vs app en majuscules**
-- `status NOT IN ('cancelled', 'rejected')` — l'app utilise `'Cancelled'`, `'Confirmed'`
-- Impact : l'anti-double-booking ne filtre aucun statut de l'application réelle
+### L6 — Mobile Has Zero Test Files
+`apps/mobile/src/__tests__` does not exist. Even basic component/hook snapshot tests are absent.
 
-**[CRITICAL] — 5 fonctions RPC critiques absentes de `supabase/migrations/`**
-- `create_reservation_safe` (TOUTE réservation passe par là)
-- `expire_client_reservations` / `expire_salon_reservations`
-- `sync_all_subscription_statuses` (cron daily)
-- `find_nearby_salons` (carte HomeScreen, nécessite PostGIS)
-- Ces fonctions existent dans `services/api/migrations/` (non géré par Supabase CLI)
-- Impact : déploiement sur Supabase vierge → application non fonctionnelle
+### L7 — Portfolio Quota Not Shown in UI
+When a barber is near their portfolio photo limit, no indicator is shown. Only a 403 error after attempting upload.
 
-**[HIGH] — Migration `20260609160000` : `DROP COLUMN plan CASCADE` dangereuse**
-- Supprime la colonne avec CASCADE (détruit indexes et FK associés silencieusement)
-- Puis `RENAME COLUMN plan_id TO plan` — échoue si `plan_id` n'existe pas
-- Impact : état de la colonne `plan` indéterminé selon historique des migrations
-
-**[HIGH] — Table `wilayas` absente de `supabase/migrations/`**
-- `create_wilayas_table.sql` est dans `services/api/migrations/` seulement
-- `/locations/wilayas` retournera 500 sur un Supabase propre
-
-**[HIGH] — Trigger `loyalty_points` affecte les walk-ins**
-- `UPDATE profiles SET loyalty_points = loyalty_points + 10 WHERE id = NEW.client_id`
-- Pour une réservation walk-in, `client_id` = le barber qui crée
-- Impact : les barbers accumulent des points fantômes
-
-**[MEDIUM] — `find_nearby_salons` RPC ne filtre pas les salons Expirés**
-- `WHERE s.is_approved = true` mais pas `AND s.subscription_status != 'Expired'`
-- Impact : salons expirés visibles sur la carte
-
-**[MEDIUM] — Indexes performants dans `services/api/migrations/` seulement**
-- `add_missing_indexes.sql` et `add_performance_indexes.sql` non inclus dans `supabase/migrations/`
-- Index manquants sur `reservations(appointment_date)`, `reservations(salon_id, appointment_date)`
+### L8 — `SalonDetail` Has No Embedded Map
+Clients cannot see the salon's location on a map from the detail screen — only the address text.
 
 ---
 
-## 7. AUDIT INTÉGRATION
+## Remaining Work Before Launch
 
-### Score : 73/100
+### Must-Fix (Blockers)
+1. Implement push token storage + Expo push dispatch (H1)
+2. Implement payment return deep-link handler (H2)
+3. Fix `create_reservation_safe` NULL barber overlap (H3)
+4. Fix `find_nearby_salons` to include services (H4)
+5. Resolve subscription cron/trigger state conflict (H5)
+6. Fix role cache invalidation on role change (H6)
 
-#### Ce qui fonctionne ✅
-- `apiClient.ts` correctement configuré avec `EXPO_PUBLIC_API_URL + /api/v1`
-- Auth token JWT automatiquement injecté depuis Supabase session
-- React Query utilisé correctement pour le cache et la synchronisation
-- Realtime Supabase branché sur les réservations (useRealtimeBookings)
-- Subscription plans entièrement dynamiques depuis l'API (SubscriptionScreen)
-- Walk-in vs app members correctement séparés dans ClientsScreen
-- Types partagés via `@barberdz/shared` correctement importés
+### Should-Fix (Pre-Launch)
+7. Enforce `max_barbers` plan limit in `addStaff`
+8. Add in-app notification UI (bell + screen)
+9. Add `GET /admin/payments` backend endpoint
+10. Add `user_subscriptions` INSERT RLS WITH CHECK
+11. Fix service filter pills on HomeScreen (GPS path)
 
-#### Problèmes d'intégration ⚠️
-
-**[CRITICAL] — Type partagé `Salon` manque `commune` et `phone`**
-- `packages/shared/types/salon.ts` — ces colonnes existent en DB depuis migration 20260609153000
-- Code accède via `(salon as any).commune` ou pas du tout → erreurs silencieuses
-
-**[CRITICAL] — Type partagé `Salon` contient `force_closed` supprimé de DB**
-- `force_closed: boolean` dans le type mais colonne supprimée en migration 20260609180000
-- Impact : désynchronisation type/DB, accès retourne `undefined` sans erreur TS
-
-**[HIGH] — Type partagé `Reservation` manque `is_walk_in`**
-- `is_walk_in: boolean` utilisé partout dans DashboardScreen/ClientsScreen mais absent de l'interface
-- Accès via `(r as any).is_walk_in` dans tout le code
-
-**[HIGH] — `description` optionnel dans CreateSalonDto mais bloquant pour réservations**
-- `@IsOptional()` dans le DTO → salon peut être créé sans description
-- Mais `reservations.service.ts` : `if (!hasDesc) throw BadRequest`
-- Impact : le barber crée son salon sans description, les clients ne peuvent jamais réserver
-
-**[MEDIUM] — `BlockTimeModal` ne peut bloquer que les créneaux du propriétaire**
-- Passe `barberId = user.id` — seulement les créneaux du barber connecté
-- Si multi-staff, le propriétaire ne peut pas bloquer les créneaux de ses employés
-
-**[MEDIUM] — Réponses avis (`owner_response`) dans `services/api/migrations/` seulement**
-- `add_review_response.sql` définit `owner_response` et `owner_response_at`
-- Absent de `supabase/migrations/` → les réponses aux avis ne fonctionnent pas sur Supabase propre
-
-**[LOW] — PlanItem type dans SubscriptionScreen manque le champ `icon`**
-- Utilisé comme `(plan.icon || 'star-outline') as any`
-- `icon` n'est pas dans l'interface `PlanItem` locale (possible que le backend le renvoie)
+### Nice-to-Have (Post-Launch)
+- Client premium subscription purchase flow
+- Salon location map on SalonDetail screen
+- Loyalty points display
+- Dark mode implementation
+- Portfolio quota indicator
+- Revenue/statistics charts on barber dashboard
+- E2E test suite
 
 ---
 
-## 8. AUDIT PAR RÔLE
-
-### CLIENT ✅ Fonctionnel à ~78%
-
-**Ce qui fonctionne :**
-- Inscription/Login/OTP/Reset password
-- Recherche salons par wilaya (HomeScreen + ExploreScreen)
-- Carte interactive avec marqueurs
-- Filtres (proximité, note, services)
-- Voir détail salon : info, services, staff, portfolio, avis
-- Réserver : sélection service → barbier → date → créneau → confirmation
-- Voir ses rendez-vous (à venir + historique)
-- Laisser un avis (après RDV Completed)
-- Profil et paramètres (modifier nom, avatar)
-- Points de fidélité affichés
-
-**Ce qui manque :**
-- Favoris (bouton présent, setState seulement, aucune persistance)
-- Utilisation des points de fidélité (affichés uniquement)
-- Notifications push en cas d'annulation/confirmation (backend prêt, mobile partiellement)
-- Historique de paiement client
-- Plan client premium (UI inexistante pour s'abonner côté client)
-
----
-
-### BARBER (COIFFEUR) ✅ Fonctionnel à ~82%
-
-**Ce qui fonctionne :**
-- Setup salon guidé (SalonSetupScreen)
-- Gestion complète du salon (MySalonScreen) : services, staff, portfolio, horaires
-- Dashboard temps réel (DashboardScreen) : réservations jour/mois/tout
-- Statistiques : nb réservations, en attente, revenus estimés
-- Confirmer / Annuler / Terminer réservations
-- Ajouter walk-in (sans RDV)
-- Bloquer créneaux horaires
-- Vue calendrier (CalendarScreen)
-- Gestion clients (ClientsScreen) avec séparation App Members / Walk-in
-- Abonnements dynamiques (SubscriptionScreen) avec paiement Chargily
-- Toggle ouverture/fermeture rapide du salon
-- Stats avancées (Pro/Premium uniquement) via `/salons/dashboard-stats`
-
-**Ce qui manque :**
-- Répondre aux avis clients (UI non implémentée côté mobile)
-- Notifications push à l'expiration de l'abonnement
-- Statistiques de revenus calculées via `getDashboardStats` (le Dashboard calcule client-side à la place)
-- `BlockTimeModal` : ne peut pas bloquer les créneaux des autres barbers
-- Upload portfolio : pas d'indicateur de progression
-
----
-
-### ADMIN ✅ Fonctionnel à ~70%
-
-**Ce qui fonctionne (dans AdminDashboardScreen mobile) :**
-- Vue salons : liste, approbation/révocation, suppression
-- Vue utilisateurs : liste, changement de rôle (Client↔Coiffeur), ban, suppression
-- Vue réservations : liste complète
-- Stats globales (total salons, approuvés, en attente, utilisateurs)
-- Sponsorisation de salons
-
-**Ce qui manque :**
-- Panel Next.js (apps/admin) entièrement non testé sur déploiement propre (URL `/api/v1` manquante potentiellement)
-- Mobile Admin : onglet unique, pas de gestion des abonnements, pas de revenus, pas de logs d'audit
-- Voir les logs d'audit (accessible via API `/admin/audit` mais pas d'UI mobile)
-- Export CSV des logs (existe en backend seulement)
-- Revenue stats (existe en backend `/admin/revenue`, pas d'UI mobile)
-- Gestion des plans d'abonnement (CRUD plans inexistant côté admin)
-
----
-
-## 9. AUDIT MAPS
-
-### Score global Maps : 76/100
-
-**HomeScreen Map ✅**
-- SalonMapView (MapLibre GL via WebView) avec marqueurs sur tous les salons filtrés
-- Synchronisation carte ↔ liste (scroll auto sur sélection marqueur)
-- Localisation GPS avec fallback Alger si hors Algeria
-- Bounding box sur 58 wilayas (correctement implémenté)
-- Throttle GPS : `distanceInterval: 50m, timeInterval: 30s`
-
-**ExploreScreen ✅**
-- Carte + liste avec filtres wilaya/service/note
-- Importation WILAYA_BOUNDS depuis `@barberdz/shared/constants/wilayas`
-
-**SalonMapView Component ✅**
-- Communication WebView↔RN via `postMessage`
-- `injectJavaScript` pour éviter le remount WebView (correctement implémenté)
-- Popup salon avec photo + nom + note
-
-**Problèmes Maps :**
-
-**[HIGH] — `find_nearby_salons` RPC absente de `supabase/migrations/`**
-- Le endpoint `/salons/nearby` a un fallback mais sans PostGIS → résultats non géolocalisés
-
-**[HIGH] — `find_nearby_salons` ne filtre pas les Expirés**
-- `WHERE s.is_approved = true` seulement — les salons expirés visibles sur la carte
-
-**[MEDIUM] — WILAYA_BOUNDS dupliquées dans HomeScreen**
-- 90 lignes de données de wilayas hardcodées dans HomeScreen alors que `packages/shared/constants/wilayas.ts` existe
-
-**[MEDIUM] — Popups MapLibre potentiellement bloquées sur Android WebView anciens**
-- Communication `window.ReactNativeWebView.postMessage` peut échouer
-- Pas de fallback détecté si le message ne passe pas
-
-**[LOW] — Pas de clustering de marqueurs**
-- Si beaucoup de salons dans une wilaya, les marqueurs se superposent
-
----
-
-## 10. AUDIT ABONNEMENTS
-
-### Système dynamique : OUI ✅ (entièrement)
-
-**Ce qui fonctionne :**
-- Plans lus depuis la table `plans` (DB, dynamique)
-- Prix, durée, max_barbers, max_photos, max_reservations tous lus depuis DB
-- `addStaff` vérifie `max_barbers` depuis DB
-- `addPortfolioPhoto` vérifie `max_portfolio_photos` depuis DB
-- `create()` réservation vérifie `max_reservations` depuis DB
-- `getDashboardStats` vérifie `advanced_statistics` depuis DB
-- SubscriptionScreen affiche plans dynamiquement, filtres par sort_order
-- Statut Trial → Free automatique via cron daily
-- Chargily Pay intégré avec vérification signature HMAC-SHA256
-- Durée d'abonnement lue depuis `plans.duration_days` (dynamique)
-
-**Problèmes :**
-
-**[CRITICAL] — RLS `user_subscriptions` cassée**
-- `USING (auth.uid() = user_id)` — colonne inexistante
-- Impact : les barbers ne peuvent pas lire leur abonnement depuis le client Supabase
-
-**[HIGH] — Chargily fallback mock en production**
-- Si Chargily est indisponible → URL invalide retournée silencieusement
-
-**[MEDIUM] — Expiration trial sans notification**
-- Le cron expire silencieusement → le barber découvre son salon masqué sans avoir été prévenu
-
-**[MEDIUM] — `client_subscriptions` : `plan !== 'Free'` hardcodé**
-- `if (subscription.plan !== 'Free')` — si le slug change, la logique est cassée
-- Fix : utiliser une colonne booléenne `is_premium` ou un champ dans la table plans
-
-**[LOW] — Plans dans SubscriptionScreen : `icon` non standardisé**
-- `(plan.icon || 'star-outline') as any` — le champ `icon` n'est pas dans le type `PlanItem`
-
----
-
-## 11. AUDIT GESTION SALON
-
-### Score : 81/100
-
-**Ce qui fonctionne ✅**
-- Création salon avec tous les champs obligatoires (SalonSetupScreen)
-- Mise à jour des informations (EditSalonModal)
-- Upload photo de couverture + portfolio (Supabase Storage signé)
-- Gestion services (CRUD via ServiceModal)
-- Gestion staff (AddStaffModal, suppression, avatar)
-- Horaires (open_time, close_time, working_days)
-- Portfolio photos (avec quota dynamique par plan)
-- Indicateur de complétude salon (isComplete)
-- Toggle ouverture/fermeture manuelle
-
-**Problèmes :**
-
-**[HIGH] — `description` optionnel (DTO) mais bloquant (réservations)**
-- Voir section Intégration
-
-**[MEDIUM] — Race condition quota portfolio photos**
-- La vérification du quota et l'upload sont deux opérations séparées
-- Deux uploads simultanés peuvent dépasser la limite en parallèle
-
-**[MEDIUM] — `addStaff` check uniquement sur `custom_name`**
-- Un barber avec profil app (pas de custom_name) peut être ajouté deux fois
-
-**[LOW] — Pas d'indicateur de progression upload portfolio**
-- L'upload peut être long sur connexion mobile algérienne — UX dégradée
-
-**[LOW] — MySalonScreen : pas de confirmation avant suppression service**
-- La suppression d'un service avec des réservations futures associées n'est pas bloquée côté frontend
-
----
-
-## 12. AUDIT SÉCURITÉ
-
-### Score : 79/100
-
-**Mesures en place ✅**
-- Helmet security headers (HSTS, CSP, etc.)
-- Guards SupabaseAuthGuard + RolesGuard sur tous les endpoints sensibles
-- `ValidationPipe(whitelist: true)` — propriétés inconnues supprimées
-- Chargily webhook : vérification signature HMAC-SHA256 ✅
-- Supabase `service_role` côté backend seulement (clients n'ont pas accès admin)
-- RLS activée sur `reservations`, `client_subscriptions`, `user_subscriptions`
-- Audit logs via AuditService
-- Throttling global + spécifique checkout
-- Swagger désactivé en production
-
-**Problèmes :**
-
-**[CRITICAL] — RLS `user_subscriptions` cassée (colonne inexistante)**
-- Permet théoriquement des lectures non autorisées si la politique ne s'applique pas
-
-**[HIGH] — Role cache non distribué**
-- Changement de rôle prend effet immédiatement sur l'instance locale
-- Mais les autres instances Railway conservent l'ancien rôle jusqu'à 5 min
-
-**[HIGH] — `unblockTime` : seul le créateur exact peut débloquer**
-- `if (reservation.barber_id !== userId && reservation.client_id !== userId)` → le propriétaire du salon ne peut pas débloquer les blocs de ses employés
-
-**[MEDIUM] — `blockTime` injection `.or()` dynamique**
-- String interpolation dans une query PostgREST — validé UUID en amont, risque limité
-
-**[MEDIUM] — CORS configuré mais non audité**
-- `ALLOWED_ORIGINS` lue depuis env — default `localhost:3000,localhost:8081`
-- En production, non configuré = CORS trop restrictif ou trop permissif selon la valeur
-
----
-
-## 13. AUDIT PERFORMANCE
-
-### Score : 72/100
-
-**Points forts ✅**
-- Redis (Upstash) pour le cache des slots (90s TTL)
-- Invalidation cache correcte sur création/annulation réservation
-- Requêtes parallèles `Promise.all()` dans `reservations.create()`
-- Pagination dans `findAll()` salons (limit/offset)
-- Index correctement configurés dans `add_missing_indexes.sql`
-- `staleTime` React Query correctement configurés (2-10 min selon le contexte)
-
-**Problèmes :**
-
-**[HIGH] — DashboardScreen double polling**
-- `refetchInterval: 2min` + Realtime simultanés → requêtes redondantes
-
-**[HIGH] — `getSalonClients` sans pagination**
-- Charge toutes les réservations non-annulées + jointures profiles+services
-- O(réservations * staff + réservations * services) sans borne
-
-**[HIGH] — DashboardScreen mode "all/month" : tout l'historique chargé en mémoire**
-- Filtrage client-side d'une réponse potentiellement massive
-
-**[MEDIUM] — `invalidateSlotsCache` : loop O(services × staff) d'appels Redis**
-- Sans `barberId`, itère sur tous les services × staff pour `del()`
-- Fix : pattern de clés avec préfixe + `SCAN+DEL` ou index de clés
-
-**[MEDIUM] — `findOne` réservation : extra SELECT si ni client ni barber ni owner**
-- SELECT supplémentaire vers `salon_staff` pour vérifier le rôle de staff
-
----
-
-## 14. ROADMAP — CE QUI RESTE À FAIRE
-
-### 🔴 PRIORITÉ HAUTE — Bloquants production
-
-| # | Tâche | Impact |
-|---|---|---|
-| P1 | **Corriger trigger `check_reservation_overlap`** : `date` → `appointment_date`, statuts `'Cancelled'`/`'Completed'` | Toutes réservations crash |
-| P2 | **Corriger RLS `user_subscriptions`** : `user_id` → `EXISTS(SELECT 1 FROM salons WHERE id=salon_id AND owner_id=auth.uid())` | Abonnements illisibles |
-| P3 | **Déplacer les 5 RPCs dans `supabase/migrations/`** : `create_reservation_safe`, `expire_*`, `find_nearby_salons`, `sync_all_subscription_statuses` | App non fonctionnelle sur Supabase propre |
-| P4 | **Ajouter filtre `subscription_status != 'Expired'` dans `find_nearby_salons`** | Salons expirés visibles carte |
-| P5 | **Corriger `getDashboardStats` : hardcode `-31` → date dynamique** | Stats mensuelles incorrectes |
-| P6 | **Migrer `wilayas` table dans `supabase/migrations/`** | LocationsService crash |
-| P7 | **Migrer indexes performance dans `supabase/migrations/`** | Performances dégradées |
-| P8 | **Corriger Chargily fallback silencieux** : lever exception en production | Paiements perdus silencieusement |
-| P9 | **Supprimer @ts-nocheck progressivement** (fichiers critiques en premier) | Bugs silencieux en production |
-
----
-
-### 🟠 PRIORITÉ MOYENNE — Sprint suivant
-
-| # | Tâche | Impact |
-|---|---|---|
-| M1 | **Mettre à jour types partagés** : ajouter `commune`, `phone`, `is_walk_in`; supprimer `force_closed` | Typage incorrect partout |
-| M2 | **Rendre `description` obligatoire dans `CreateSalonDto`** OU retirer de la vérification completude | Blocage réservations inattendu |
-| M3 | **Implémenter favoris** : table `salon_favorites`, endpoints CRUD, SalonDetailScreen | Feature attendue |
-| M4 | **Notification expiration abonnement** : push notification 7j avant + au moment de l'expiration | Barbers surpris |
-| M5 | **Supprimer `refetchInterval`** dans DashboardScreen (Realtime suffit) | Requêtes redondantes |
-| M6 | **Paginer `getSalonClients`** ou dénormaliser dans une table stats | Performance |
-| M7 | **Fixer `addStaff` check unicité** : vérifier aussi `profile_id` | Doublons staff |
-| M8 | **Fixer memory leak `watchPositionAsync`** dans HomeScreen | Warning React |
-| M9 | **Fixer `reviews` check** dans MyAppointmentsScreen : `Array.isArray()` | Bouton "Évaluer" fantôme |
-| M10 | **Migrer role cache vers Redis** | Changements rôle non propagés |
-| M11 | **Utiliser `??` au lieu de `||`** pour coordonnées dans SalonSetupScreen | Coordonnées reset à Alger |
-
----
-
-### 🟢 PRIORITÉ FAIBLE — Dette technique
-
-| # | Tâche | Impact |
-|---|---|---|
-| L1 | **Extraire WILAYA_BOUNDS dans HomeScreen** → `packages/shared` | Duplication code |
-| L2 | **Implémenter réponses aux avis** (UI mobile) | Fonctionnalité attendue |
-| L3 | **Ajouter progression upload portfolio** | UX mobile |
-| L4 | **Ajouter clustering marqueurs carte** | UX maps |
-| L5 | **Implémenter loyalty points utilisables** (rédemption) | Feature promise |
-| L6 | **Panel admin mobile** : onglets revenus + logs audit | Admin incomplet mobile |
-| L7 | **Plan client premium** : page d'abonnement côté client | Revenue stream |
-| L8 | **Renommer PhoneInputScreen/PhoneEntryScreen** pour clarté | Maintenabilité |
-| L9 | **Indicateur complétude salon** : afficher % côté barber dans MySalonScreen | UX barber |
-| L10 | **Tests unitaires** : actuellement uniquement des .spec.ts vides | Qualité code |
-
----
-
-## 15. SYNTHÈSE PRODUCTION READINESS
-
-```
-✅ Auth & Sessions          — Prêt
-✅ Booking Flow             — Prêt (si migrations SQL corrigées)
-✅ Salon Management         — Prêt
-✅ Subscription System      — Prêt (dynamique)
-✅ Chargily Payments        — Prêt (corriger fallback silencieux)
-✅ Maps & Géolocalisation   — Prêt (si RPC find_nearby_salons migrée)
-✅ Admin Dashboard Mobile   — Prêt
-⚠️ Database Migrations      — BLOQUANT (4 migrations critiques)
-⚠️ Type Safety              — Partiel (27 fichiers @ts-nocheck)
-❌ Favoris                  — Non implémenté
-❌ Loyalty Redemption       — Non implémenté
-❌ Admin Panel Next.js      — Non vérifié sur déploiement propre
-```
-
-**Le projet peut être mis en production dès que les 9 points PRIORITÉ HAUTE sont corrigés.**
+*Report generated by full read-only static analysis of 7afefli repository. No files were modified.*
