@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
+import { apiFetch } from '../../lib/api';  // fix C5
 
 interface Subscription {
   id: string;
@@ -31,13 +32,8 @@ export default function AdminSubscriptionsPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/subscriptions`, {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      });
-
-      if (res.ok) {
-        setSubscriptions(await res.json());
-      }
+      const data = await apiFetch('/admin/subscriptions', session.access_token);
+      setSubscriptions(data as typeof subscriptions);
     } catch (e) {
       console.error('Failed to fetch subscriptions:', e);
     } finally {

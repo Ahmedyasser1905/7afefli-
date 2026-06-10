@@ -3,6 +3,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
+import { apiFetch } from '../../lib/api';  // fix C5: centralised fetch adds /api/v1 prefix
 
 interface PlatformStats {
   totalSalons: number;
@@ -42,21 +43,18 @@ export default function DashboardPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      const headers = { Authorization: `Bearer ${session.access_token}` };
+      const token = session.access_token;
 
-      // Parallel fetch for stats, revenue, and audit logs
-      const [statsRes, revenueRes, auditRes] = await Promise.all([
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/stats`, { headers }),
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/revenue`, { headers }),
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/audit?limit=10`, { headers }),
+      // Parallel fetch for stats, revenue, and audit logs (fix C5: now routes through /api/v1)
+      const [statsData, revenueData, auditData] = await Promise.all([
+        apiFetch<PlatformStats>('/admin/stats', token).catch(() => null),
+        apiFetch<RevenueStats>('/admin/revenue', token).catch(() => null),
+        apiFetch<{ data: AuditLog[] }>('/admin/audit?limit=10', token).catch(() => null),
       ]);
 
-      if (statsRes.ok) setStats(await statsRes.json());
-      if (revenueRes.ok) setRevenue(await revenueRes.json());
-      if (auditRes.ok) {
-        const auditData = await auditRes.json();
-        setAuditLogs(auditData.data || []);
-      }
+      if (statsData) setStats(statsData);
+      if (revenueData) setRevenue(revenueData);
+      if (auditData) setAuditLogs(auditData.data || []);
     } catch (e) {
       console.error('Failed to load dashboard data:', e);
     } finally {

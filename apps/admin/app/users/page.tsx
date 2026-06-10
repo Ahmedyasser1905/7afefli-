@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
+import { apiFetch } from '../../lib/api';  // fix C5
 
 interface UserProfile {
   id: string;
@@ -30,13 +31,8 @@ export default function AdminUsersPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/users`, {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      });
-
-      if (res.ok) {
-        setUsers(await res.json());
-      }
+      const data = await apiFetch('/admin/users', session.access_token);
+      setUsers(data as typeof users);
     } catch (e) {
       console.error('Failed to fetch users:', e);
     } finally {
@@ -51,23 +47,14 @@ export default function AdminUsersPage() {
     setActionLoading(userId);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/users/${userId}/role`, {
+      await apiFetch(`/admin/users/${userId}/role`, session?.access_token ?? '', {
         method: 'PATCH',
-        headers: {
-          Authorization: `Bearer ${session?.access_token}`,
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({ role: newRole }),
       });
 
-      if (res.ok) {
-        setUsers((prev) =>
+      setUsers((prev) =>
           prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u))
         );
-      } else {
-        const errorData = await res.json();
-        alert(`Erreur: ${errorData.message || 'Impossible de modifier le rôle.'}`);
-      }
     } catch (e) {
       console.error(e);
     } finally {

@@ -217,7 +217,7 @@ export function MyAppointmentsScreen() {
               <Text style={styles.cancelBtnText}>Annuler</Text>
             </TouchableOpacity>
           )}
-          {!isUpcoming && effectiveStatus === 'Completed' && (!item.reviews || item.reviews.length === 0 || Object.keys(item.reviews).length === 0) && (
+          {!isUpcoming && effectiveStatus === 'Completed' && (Array.isArray(item.reviews) ? item.reviews.length === 0 : !item.reviews) && (
             <TouchableOpacity
               style={styles.reviewBtn}
               onPress={() => setReviewReservation(item)}

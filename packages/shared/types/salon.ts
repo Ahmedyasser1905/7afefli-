@@ -8,7 +8,9 @@ export interface Salon {
   name: string;
   description: string | null;
   wilaya: string;
+  commune: string | null;  // fix H5: was missing from type
   address: string;
+  phone: string | null;    // fix H5: was missing from type
   latitude: number;
   longitude: number;
   subscription_status: SubscriptionStatus;
@@ -22,8 +24,9 @@ export interface Salon {
   working_days: number[];
   average_rating: number;
   total_reviews: number;
-  force_closed: boolean;
-  is_manually_closed: boolean;
+  /** @deprecated use is_manually_closed instead — column dropped in migration 20260609180000 */
+  force_closed?: boolean;
+  is_manually_closed: boolean;  // fix M6: force_closed was dropped in DB, this is the live column
   is_open_24h?: boolean;
   is_currently_open?: boolean;
   status_label?: 'open' | 'closed' | 'open_24h' | 'manually_closed';

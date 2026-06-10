@@ -3,6 +3,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
+import { apiFetch } from '../../lib/api';  // fix C5
 
 interface RevenueStats {
   totalRevenue: number;
@@ -35,14 +36,9 @@ export default function PaymentsPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      const headers = { Authorization: `Bearer ${session.access_token}` };
-
-      // Fetch revenue stats
-      const revenueRes = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/admin/revenue`,
-        { headers }
-      );
-      if (revenueRes.ok) setRevenue(await revenueRes.json());
+      // Fetch revenue stats (fix C5: uses apiFetch which adds /api/v1)
+      const revenueData = await apiFetch('/admin/revenue', session.access_token).catch(() => null);
+      if (revenueData) setRevenue(revenueData as typeof revenue);
 
       // Fetch payments directly from Supabase for the detailed list
       const { data, error } = await supabase

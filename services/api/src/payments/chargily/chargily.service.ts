@@ -65,12 +65,10 @@ export class ChargilyService {
       };
     } catch (err) {
       console.error('Chargily checkout failed:', err);
-      // Fallback to mock for resilience
-      const mockId = `fallback-${Date.now()}`;
-      return {
-        checkout_url: `https://pay.chargily.net/test/checkout/${mockId}`,
-        id: mockId,
-      };
+      // fix (H1): never silently return a mock URL in production — propagate the error
+      // so the caller can surface a proper message to the barber instead of an invalid
+      // payment link that looks real.
+      throw new Error(`Payment gateway unavailable. Please try again later. (${(err as Error).message})`);
     }
   }
 

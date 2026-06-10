@@ -36,8 +36,8 @@ export function SalonSetupScreen({ onComplete, existingSalon }: { onComplete: ()
     open_time: existingSalon?.open_time?.substring(0, 5) || '09:00',
     close_time: existingSalon?.close_time?.substring(0, 5) || '20:00',
     working_days: existingSalon?.working_days || [1, 2, 3, 4, 5, 6],
-    latitude: existingSalon?.latitude || 36.7538,
-    longitude: existingSalon?.longitude || 3.0588,
+    latitude: existingSalon?.latitude ?? 36.7538,
+    longitude: existingSalon?.longitude ?? 3.0588,
   });
 
   const [coordsChosen, setCoordsChosen] = useState(

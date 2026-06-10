@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
+import { apiFetch } from '../../lib/api';  // fix C5
 
 interface Reservation {
   id: string;
@@ -38,13 +39,8 @@ export default function AdminReservationsPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/reservations`, {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      });
-
-      if (res.ok) {
-        setReservations(await res.json());
-      }
+      const data = await apiFetch('/admin/reservations', session.access_token);
+      setReservations(data as typeof reservations);
     } catch (e) {
       console.error('Failed to fetch reservations:', e);
     } finally {

@@ -19,6 +19,7 @@ const ENV_CONFIG: EnvConfig = {
   ],
   productionOnly: [
     'CHARGILY_SECRET_KEY',
+    'APP_URL',  // fix L9: used in auth.controller for password-reset redirect link
     // 'SENTRY_DSN', // Optional monitoring
   ],
 };
