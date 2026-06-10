@@ -1,4 +1,3 @@
-// @ts-nocheck
 import Toast from 'react-native-toast-message';
 // apps/mobile/src/screens/barber/SalonSetupScreen.tsx
 import React, { useState } from 'react';
@@ -48,7 +47,7 @@ export function SalonSetupScreen({ onComplete, existingSalon }: { onComplete: ()
     setForm(prev => ({
       ...prev,
       working_days: prev.working_days.includes(day)
-        ? prev.working_days.filter(d => d !== day)
+        ? prev.working_days.filter((d: number) => d !== day)
         : [...prev.working_days, day].sort()
     }));
   };
@@ -109,7 +108,7 @@ export function SalonSetupScreen({ onComplete, existingSalon }: { onComplete: ()
       Toast.show({
         type: 'error',
         text1: 'Erreur',
-        text2: err.message
+        text2: (err as Error)?.message ?? 'Une erreur est survenue'
       });
     } finally {
       setLoading(false);

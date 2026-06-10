@@ -143,11 +143,16 @@ export function HomeScreen() {
 
   // 1. Request location permissions and track location
   useEffect(() => {
-    let locationSubscription: Location.LocationSubscription | null = null;
+    // Fix M8: store subscription outside the async IIFE so cleanup always has access
+    // even if the component unmounts before watchPositionAsync resolves.
+    const subscriptionRef: { current: Location.LocationSubscription | null } = { current: null };
+    let isMounted = true;
 
     (async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
+        if (!isMounted) return; // component unmounted while awaiting permission
+
         if (status !== 'granted') {
           setLocationError('Permission de localisation refusée');
           setLocation({ latitude: 36.7538, longitude: 3.0588 });
@@ -155,13 +160,14 @@ export function HomeScreen() {
           return;
         }
 
-        locationSubscription = await Location.watchPositionAsync(
+        subscriptionRef.current = await Location.watchPositionAsync(
           {
             accuracy: Location.Accuracy.Balanced,
             distanceInterval: 50,  // only fire when user moves 50+ metres
             timeInterval: 30000,   // or every 30 seconds at most
           },
           (loc) => {
+            if (!isMounted) return; // component unmounted between updates
             const { latitude, longitude } = loc.coords;
 
             // Guard: outside Algeria bounding box → fall back to Algiers
@@ -195,6 +201,7 @@ export function HomeScreen() {
           }
         );
       } catch {
+        if (!isMounted) return;
         setLocationError('Localisation indisponible');
         setLocation({ latitude: 36.7538, longitude: 3.0588 });
         setUserWilaya('Alger');
@@ -202,7 +209,8 @@ export function HomeScreen() {
     })();
 
     return () => {
-      locationSubscription?.remove();
+      isMounted = false;
+      subscriptionRef.current?.remove(); // always runs, even if IIFE is still pending
       setSelectedSalonId(null);
     };
   }, []);

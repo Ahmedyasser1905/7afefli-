@@ -341,15 +341,16 @@ export class SalonsService {
       }
     }
 
-    // Check if already a staff member by custom name
-    const { data: existing } = await this.supabase.adminClient
+    // Check if already a staff member by custom name OR by profile_id
+    // fix M7: was checking only custom_name which is null for app-linked barbers
+    const { data: existingByName } = customName ? await this.supabase.adminClient
       .from('salon_staff')
       .select('id')
       .eq('salon_id', salonId)
       .ilike('custom_name', customName)
-      .limit(1);
+      .limit(1) : { data: null };
 
-    if (existing && existing.length > 0) {
+    if (existingByName && existingByName.length > 0) {
       throw new ConflictException('Ce barbier fait déjà partie de votre équipe.');
     }
 
@@ -547,6 +548,83 @@ export class SalonsService {
 
     if (error && error.code !== '42P01') throw new InternalServerErrorException(error.message);
     return data || [];
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Favorites
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * List all salons favorited by a user.
+   */
+  async getFavorites(userId: string) {
+    const { data, error } = await this.supabase.adminClient
+      .from('salon_favorites')
+      .select('id, salon_id, created_at, salons(id, name, wilaya, address, image_url, average_rating, total_reviews, subscription_status, is_approved)')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw new InternalServerErrorException(`Failed to fetch favorites: ${error.message}`);
+    return (data || []).map((f: any) => ({
+      id: f.id,
+      salon_id: f.salon_id,
+      created_at: f.created_at,
+      salon: f.salons,
+    }));
+  }
+
+  /**
+   * Check if a specific salon is favorited by a user.
+   */
+  async isFavorited(userId: string, salonId: string): Promise<{ favorited: boolean; favoriteId: string | null }> {
+    const { data } = await this.supabase.adminClient
+      .from('salon_favorites')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('salon_id', salonId)
+      .maybeSingle();
+
+    return { favorited: !!data, favoriteId: data?.id ?? null };
+  }
+
+  /**
+   * Add a salon to favorites.
+   */
+  async addFavorite(userId: string, salonId: string) {
+    const { data, error } = await this.supabase.adminClient
+      .from('salon_favorites')
+      .insert({ user_id: userId, salon_id: salonId })
+      .select()
+      .single();
+
+    if (error) {
+      if (error.code === '23505') {
+        // Already favorited — idempotent operation, return existing
+        const { data: existing } = await this.supabase.adminClient
+          .from('salon_favorites')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('salon_id', salonId)
+          .single();
+        return { id: existing?.id, salon_id: salonId, favorited: true };
+      }
+      throw new InternalServerErrorException(`Failed to add favorite: ${error.message}`);
+    }
+    return { id: data.id, salon_id: salonId, favorited: true };
+  }
+
+  /**
+   * Remove a salon from favorites.
+   */
+  async removeFavorite(userId: string, salonId: string) {
+    const { error } = await this.supabase.adminClient
+      .from('salon_favorites')
+      .delete()
+      .eq('user_id', userId)
+      .eq('salon_id', salonId);
+
+    if (error) throw new InternalServerErrorException(`Failed to remove favorite: ${error.message}`);
+    return { salon_id: salonId, favorited: false };
   }
 
   /**

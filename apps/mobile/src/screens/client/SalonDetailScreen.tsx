@@ -3,7 +3,7 @@ import Toast from 'react-native-toast-message';
 // apps/mobile/src/screens/client/SalonDetailScreen.tsx
 // Salon detail — info, gallery, reviews, "Book Now" CTA
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -36,8 +36,46 @@ export function SalonDetailScreen() {
 
   const [selectedServices, setSelectedServices] = useState<Set<string>>(new Set());
   const [isFavorited, setIsFavorited] = useState(false);
+  const [isFavoritingLoading, setIsFavoritingLoading] = useState(false);
   const [showAllPhotos, setShowAllPhotos] = useState(false);
   const [viewerPhoto, setViewerPhoto] = useState<string | null>(null);
+
+  // Check if this salon is already favorited on mount
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await apiClient.get<{ favorited: boolean }>(`/salons/${salonId}/favorited`);
+        if (!cancelled) setIsFavorited(result?.favorited ?? false);
+      } catch {
+        // Not authenticated or error — silently ignore
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [salonId]);
+
+  // Toggle favorite state and persist to server
+  const handleFavoriteToggle = async () => {
+    if (isFavoritingLoading) return;
+    setIsFavoritingLoading(true);
+    try {
+      if (isFavorited) {
+        await apiClient.delete(`/salons/${salonId}/favorite`);
+        setIsFavorited(false);
+      } else {
+        await apiClient.post(`/salons/${salonId}/favorite`, {});
+        setIsFavorited(true);
+      }
+    } catch {
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: 'Impossible de modifier vos favoris. Connectez-vous d\'abord.'
+      });
+    } finally {
+      setIsFavoritingLoading(false);
+    }
+  };
 
   // Fetch full salon detail
   const { data: salon, isLoading } = useQuery<Salon>({
@@ -155,8 +193,9 @@ export function SalonDetailScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.circleButton}
-                onPress={() => setIsFavorited(!isFavorited)}
+                onPress={handleFavoriteToggle}
                 activeOpacity={0.7}
+                disabled={isFavoritingLoading}
               >
                 <Ionicons
                   name={isFavorited ? 'heart' : 'heart-outline'}

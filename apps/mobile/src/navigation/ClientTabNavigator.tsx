@@ -13,6 +13,7 @@ import { MyAppointmentsScreen } from '../screens/client/MyAppointmentsScreen';
 import { SettingsScreen } from '../screens/client/SettingsScreen';
 import { ExploreScreen } from '../screens/client/ExploreScreen';
 import { BookingConfirmScreen } from '../screens/client/BookingConfirmScreen';
+import { FavoritesScreen } from '../screens/client/FavoritesScreen';
 import { colors } from '../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
 
@@ -70,6 +71,8 @@ export function ClientTabNavigator() {
             iconName = focused ? 'home' : 'home-outline';
           } else if (route.name === 'Explore') {
             iconName = focused ? 'compass' : 'compass-outline';
+          } else if (route.name === 'Favorites') {
+            iconName = focused ? 'heart' : 'heart-outline';
           } else if (route.name === 'Appointments') {
             iconName = focused ? 'calendar' : 'calendar-outline';
           } else if (route.name === 'Profile') {
@@ -88,6 +91,11 @@ export function ClientTabNavigator() {
         name="Explore"
         component={ExploreStackNavigator}
         options={{ tabBarLabel: 'Explorer' }}
+      />
+      <Tab.Screen
+        name="Favorites"
+        component={FavoritesScreen}
+        options={{ tabBarLabel: 'Favoris' }}
       />
       <Tab.Screen
         name="Appointments"

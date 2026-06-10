@@ -650,7 +650,7 @@ export class ReservationsService {
           .select('id')
           .eq('salon_id', salonData.salon_id)
           .eq('profile_id', user.id)
-          .single();
+          .maybeSingle(); // fix: was .single() — throws PGRST116 (→ 500) when not a staff member
         isStaff = !!staff;
       }
 
@@ -786,7 +786,8 @@ export class ReservationsService {
       `)
       .eq('salon_id', salonId)
       .not('status', 'eq', 'Cancelled')
-      .or('notes.is.null,notes.not.ilike.%CRÉNEAU BLOQUÉ%');
+      .or('notes.is.null,notes.not.ilike.%CRÉNEAU BLOQUÉ%')
+      .limit(500); // fix M6: prevent unbounded queries on active salons
 
     if (error) throw new Error(`Failed to fetch clients: ${error.message}`);
 

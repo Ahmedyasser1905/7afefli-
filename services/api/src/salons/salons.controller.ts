@@ -82,6 +82,17 @@ export class SalonsController {
   }
 
   /**
+   * GET /salons/favorites
+   * List all favorited salons for the authenticated user.
+   * IMPORTANT: Must be defined BEFORE :id routes to avoid 'favorites' being captured as :id.
+   */
+  @Get('favorites')
+  @UseGuards(SupabaseAuthGuard)
+  getFavorites(@CurrentUser() user: AuthenticatedUser) {
+    return this.salonsService.getFavorites(user.id);
+  }
+
+  /**
    * GET /salons/:id
    * Get full salon details with services, staff, portfolio.
    */
@@ -237,5 +248,48 @@ export class SalonsController {
   @Get(':id/services')
   getSalonServices(@Param('id') id: string) {
     return this.salonServicesService.findBySalon(id);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Favorites (M3)
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * GET /salons/:id/favorited
+   * Check if a specific salon is favorited by the authenticated user.
+   */
+  @Get(':id/favorited')
+  @UseGuards(SupabaseAuthGuard)
+  checkFavorited(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.salonsService.isFavorited(user.id, id);
+  }
+
+  /**
+   * POST /salons/:id/favorite
+   * Add a salon to favorites (authenticated clients).
+   */
+  @Post(':id/favorite')
+  @UseGuards(SupabaseAuthGuard)
+  addFavorite(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.salonsService.addFavorite(user.id, id);
+  }
+
+  /**
+   * DELETE /salons/:id/favorite
+   * Remove a salon from favorites.
+   */
+  @Delete(':id/favorite')
+  @UseGuards(SupabaseAuthGuard)
+  removeFavorite(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.salonsService.removeFavorite(user.id, id);
   }
 }

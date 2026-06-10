@@ -105,7 +105,8 @@ export function DashboardScreen() {
     },
     enabled: !!salonId,
     staleTime: 0,
-    refetchInterval: 2 * 60 * 1000,
+    // No refetchInterval — Realtime subscription (useRealtimeBookings) handles
+    // live updates and invalidates this query automatically on new bookings.
   });
 
 
