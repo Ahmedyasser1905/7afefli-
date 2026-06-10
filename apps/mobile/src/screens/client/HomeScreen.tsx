@@ -215,9 +215,9 @@ export function HomeScreen() {
 
   const isPremiumClient = clientPlan?.isPremium ?? false;
 
-  // 4. Sort by proximity
-  //    - If nearby RPC was used, results already come sorted by distance_meters ASC.
-  //    - If wilaya fallback is used, sort client-side by Haversine distance.
+  // 4. Sort and filter by proximity (strict 50km limit)
+  //    - If nearby RPC was used, results already come sorted and filtered by distance_meters ASC.
+  //    - If wilaya fallback is used (because GPS was off), sort client-side by Haversine distance.
   const salons = useMemo(() => {
     if (!allSalons.length) return [];
 
@@ -225,19 +225,28 @@ export function HomeScreen() {
     const hasServerDistance = allSalons[0]?.distance_meters !== undefined;
 
     if (hasServerDistance) {
-      // Already sorted by DB; just pin sponsors first for premium clients
+      // The backend RPC already filtered these to 50km. Just sort them.
+      let filtered = allSalons;
+      
+      // Secondary safety check: ensure strictly <= 50km
+      filtered = filtered.filter(a => (a.distance_meters ?? 0) <= 50000);
+
       if (isPremiumClient) {
-        return [...allSalons].sort((a, b) => {
+        return [...filtered].sort((a, b) => {
           if (a.is_sponsored !== b.is_sponsored) return a.is_sponsored ? -1 : 1;
           return (a.distance_meters ?? 0) - (b.distance_meters ?? 0);
         });
       }
-      return allSalons;
+      return filtered;
     }
 
-    // Wilaya fallback — sort client-side if we have GPS coords
+    // Wilaya fallback — filter and sort client-side if we have GPS coords
     if (!location) return allSalons;
-    return [...allSalons].sort((a, b) => {
+
+    // Strict 50km limit if location is known
+    const withinRadius = allSalons.filter(salon => getDistanceKm(location, salon) <= 50);
+
+    return [...withinRadius].sort((a, b) => {
       if (isPremiumClient && a.is_sponsored !== b.is_sponsored) return a.is_sponsored ? -1 : 1;
       return getDistanceKm(location, a) - getDistanceKm(location, b);
     });
