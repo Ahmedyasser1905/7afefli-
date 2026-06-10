@@ -128,14 +128,17 @@ export class SalonsService {
 
     const { data, error } = await this.supabase.adminClient
       .rpc('find_nearby_salons', {
-        user_lat: Number(lat),
-        user_lng: Number(lng),
-        radius_meters: radiusMeters,
-        result_limit: Math.min(Number(limit), 200), // cap at 200
+        p_latitude: Number(lat),
+        p_longitude: Number(lng),
+        p_radius_m: radiusMeters,
+        p_limit: Math.min(Number(limit), 200), // cap at 200
       });
 
     // Fallback to basic query if RPC fails (e.g. no PostGIS, missing coords)
     if (error || !data) {
+      if (error) {
+        console.warn(`RPC find_nearby_salons failed: ${error.message}. Falling back to normal query.`);
+      }
       const { data: fallbackData, error: fallbackError } = await this.supabase.adminClient
         .from('salons')
         .select('*, services(*)')
