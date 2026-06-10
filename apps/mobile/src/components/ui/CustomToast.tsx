@@ -13,38 +13,35 @@ const { width } = Dimensions.get('window');
 
 export const toastConfig = {
   success: (props: CustomToastProps) => (
-    <View style={styles.container}>
-      <View style={styles.successIndicator} />
-      <View style={[styles.iconContainer, { backgroundColor: 'rgba(46, 204, 113, 0.15)' }]}>
-        <Ionicons name="checkmark-circle" size={24} color={colors.success} />
+    <View style={[styles.container, { backgroundColor: colors.success, borderColor: colors.success }]}>
+      <View style={[styles.iconContainer, { backgroundColor: 'rgba(255, 255, 255, 0.25)' }]}>
+        <Ionicons name="checkmark-circle" size={24} color="#FFF" />
       </View>
       <View style={styles.textContainer}>
-        {props.text1 ? <Text style={styles.title}>{props.text1}</Text> : null}
-        {props.text2 ? <Text style={styles.message}>{props.text2}</Text> : null}
+        {props.text1 ? <Text style={[styles.title, { color: '#FFF' }]}>{props.text1}</Text> : null}
+        {props.text2 ? <Text style={[styles.message, { color: 'rgba(255,255,255,0.9)' }]}>{props.text2}</Text> : null}
       </View>
     </View>
   ),
   error: (props: CustomToastProps) => (
-    <View style={styles.container}>
-      <View style={styles.errorIndicator} />
-      <View style={[styles.iconContainer, { backgroundColor: 'rgba(231, 76, 60, 0.15)' }]}>
-        <Ionicons name="alert-circle" size={24} color={colors.error} />
+    <View style={[styles.container, { backgroundColor: colors.error, borderColor: colors.error }]}>
+      <View style={[styles.iconContainer, { backgroundColor: 'rgba(255, 255, 255, 0.25)' }]}>
+        <Ionicons name="alert-circle" size={24} color="#FFF" />
       </View>
       <View style={styles.textContainer}>
-        {props.text1 ? <Text style={styles.title}>{props.text1}</Text> : null}
-        {props.text2 ? <Text style={styles.message}>{props.text2}</Text> : null}
+        {props.text1 ? <Text style={[styles.title, { color: '#FFF' }]}>{props.text1}</Text> : null}
+        {props.text2 ? <Text style={[styles.message, { color: 'rgba(255,255,255,0.9)' }]}>{props.text2}</Text> : null}
       </View>
     </View>
   ),
   info: (props: CustomToastProps) => (
-    <View style={styles.container}>
-      <View style={styles.infoIndicator} />
-      <View style={[styles.iconContainer, { backgroundColor: 'rgba(232, 160, 32, 0.15)' }]}>
-        <Ionicons name="information-circle" size={24} color={colors.amber} />
+    <View style={[styles.container, { backgroundColor: colors.amber, borderColor: colors.amber }]}>
+      <View style={[styles.iconContainer, { backgroundColor: 'rgba(0, 0, 0, 0.15)' }]}>
+        <Ionicons name="information-circle" size={24} color={colors.ink} />
       </View>
       <View style={styles.textContainer}>
-        {props.text1 ? <Text style={styles.title}>{props.text1}</Text> : null}
-        {props.text2 ? <Text style={styles.message}>{props.text2}</Text> : null}
+        {props.text1 ? <Text style={[styles.title, { color: colors.ink }]}>{props.text1}</Text> : null}
+        {props.text2 ? <Text style={[styles.message, { color: 'rgba(0,0,0,0.8)' }]}>{props.text2}</Text> : null}
       </View>
     </View>
   )
