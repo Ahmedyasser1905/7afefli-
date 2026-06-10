@@ -1,12 +1,61 @@
 {
   "expo": {
+    "name": "7afefli",
+    "slug": "barberdz-monorepo",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "scheme": "hafefli",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.ahmedyasser.hafefli",
+      "splash": {
+        "image": "./assets/splash.png",
+        "tabletImage": "./assets/splash.png"
+      }
+    },
+    "android": {
+      "package": "com.ahmedyasser.hafefli",
+      "adaptiveIcon": {
+        "backgroundColor": "#0D0D0F",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "splash": {
+        "ldpi": "./assets/splash.png",
+        "mdpi": "./assets/splash.png",
+        "hdpi": "./assets/splash.png",
+        "xhdpi": "./assets/splash.png",
+        "xxhdpi": "./assets/splash.png",
+        "xxxhdpi": "./assets/splash.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": [
+      "expo-font",
+      "expo-secure-store",
+      "expo-notifications",
+      "expo-splash-screen",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Autoriser 7afefli à accéder à votre position pour trouver les salons les plus proches.",
+          "locationAlwaysPermission": "Autoriser 7afefli à accéder à votre position pour trouver les salons les plus proches.",
+          "locationWhenInUsePermission": "Autoriser 7afefli à accéder à votre position pour trouver les salons les plus proches."
+        }
+      ]
+    ],
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "cover",
+      "backgroundColor": "#1A1A1A"
+    },
     "extra": {
       "eas": {
         "projectId": "adcbeb95-3c15-48ec-bae6-6f4a44190cf6"
       }
-    },
-    "android": {
-      "package": "com.evolutions172.barberdzmonorepo"
     }
   }
 }

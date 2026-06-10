@@ -19,9 +19,7 @@
       "package": "com.ahmedyasser.hafefli",
       "adaptiveIcon": {
         "backgroundColor": "#0D0D0F",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "foregroundImage": "./assets/android-icon-foreground.png"
       },
       "splash": {
         "ldpi": "./assets/splash.png",
