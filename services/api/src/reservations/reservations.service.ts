@@ -76,11 +76,10 @@ export class ReservationsService {
     const hasHours = !!salonData.open_time && !!salonData.close_time;
     const hasLogo = !!salonData.image_url;
     const hasServices = salonData.services && salonData.services.length > 0;
-    const hasPhotos = salonData.portfolio_photos && salonData.portfolio_photos.length > 0;
     const hasBarbers = salonData.salon_staff && salonData.salon_staff.length > 0;
 
-    if (!hasName || !hasAddress || !hasWilaya || !hasCommune || !hasPhone || !hasDesc || !hasCoords || !hasHours || !hasLogo || !hasServices || !hasPhotos || !hasBarbers) {
-      throw new BadRequestException("Ce salon n'est pas encore prêt à recevoir des réservations. Le profil doit être complété à 100% par le coiffeur (services, portfolio et coiffeurs requis).");
+    if (!hasName || !hasAddress || !hasWilaya || !hasCommune || !hasPhone || !hasDesc || !hasCoords || !hasHours || !hasLogo || !hasServices || !hasBarbers) {
+      throw new BadRequestException("Ce salon n'est pas encore prêt à recevoir des réservations. Le profil doit être complété par le coiffeur (services et coiffeurs requis).");
     }
 
     if (salonData.is_manually_closed) {
