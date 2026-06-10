@@ -74,12 +74,10 @@ export class SubscriptionsService {
     const defaultPlanId = defaultPlan?.id || null;
     const defaultPlanName = defaultPlan?.name || 'Free';
 
-    // H5 Fix: Expire trials → status = 'Expired' (consistent with sync_all_subscription_statuses RPC).
-    // The plan_id is downgraded to free so limits are enforced, but status stays 'Expired'
-    // so the salon is hidden from public search until the owner renews.
+    // H5 Fix: Downgrade trials → Free Plan ('Active')
     const { data: expiredTrials, error: trialErr } = await this.supabase.adminClient
       .from('user_subscriptions')
-      .update({ status: 'Expired', plan_id: defaultPlanId, trial_ends_at: null })
+      .update({ status: 'Active', plan: defaultPlanId, trial_ends_at: null, ends_at: null })
       .eq('status', 'Trial')
       .lt('trial_ends_at', now)
       .select('salon_id');
@@ -87,22 +85,22 @@ export class SubscriptionsService {
     if (trialErr) {
       this.logger.error('Failed to expire trials:', trialErr.message);
     } else if (expiredTrials?.length) {
-      this.logger.log(`Expired ${expiredTrials.length} trial(s) → ${defaultPlanName} / Expired`);
+      this.logger.log(`Downgraded ${expiredTrials.length} trial(s) → ${defaultPlanName} / Active`);
     }
 
-    // H5 Fix: Expire paid subscriptions past ends_at → status = 'Expired'
+    // H5 Fix: Downgrade paid subscriptions → Free Plan ('Active')
     const { data: expiredActive, error: activeErr } = await this.supabase.adminClient
       .from('user_subscriptions')
-      .update({ status: 'Expired', plan_id: defaultPlanId })
+      .update({ status: 'Active', plan: defaultPlanId, trial_ends_at: null, ends_at: null })
       .eq('status', 'Active')
-      .not('plan_id', 'eq', defaultPlanId)
+      .not('plan', 'eq', defaultPlanId)
       .lt('ends_at', now)
       .select('salon_id');
 
     if (activeErr) {
       this.logger.error('Failed to expire active subs:', activeErr.message);
     } else if (expiredActive?.length) {
-      this.logger.log(`Expired ${expiredActive.length} subscription(s) → ${defaultPlanName} / Expired`);
+      this.logger.log(`Downgraded ${expiredActive.length} subscription(s) → ${defaultPlanName} / Active`);
     }
 
     // Final sync: ensures salon.subscription_status column is consistent with user_subscriptions.status

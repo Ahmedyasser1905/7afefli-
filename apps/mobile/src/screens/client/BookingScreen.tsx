@@ -79,8 +79,18 @@ export function BookingScreen() {
   });
 
   const hasConfirmedReservation = useMemo(() => {
-    return myReservations.some((r: any) => r.status === 'Confirmed');
+    const today = new Date();
+    const currentDateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    
+    return myReservations.some((r: any) => r.status === 'Confirmed' && r.appointment_date >= currentDateStr);
   }, [myReservations]);
+
+  const hasPendingReservationInSameSalon = useMemo(() => {
+    const today = new Date();
+    const currentDateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    
+    return myReservations.some((r: any) => r.status === 'Pending' && r.salon_id === salonId && r.appointment_date >= currentDateStr);
+  }, [myReservations, salonId]);
 
   // Sync preselected services from Salon Detail Screen → skip to Date step
   useEffect(() => {
@@ -190,6 +200,27 @@ export function BookingScreen() {
           <Text style={[styles.emptyTitle, { marginTop: spacing.md }]}>Réservation active</Text>
           <Text style={[styles.emptySubtitle, { marginHorizontal: spacing.xl, textAlign: 'center' }]}>
             Vous avez déjà une réservation confirmée en cours. Vous devez la terminer ou l'annuler avant d'en créer une nouvelle.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (hasPendingReservationInSameSalon) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.headerBar}>
+          <TouchableOpacity style={styles.backButton} onPress={handleBackPress} activeOpacity={0.7}>
+            <Ionicons name="arrow-back" size={24} color={colors.amber} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Réservation</Text>
+          <View style={{ width: 40 }} />
+        </View>
+        <View style={[styles.emptyState, { flex: 1, justifyContent: 'center' }]}>
+          <Ionicons name="time-outline" size={64} color="#3B82F6" />
+          <Text style={[styles.emptyTitle, { marginTop: spacing.md }]}>Demande en cours</Text>
+          <Text style={[styles.emptySubtitle, { marginHorizontal: spacing.xl, textAlign: 'center' }]}>
+            Vous avez déjà une demande de réservation en attente dans ce salon. Veuillez patienter jusqu'à ce qu'elle soit traitée.
           </Text>
         </View>
       </SafeAreaView>
