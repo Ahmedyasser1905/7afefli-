@@ -153,6 +153,20 @@ export class ReservationsService {
       if (existingConfirmed && existingConfirmed.length > 0) {
         throw new BadRequestException("Vous avez déjà une réservation confirmée. Vous devez d'abord la terminer ou l'annuler avant d'en créer une nouvelle.");
       }
+
+      // Check if the client already has a Pending reservation in the SAME salon
+      const { data: existingPendingSameSalon } = await this.supabase.adminClient
+        .from('reservations')
+        .select('id')
+        .eq('client_id', clientId)
+        .eq('salon_id', dto.salonId)
+        .eq('status', 'Pending')
+        .gte('appointment_date', currentDateStr)
+        .limit(1);
+
+      if (existingPendingSameSalon && existingPendingSameSalon.length > 0) {
+        throw new BadRequestException("Vous avez déjà une demande de réservation en attente dans ce salon. Veuillez patienter jusqu'à ce qu'elle soit confirmée ou annulée.");
+      }
     }
 
     // 2. Calculate end_time from start_time + duration
