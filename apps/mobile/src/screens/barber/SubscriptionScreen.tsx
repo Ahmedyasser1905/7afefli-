@@ -248,7 +248,7 @@ export function SubscriptionScreen() {
                   <Text style={styles.detailValue}>{formatDate(subscription?.starts_at ?? null)}</Text>
                 </View>
                 
-                {subscription?.plan_details?.price === 0 ? (
+                {Number(subscription?.plan_details?.price || 0) === 0 ? (
                   <View style={styles.detailRow}>
                     <Ionicons name="infinite-outline" size={18} color={colors.success} />
                     <Text style={styles.detailLabel}>Durée</Text>
