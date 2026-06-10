@@ -284,7 +284,13 @@ export class ReservationsService {
       .eq('appointment_date', appointmentDate)
       .eq('status', 'Confirmed')
       .ilike('notes', '%NEAU BLOQU%')
-      .or(`barber_id.eq.${barberId}${staffId ? `,staff_id.eq.${staffId}` : ''}`)
+      // fix: avoid dynamic string interpolation in .or() — use explicit filter builder
+      .or(
+        staffId
+          ? `barber_id.eq.${barberId},staff_id.eq.${staffId}`
+          : `barber_id.eq.${barberId}`,
+        { foreignTable: undefined }
+      )
       .lt('start_time', endTime)
       .gt('end_time', startTime)
       .maybeSingle();

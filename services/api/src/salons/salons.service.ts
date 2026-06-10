@@ -153,6 +153,7 @@ export class SalonsService {
         .from('salons')
         .select('*')
         .eq('is_approved', true)
+        .neq('subscription_status', 'Expired')  // fix: hide expired salons (C6)
         .order('average_rating', { ascending: false })
         .limit(limit);
 
@@ -599,8 +600,10 @@ export class SalonsService {
       query = query.eq('appointment_date', filterDate);
     } else if (period === 'month') {
       const yearMonth = filterDate.substring(0, 7); // YYYY-MM
+      const [year, month] = yearMonth.split('-').map(Number);
+      const lastDay = new Date(year, month, 0).getDate(); // fix: dynamic last day of month
       query = query.gte('appointment_date', `${yearMonth}-01`)
-                   .lte('appointment_date', `${yearMonth}-31`);
+                   .lte('appointment_date', `${yearMonth}-${String(lastDay).padStart(2, '0')}`);
     }
     // 'all' → no date filter
 

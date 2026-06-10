@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
+import { apiFetch } from '../../lib/api';  // fix C5
 
 interface PendingSalon {
   id: string;
@@ -34,15 +35,9 @@ export default function SalonApprovalsPage() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
-      
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/salons/pending`, {
-        headers: { Authorization: `Bearer ${session.access_token}` }
-      });
-      
-      if (res.ok) {
-        const data = await res.json();
-        setPending(data as PendingSalon[]);
-      }
+
+      const data = await apiFetch<PendingSalon[]>('/admin/salons/pending', session.access_token);
+      setPending(data);
     } catch (e) {
       console.error(e);
     }
@@ -53,17 +48,11 @@ export default function SalonApprovalsPage() {
     setActionLoading(salonId);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/salons/${salonId}/approve`, {
+      await apiFetch(`/admin/salons/${salonId}/approve`, session?.access_token ?? '', {
         method: 'PATCH',
-        headers: { 
-          Authorization: `Bearer ${session?.access_token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ approved: true })
+        body: JSON.stringify({ approved: true }),
       });
-      if (res.ok) {
-        setPending((prev) => prev.filter((s) => s.id !== salonId));
-      }
+      setPending((prev) => prev.filter((s) => s.id !== salonId));
     } catch (e) {
       console.error(e);
     }
@@ -74,17 +63,11 @@ export default function SalonApprovalsPage() {
     setActionLoading(salonId);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/salons/${salonId}/approve`, {
+      await apiFetch(`/admin/salons/${salonId}/approve`, session?.access_token ?? '', {
         method: 'PATCH',
-        headers: { 
-          Authorization: `Bearer ${session?.access_token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ approved: false })
+        body: JSON.stringify({ approved: false }),
       });
-      if (res.ok) {
-        setPending((prev) => prev.filter((s) => s.id !== salonId));
-      }
+      setPending((prev) => prev.filter((s) => s.id !== salonId));
     } catch (e) {
       console.error(e);
     }

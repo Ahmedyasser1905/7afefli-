@@ -106,6 +106,19 @@ export class PaymentsController {
         const amount = payload.data.amount;
 
         if (salon_id) {
+          // fix (H2): verify salon_id actually exists before processing to prevent
+          // forged webhooks from activating arbitrary salons
+          const { data: salonExists } = await this.supabase.adminClient
+            .from('salons')
+            .select('id')
+            .eq('id', salon_id)
+            .maybeSingle();
+
+          if (!salonExists) {
+            this.logger.warn(`Webhook received for unknown salon_id=${salon_id} — ignoring.`);
+            return res.status(200).send('OK');
+          }
+
           // Fetch dynamic duration from subscription_plans
           const { data: planData } = await this.supabase.adminClient
             .from('plans')

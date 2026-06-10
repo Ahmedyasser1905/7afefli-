@@ -15,6 +15,7 @@ export interface Reservation {
   status: ReservationStatus;
   notes: string | null;
   client_phone: string | null;
+  is_walk_in: boolean;       // fix M5: was missing, caused (r as any).is_walk_in casts everywhere
   cancelled_by: string | null;
   cancel_reason: string | null;
   created_at: string;
