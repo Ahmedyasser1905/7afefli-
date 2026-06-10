@@ -140,6 +140,26 @@ export class AuthController {
       throw new InternalServerErrorException('Failed to update profile');
     }
     if (!data) throw new NotFoundException('Profile not found');
+
+    // Sync metadata to auth.users so the JWT session has the correct name/phone
+    const userUpdatePayload: any = { user_metadata: {} };
+    if (dto.full_name !== undefined) userUpdatePayload.user_metadata.full_name = dto.full_name;
+    if (dto.avatar_url !== undefined) userUpdatePayload.user_metadata.avatar_url = dto.avatar_url;
+    if (dto.phone_number !== undefined) {
+      userUpdatePayload.phone = dto.phone_number;
+    }
+    
+    // Only call updateUserById if we have something to update
+    if (Object.keys(userUpdatePayload.user_metadata).length > 0 || userUpdatePayload.phone !== undefined) {
+      const { error: syncError } = await this.supabase.adminClient.auth.admin.updateUserById(
+        user.id,
+        userUpdatePayload
+      );
+      if (syncError) {
+        this.logger.warn(`Failed to sync metadata to auth.users for ${user.id}: ${syncError.message}`);
+      }
+    }
+
     return data;
   }
 
