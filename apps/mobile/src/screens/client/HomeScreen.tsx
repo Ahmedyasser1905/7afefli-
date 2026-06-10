@@ -231,15 +231,12 @@ export function HomeScreen() {
       // Secondary safety check: ensure strictly <= 50km
       filtered = filtered.filter(a => (a.distance_meters ?? 0) <= 50000);
 
-      if (isPremiumClient) {
-        return [...filtered].sort((a, b) => {
-          const priceA = a.plan_price ?? 0;
-          const priceB = b.plan_price ?? 0;
-          if (priceA !== priceB) return priceB - priceA;
-          return (a.distance_meters ?? 0) - (b.distance_meters ?? 0);
-        });
-      }
-      return filtered;
+      return [...filtered].sort((a, b) => {
+        const priceA = a.plan_price ?? 0;
+        const priceB = b.plan_price ?? 0;
+        if (priceA !== priceB) return priceB - priceA;
+        return (a.distance_meters ?? 0) - (b.distance_meters ?? 0);
+      });
     }
 
     // Wilaya fallback — filter and sort client-side if we have GPS coords
@@ -249,11 +246,9 @@ export function HomeScreen() {
     const withinRadius = allSalons.filter(salon => getDistanceKm(location, salon) <= 50);
 
     return [...withinRadius].sort((a, b) => {
-      if (isPremiumClient) {
-        const priceA = a.plan_price ?? 0;
-        const priceB = b.plan_price ?? 0;
-        if (priceA !== priceB) return priceB - priceA;
-      }
+      const priceA = a.plan_price ?? 0;
+      const priceB = b.plan_price ?? 0;
+      if (priceA !== priceB) return priceB - priceA;
       return getDistanceKm(location, a) - getDistanceKm(location, b);
     });
   }, [allSalons, location, isPremiumClient]);
