@@ -9,7 +9,11 @@
     "scheme": "hafefli",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.ahmedyasser.hafefli"
+      "bundleIdentifier": "com.ahmedyasser.hafefli",
+      "splash": {
+        "image": "./assets/splash.png",
+        "tabletImage": "./assets/splash.png"
+      }
     },
     "android": {
       "package": "com.ahmedyasser.hafefli",
@@ -18,6 +22,14 @@
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "splash": {
+        "ldpi": "./assets/splash.png",
+        "mdpi": "./assets/splash.png",
+        "hdpi": "./assets/splash.png",
+        "xhdpi": "./assets/splash.png",
+        "xxhdpi": "./assets/splash.png",
+        "xxxhdpi": "./assets/splash.png"
       },
       "predictiveBackGestureEnabled": false
     },
@@ -36,9 +48,9 @@
       ]
     ],
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0A0A0A"
+      "backgroundColor": "#000000"
     },
     "extra": {
       "eas": {
