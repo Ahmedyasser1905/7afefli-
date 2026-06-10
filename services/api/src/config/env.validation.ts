@@ -46,10 +46,18 @@ export function validateEnvironment(): void {
   }
 
   if (missing.length > 0) {
-    const errorMsg = `🚨 Missing required environment variables:\n  ${missing.join('\n  ')}\n\n` +
-      `Copy .env.example to .env and fill in all values before starting.`;
-    logger.error(errorMsg);
-    throw new Error(errorMsg);
+    const coreMissing = missing.filter(k => ENV_CONFIG.required.includes(k));
+    const prodMissing = missing.filter(k => ENV_CONFIG.productionOnly.includes(k));
+
+    if (coreMissing.length > 0) {
+      const errorMsg = `🚨 Missing CORE environment variables: ${coreMissing.join(', ')}. App cannot start.`;
+      logger.error(errorMsg);
+      throw new Error(errorMsg);
+    }
+
+    if (prodMissing.length > 0) {
+      logger.warn(`⚠️ Missing optional production environment variables: ${prodMissing.join(', ')}. Some features may not work.`);
+    }
   }
 
   logger.log('✅ Environment validation passed');
