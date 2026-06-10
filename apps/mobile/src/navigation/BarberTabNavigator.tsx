@@ -9,10 +9,11 @@ import { DashboardScreen } from '../screens/barber/DashboardScreen';
 import { CalendarScreen } from '../screens/barber/CalendarScreen';
 import { SettingsScreen } from '../screens/client/SettingsScreen';
 import { ClientsScreen } from '../screens/barber/ClientsScreen';
+import { NotificationsScreen } from '../screens/client/NotificationsScreen';
 import { colors, typography } from '../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../lib/apiClient';
 import { useAuthStore } from '../store/authStore';
 import { SalonSetupScreen } from '../screens/barber/SalonSetupScreen';
@@ -20,6 +21,51 @@ import { MySalonScreen } from '../screens/barber/MySalonScreen';
 import { SubscriptionScreen } from '../screens/barber/SubscriptionScreen';
 
 const Tab = createBottomTabNavigator();
+
+/**
+ * Notification tab icon that shows a red badge dot when there are unread notifications.
+ * Reuses the same ['notifications-unread-count'] query that NotificationBell already uses
+ * so there are no extra API calls.
+ */
+function NotificationTabIcon({ focused, color }: { focused: boolean; color: string }) {
+  const session = useAuthStore((s) => s.session);
+  const { data: count = 0 } = useQuery({
+    queryKey: ['notifications-unread-count'],
+    queryFn: async () => {
+      const data = await apiClient.get<{ count: number }>('/notifications/unread-count');
+      return data?.count || 0;
+    },
+    enabled: !!session,
+    refetchOnMount: true,
+  });
+
+  return (
+    <View style={{ position: 'relative' }}>
+      <Ionicons
+        name={focused ? 'notifications' : 'notifications-outline'}
+        size={22}
+        color={color}
+      />
+      {count > 0 && (
+        <View style={notifStyles.badgeDot} />
+      )}
+    </View>
+  );
+}
+
+const notifStyles = StyleSheet.create({
+  badgeDot: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.error,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+  },
+});
 
 export function BarberTabNavigator() {
   const user = useAuthStore((s) => s.user);
@@ -132,6 +178,16 @@ export function BarberTabNavigator() {
         options={{ tabBarLabel: 'Abonnement' }}
       />
       <Tab.Screen
+        name="Notifications"
+        component={NotificationsScreen}
+        options={{
+          tabBarLabel: 'Alertes',
+          tabBarIcon: ({ focused, color }) => (
+            <NotificationTabIcon focused={focused} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
         name="Settings"
         component={SettingsScreen}
         options={{ tabBarLabel: 'Paramètres' }}
@@ -139,3 +195,4 @@ export function BarberTabNavigator() {
     </Tab.Navigator>
   );
 }
+
