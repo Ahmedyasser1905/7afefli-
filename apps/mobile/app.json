@@ -36,7 +36,9 @@
       ]
     ],
     "splash": {
-      "backgroundColor": "#0D0D0F"
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0A0A0A"
     },
     "extra": {
       "eas": {
