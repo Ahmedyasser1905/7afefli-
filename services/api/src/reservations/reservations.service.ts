@@ -147,6 +147,7 @@ export class ReservationsService {
         .select('id')
         .eq('client_id', clientId)
         .eq('status', 'Confirmed')
+        .gte('appointment_date', currentDateStr)
         .limit(1);
 
       if (existingConfirmed && existingConfirmed.length > 0) {
