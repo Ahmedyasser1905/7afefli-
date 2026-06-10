@@ -96,13 +96,13 @@ export function SalonDetailScreen() {
     staleTime: 3 * 60 * 1000,
   });
 
-  // Toggle service selection
+  // Toggle service selection (Only one service can be selected at a time)
   const toggleService = (id: string) => {
     setSelectedServices((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
+      const next = new Set<string>();
+      // If clicking the currently selected service, it will deselect it (leave empty).
+      // If clicking a different service, it selects only that new service.
+      if (!prev.has(id)) {
         next.add(id);
       }
       return next;
