@@ -142,14 +142,14 @@ export class ReservationsService {
       }
 
       // Check if the client already has a Confirmed reservation
-      const { data: existingConfirmed } = await this.supabase.adminClient
+      const { data: existingConfirmed, error: err } = await this.supabase.adminClient
         .from('reservations')
         .select('id')
         .eq('client_id', clientId)
         .eq('status', 'Confirmed')
-        .maybeSingle();
+        .limit(1);
 
-      if (existingConfirmed) {
+      if (existingConfirmed && existingConfirmed.length > 0) {
         throw new BadRequestException("Vous avez déjà une réservation confirmée. Vous devez d'abord la terminer ou l'annuler avant d'en créer une nouvelle.");
       }
     }
