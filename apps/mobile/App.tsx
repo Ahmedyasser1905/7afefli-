@@ -8,6 +8,7 @@ import { Syne_700Bold, Syne_600SemiBold } from '@expo-google-fonts/syne';
 import { DMSans_400Regular, DMSans_500Medium, DMSans_700Bold } from '@expo-google-fonts/dm-sans';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { queryClient } from './src/lib/queryClient';
+import { SplashScreen } from './src/screens/SplashScreen';
 import { colors } from './src/theme';
 import * as ExpoSplashScreen from 'expo-splash-screen';
 import Toast from 'react-native-toast-message';
@@ -101,6 +102,7 @@ function usePaymentDeepLink() {
 }
 
 export default function App() {
+  const [showSplash, setShowSplash] = useState(true);
   const [fontsLoaded] = useFonts({
     Syne_700Bold,
     Syne_600SemiBold,
@@ -112,14 +114,12 @@ export default function App() {
   // H2: Register payment deep-link handler at app root level
   usePaymentDeepLink();
 
-  useEffect(() => {
-    if (fontsLoaded) {
-      ExpoSplashScreen.hideAsync().catch(() => {});
-    }
-  }, [fontsLoaded]);
-
   if (!fontsLoaded) {
     return null;
+  }
+
+  if (showSplash) {
+    return <SplashScreen onFinish={() => setShowSplash(false)} onReady={() => ExpoSplashScreen.hideAsync().catch(() => {})} />;
   }
 
   return (
