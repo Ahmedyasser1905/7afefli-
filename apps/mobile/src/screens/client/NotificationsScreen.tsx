@@ -30,21 +30,41 @@ export function NotificationsScreen() {
 
   const getIcon = (type: string) => {
     switch (type) {
-      case 'reservation_created': return 'calendar-outline';
-      case 'reservation_confirmed': return 'checkmark-circle-outline';
-      case 'reservation_cancelled': return 'close-circle-outline';
-      case 'loyalty_points': return 'star-outline';
-      case 'system': return 'information-circle-outline';
-      default: return 'notifications-outline';
+      case 'new_booking':           return 'calendar-outline';
+      case 'booking_confirmed':     return 'checkmark-circle-outline';
+      case 'booking_cancelled':     return 'close-circle-outline';
+      case 'cancelled':             return 'close-circle-outline';
+      case 'confirmed':             return 'checkmark-circle-outline';
+      case 'completed':             return 'checkmark-done-circle-outline';
+      case 'new_review':            return 'star-outline';
+      case 'subscription_expiring': return 'warning-outline';
+      case 'subscription_activated':return 'card-outline';
+      case 'salon_approved':        return 'storefront-outline';
+      case 'salon_rejected':        return 'close-circle-outline';
+      case 'loyalty_points':        return 'gift-outline';
+      case 'system':                return 'information-circle-outline';
+      default:                      return 'notifications-outline';
     }
   };
 
   const getIconColor = (type: string) => {
     switch (type) {
-      case 'reservation_confirmed': return '#2ECC71';
-      case 'reservation_cancelled': return colors.error;
-      case 'loyalty_points': return colors.amber;
-      default: return colors.amber;
+      case 'booking_confirmed':
+      case 'confirmed':
+      case 'salon_approved':
+      case 'subscription_activated':
+        return '#2ECC71';
+      case 'booking_cancelled':
+      case 'cancelled':
+      case 'salon_rejected':
+        return colors.error;
+      case 'new_review':
+      case 'loyalty_points':
+        return colors.amber;
+      case 'subscription_expiring':
+        return '#E67E22';
+      default:
+        return colors.amber;
     }
   };
 
