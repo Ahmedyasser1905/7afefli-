@@ -430,6 +430,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  emptyState: {
+    alignItems: 'center',
+    padding: spacing.xl,
+  },
+  emptyTitle: {
+    fontFamily: 'Syne_700Bold',
+    fontSize: 20,
+    color: colors.textPrimary,
+    marginTop: spacing.md,
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    fontFamily: 'DMSans_400Regular',
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: spacing.sm,
+    textAlign: 'center',
+  },
   headerBar: {
     height: 56,
     flexDirection: 'row',
