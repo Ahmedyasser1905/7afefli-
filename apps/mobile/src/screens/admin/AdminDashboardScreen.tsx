@@ -30,18 +30,20 @@ export function AdminDashboardScreen() {
   const [selectedUser, setSelectedUser] = useState<Record<string, unknown> | null>(null);
 
   // Fetch all salons via API only — Supabase bypasses backend auth guards
-  const { data: salons = [], isLoading: salonsLoading, isRefetching: salonsRefetching, refetch: refetchSalons } = useQuery<Record<string, unknown>[]>({
+  const { data: salonsResponse, isLoading: salonsLoading, isRefetching: salonsRefetching, refetch: refetchSalons } = useQuery({
     queryKey: ['admin-salons'],
-    queryFn: () => apiClient.get<Record<string, unknown>[]>('/admin/salons'),
+    queryFn: () => apiClient.get<any>('/admin/salons?limit=1000'), // Temporary fix to fetch many records
     staleTime: 60 * 1000,
   });
+  const salons = salonsResponse?.data ?? [];
 
   // Fetch all users via API only
-  const { data: users = [], isLoading: usersLoading, isRefetching: usersRefetching, refetch: refetchUsers } = useQuery<Record<string, unknown>[]>({
+  const { data: usersResponse, isLoading: usersLoading, isRefetching: usersRefetching, refetch: refetchUsers } = useQuery({
     queryKey: ['admin-users'],
-    queryFn: () => apiClient.get<Record<string, unknown>[]>('/admin/users'),
+    queryFn: () => apiClient.get<any>('/admin/users?limit=1000'),
     staleTime: 60 * 1000,
   });
+  const users = usersResponse?.data ?? [];
 
   // Stats via API
   const { data: statsData } = useQuery<Record<string, unknown>>({
@@ -51,12 +53,13 @@ export function AdminDashboardScreen() {
   });
 
   // Fetch all reservations via API
-  const { data: reservations = [], isLoading: resLoading, isRefetching: resRefetching, refetch: refetchRes } = useQuery<Record<string, unknown>[]>({
+  const { data: reservationsResponse, isLoading: resLoading, isRefetching: resRefetching, refetch: refetchRes } = useQuery({
     queryKey: ['admin-reservations'],
-    queryFn: () => apiClient.get<Record<string, unknown>[]>('/admin/reservations'),
+    queryFn: () => apiClient.get<any>('/admin/reservations?limit=1000'),
     staleTime: 60 * 1000,
     enabled: activeTab === 'reservations',
   });
+  const reservations = reservationsResponse?.data ?? [];
 
   const totalSalons = statsData?.totalSalons ?? salons.length;
   const approvedSalons = statsData?.activeSalons ?? salons.filter((s: Record<string, unknown>) => s.is_approved).length;

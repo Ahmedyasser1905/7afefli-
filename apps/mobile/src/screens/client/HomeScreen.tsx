@@ -166,7 +166,7 @@ export function HomeScreen() {
       return data;
     },
     // Only fetch wilaya list as a fallback when GPS nearby returns 0 results or GPS unavailable
-    enabled: !hasLocation || (nearbyResponse !== null && Array.isArray(nearbyResponse) && nearbyResponse.length === 0),
+    enabled: !hasLocation || (nearbyResponse !== null && Array.isArray(nearbyResponse) ? nearbyResponse.length === 0 : (nearbyResponse as any)?.data?.length === 0),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -189,12 +189,12 @@ export function HomeScreen() {
 
     // Prefer GPS-based nearby results
     if (hasLocation && nearbyResponse) {
-      const raw = (nearbyResponse as any).data ?? [];
+      const raw = Array.isArray(nearbyResponse) ? nearbyResponse : ((nearbyResponse as any).data ?? []);
       return addDistanceKm(raw);
     }
     // Fall back to wilaya text-filter results
     if (wilayaResponse) {
-      const raw = (wilayaResponse as any).data ?? [];
+      const raw = Array.isArray(wilayaResponse) ? wilayaResponse : ((wilayaResponse as any).data ?? []);
       return raw; // no distance available from wilaya endpoint
     }
     return [];
