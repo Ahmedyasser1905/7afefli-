@@ -211,10 +211,10 @@ export function SalonDetailScreen() {
         <View style={styles.infoCardWrapper}>
           <View style={styles.infoCard}>
             <View style={styles.infoTitleRow}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={styles.salonName}>{salon.name}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, paddingRight: 12 }}>
+                <Text style={[styles.salonName, { flex: 0, flexShrink: 1 }]}>{salon.name}</Text>
                 {salon.has_premium_badge && (
-                  <Ionicons name="checkmark-circle" size={24} color={colors.amber} style={{ marginLeft: 8 }} />
+                  <Ionicons name="checkmark-circle" size={20} color={colors.amber} style={{ marginLeft: 6 }} />
                 )}
               </View>
               {(() => {
