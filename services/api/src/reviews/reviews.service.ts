@@ -9,10 +9,14 @@ import {
 } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { CreateReviewDto } from './dto/create-review.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class ReviewsService {
-  constructor(private readonly supabase: SupabaseService) {}
+  constructor(
+    private readonly supabase: SupabaseService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   /**
    * Submit a review — only for a Completed reservation by the client who booked it.
@@ -67,7 +71,14 @@ export class ReviewsService {
       throw new ConflictException('You have already reviewed this appointment');
     }
 
-    // 3. Create the review — the DB trigger will auto-update salon's average_rating
+    // 3. Fetch salon owner_id for notification
+    const { data: salon } = await this.supabase.adminClient
+      .from('salons')
+      .select('owner_id')
+      .eq('id', dto.salonId)
+      .maybeSingle();
+
+    // 4. Create the review — the DB trigger will auto-update salon's average_rating
     const { data, error } = await this.supabase.adminClient
       .from('reviews')
       .insert({
@@ -86,6 +97,18 @@ export class ReviewsService {
       }
       throw new Error(`Failed to create review: ${error.message}`);
     }
+
+    // 5. Notify the salon owner about the new review (fire-and-forget)
+    if (salon?.owner_id) {
+      this.notificationsService.createNotification(
+        salon.owner_id,
+        'new_review',
+        '⭐ Nouvel avis',
+        `Un client a laissé un avis ${dto.rating}/5 sur votre salon.`,
+        { salonId: dto.salonId, reservationId: dto.reservationId },
+      ).catch(() => {}); // fire-and-forget
+    }
+
     return data;
   }
 

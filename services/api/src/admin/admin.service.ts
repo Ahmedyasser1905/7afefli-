@@ -3,12 +3,16 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { invalidateRoleCache } from '../auth/auth.guard';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class AdminService {
   private readonly logger = new Logger(AdminService.name);
 
-  constructor(private readonly supabase: SupabaseService) {}
+  constructor(
+    private readonly supabase: SupabaseService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   /**
    * List all salons pending approval.
@@ -33,7 +37,7 @@ export class AdminService {
   async approveSalon(salonId: string, approved: boolean) {
     const { data: salon } = await this.supabase.adminClient
       .from('salons')
-      .select('id')
+      .select('id, owner_id')
       .eq('id', salonId)
       .single();
 
@@ -47,6 +51,28 @@ export class AdminService {
       .single();
 
     if (error) throw new Error(`Failed to update salon approval: ${error.message}`);
+
+    // Notify the salon owner of the approval decision (fire-and-forget)
+    if (salon.owner_id) {
+      if (approved) {
+        this.notificationsService.createNotification(
+          salon.owner_id,
+          'salon_approved',
+          '\u2705 Salon approuv\u00e9',
+          'Votre salon a \u00e9t\u00e9 approuv\u00e9 et est maintenant visible par les clients.',
+          { salonId },
+        ).catch(() => {});
+      } else {
+        this.notificationsService.createNotification(
+          salon.owner_id,
+          'salon_rejected',
+          '\u274c Salon non approuv\u00e9',
+          'Votre salon n\u2019a pas \u00e9t\u00e9 approuv\u00e9. Contactez le support pour plus d\u2019informations.',
+          { salonId },
+        ).catch(() => {});
+      }
+    }
+
     return data;
   }
 
