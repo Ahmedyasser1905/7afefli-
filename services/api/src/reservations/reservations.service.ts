@@ -689,8 +689,14 @@ export class ReservationsService {
         const salonOwnerId = (reservation as any).salons?.owner_id as string | undefined;
         // Notify client if barber changed status
         if (!isClient && reservation.client_id) {
+          const typeMap: Record<string, string> = {
+            Confirmed: 'booking_confirmed',
+            Cancelled: 'booking_cancelled',
+            Completed: 'completed',
+          };
+          const notifType = typeMap[dto.status] ?? dto.status.toLowerCase();
           this.notificationsService.createNotification(
-            reservation.client_id, dto.status.toLowerCase(), msg.title, msg.body,
+            reservation.client_id, notifType, msg.title, msg.body,
             { reservationId: reservationId },
           ).catch(() => {});
         }
