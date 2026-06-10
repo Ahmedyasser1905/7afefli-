@@ -215,24 +215,65 @@ export function HomeScreen() {
     };
   }, []);
 
-  // 2. Fetch salons — pass wilaya once GPS resolves (server-side filter reduces payload)
-  const { data: allSalonsResponse, isLoading, refetch } = useQuery({
-    queryKey: ['home-salons', userWilaya],
+  // 2. Fetch salons:
+  //    - When GPS coords are available → use /salons/nearby (PostGIS, 50 km radius)
+  //    - When GPS is pending/denied    → fall back to /salons?wilaya=X (wilaya-text filter)
+  const hasLocation = location !== null;
+
+  const { data: nearbyResponse, isLoading: nearbyLoading, refetch: refetchNearby } = useQuery({
+    queryKey: ['home-salons-nearby', location?.latitude, location?.longitude],
     queryFn: async () => {
-      const wilayaParam = userWilaya
-        ? `&wilaya=${encodeURIComponent(userWilaya)}`
-        : '';
+      if (!location) return null;
+      const data = await apiClient.get<any>(
+        `/salons/nearby?lat=${location.latitude}&lng=${location.longitude}&radius=50&limit=100`
+      );
+      return data;
+    },
+    enabled: hasLocation,
+    staleTime: 2 * 60 * 1000, // 2 min — re-fetched when location changes meaningfully
+  });
+
+  const { data: wilayaResponse, isLoading: wilayaLoading, refetch: refetchWilaya } = useQuery({
+    queryKey: ['home-salons-wilaya', userWilaya],
+    queryFn: async () => {
+      const wilayaParam = userWilaya ? `&wilaya=${encodeURIComponent(userWilaya)}` : '';
       const data = await apiClient.get<any>(`/salons?limit=100${wilayaParam}`);
       return data;
     },
+    // Only fetch wilaya list as a fallback when GPS nearby returns 0 results or GPS unavailable
+    enabled: !hasLocation || (nearbyResponse !== null && Array.isArray(nearbyResponse) && nearbyResponse.length === 0),
     staleTime: 5 * 60 * 1000,
   });
 
+  const isLoading = nearbyLoading || wilayaLoading;
+
+  const refetch = useCallback(() => {
+    refetchNearby();
+    refetchWilaya();
+  }, [refetchNearby, refetchWilaya]);
+
+  // Normalise the raw API responses into a flat array
   const allSalons = useMemo(() => {
-    if (!allSalonsResponse) return [];
-    if (Array.isArray(allSalonsResponse)) return allSalonsResponse;
-    return allSalonsResponse.data ?? [];
-  }, [allSalonsResponse]);
+    // Helper: map distance_meters → distance_km (SalonCard expects distance_km)
+    const addDistanceKm = (salons: any[]) =>
+      salons.map((s) =>
+        s.distance_meters !== undefined && s.distance_km === undefined
+          ? { ...s, distance_km: s.distance_meters / 1000 }
+          : s
+      );
+
+    // Prefer GPS-based nearby results
+    if (hasLocation && nearbyResponse) {
+      const raw = Array.isArray(nearbyResponse) ? nearbyResponse : (nearbyResponse.data ?? []);
+      return addDistanceKm(raw);
+    }
+    // Fall back to wilaya text-filter results
+    if (wilayaResponse) {
+      const raw = Array.isArray(wilayaResponse) ? wilayaResponse : (wilayaResponse.data ?? []);
+      return raw; // no distance available from wilaya endpoint
+    }
+    return [];
+  }, [hasLocation, nearbyResponse, wilayaResponse]);
 
   // 3. Client Premium plan
   const { data: clientPlan } = useQuery<{ plan: string; isPremium: boolean }>({
@@ -249,10 +290,27 @@ export function HomeScreen() {
 
   const isPremiumClient = clientPlan?.isPremium ?? false;
 
-  // 4. Sort by proximity — server already narrowed by wilaya
-  // Fallback: if server returned empty set (new wilaya with no salons), allSalons could be empty.
-  // In that case the query will have already fetched with wilayaParam so no extra filtering needed.
+  // 4. Sort by proximity
+  //    - If nearby RPC was used, results already come sorted by distance_meters ASC.
+  //    - If wilaya fallback is used, sort client-side by Haversine distance.
   const salons = useMemo(() => {
+    if (!allSalons.length) return [];
+
+    // Check if results already have distance_meters (from /nearby RPC)
+    const hasServerDistance = allSalons[0]?.distance_meters !== undefined;
+
+    if (hasServerDistance) {
+      // Already sorted by DB; just pin sponsors first for premium clients
+      if (isPremiumClient) {
+        return [...allSalons].sort((a, b) => {
+          if (a.is_sponsored !== b.is_sponsored) return a.is_sponsored ? -1 : 1;
+          return (a.distance_meters ?? 0) - (b.distance_meters ?? 0);
+        });
+      }
+      return allSalons;
+    }
+
+    // Wilaya fallback — sort client-side if we have GPS coords
     if (!location) return allSalons;
     return [...allSalons].sort((a, b) => {
       if (isPremiumClient && a.is_sponsored !== b.is_sponsored) return a.is_sponsored ? -1 : 1;
@@ -295,8 +353,15 @@ export function HomeScreen() {
       );
     }
 
-    if (activeFilters.has('nearby') && location) {
-      result = result.filter((s) => getDistanceKm(location, s) <= 20);
+    // "nearby" filter pill: ≤50 km
+    // Use server distance_meters if available; otherwise Haversine client-side
+    if (activeFilters.has('nearby') && (hasLocation || location)) {
+      const NEARBY_KM = 50;
+      result = result.filter((s) => {
+        if (s.distance_meters !== undefined) return s.distance_meters <= NEARBY_KM * 1000;
+        if (location && s.latitude && s.longitude) return getDistanceKm(location, s) <= NEARBY_KM;
+        return true; // no coords available — include by default
+      });
     }
 
     if (searchQuery.trim().length > 0) {

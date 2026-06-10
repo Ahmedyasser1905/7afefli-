@@ -121,33 +121,57 @@ export class SalonsService {
 
   /**
    * Find salons near a geographic point using PostGIS.
+   * Returns enriched salon objects including services for client-side filtering.
    */
-  async findNearby(lat: number, lng: number, radiusKm: number = 10, limit: number = 20) {
+  async findNearby(lat: number, lng: number, radiusKm: number = 50, limit: number = 100) {
     const radiusMeters = radiusKm * 1000;
 
     const { data, error } = await this.supabase.adminClient
       .rpc('find_nearby_salons', {
-        user_lat: lat,
-        user_lng: lng,
+        user_lat: Number(lat),
+        user_lng: Number(lng),
         radius_meters: radiusMeters,
-        result_limit: limit,
+        result_limit: Math.min(Number(limit), 200), // cap at 200
       });
 
-    // Fallback to basic query if RPC doesn't exist yet
-    if (error) {
+    // Fallback to basic query if RPC fails (e.g. no PostGIS, missing coords)
+    if (error || !data) {
       const { data: fallbackData, error: fallbackError } = await this.supabase.adminClient
         .from('salons')
-        .select('*')
+        .select('*, services(*)')
         .eq('is_approved', true)
-        .neq('subscription_status', 'Expired')  // fix: hide expired salons (C6)
+        .neq('subscription_status', 'Expired')
         .order('average_rating', { ascending: false })
-        .limit(limit);
+        .limit(Math.min(Number(limit), 200));
 
       if (fallbackError) throw new InternalServerErrorException(`Failed to fetch nearby salons: ${fallbackError.message}`);
-      return this.enrichSalons(fallbackData);
+      return this.enrichSalons(fallbackData ?? []);
     }
 
-    return this.enrichSalons(data);
+    if (!data.length) return [];
+
+    // Enrich RPC results with services (one batch query, not N+1)
+    const salonIds = data.map((s: any) => s.id);
+    const { data: servicesData } = await this.supabase.adminClient
+      .from('services')
+      .select('*')
+      .in('salon_id', salonIds)
+      .eq('is_active', true);
+
+    // Build a map of salonId → services[]
+    const servicesBySalon: Record<string, any[]> = {};
+    for (const svc of servicesData ?? []) {
+      if (!servicesBySalon[svc.salon_id]) servicesBySalon[svc.salon_id] = [];
+      servicesBySalon[svc.salon_id].push(svc);
+    }
+
+    // Merge services into each salon
+    const enriched = data.map((s: any) => ({
+      ...s,
+      services: servicesBySalon[s.id] ?? [],
+    }));
+
+    return this.enrichSalons(enriched);
   }
 
   /**
