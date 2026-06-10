@@ -1,14 +1,22 @@
 // services/api/src/notifications/notifications.service.ts
 import { Injectable, Logger } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
-import Expo, { ExpoPushMessage, ExpoPushTicket } from 'expo-server-sdk';
+import type { ExpoPushMessage, ExpoPushTicket } from 'expo-server-sdk';
 
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
-  private readonly expo = new Expo();
+  private expo: any;
 
   constructor(private readonly supabase: SupabaseService) {}
+
+  private async getExpoClient() {
+    if (!this.expo) {
+      const { Expo } = await import('expo-server-sdk');
+      this.expo = new Expo();
+    }
+    return this.expo;
+  }
 
   /**
    * Get unread notifications for the authenticated user.
@@ -83,6 +91,7 @@ export class NotificationsService {
    * Called from POST /auth/push-token.
    */
   async savePushToken(userId: string, token: string): Promise<void> {
+    const { Expo } = await import('expo-server-sdk');
     if (!Expo.isExpoPushToken(token)) {
       this.logger.warn(`Invalid Expo push token for user ${userId}: ${token}`);
       return;
@@ -124,6 +133,9 @@ export class NotificationsService {
     body: string,
     data?: Record<string, unknown>,
   ): Promise<void> {
+    const { Expo } = await import('expo-server-sdk');
+    const expoClient = await this.getExpoClient();
+
     // Fetch push token from profiles
     const { data: profile } = await this.supabase.adminClient
       .from('profiles')
@@ -146,9 +158,9 @@ export class NotificationsService {
     };
 
     try {
-      const chunks = this.expo.chunkPushNotifications([message]);
+      const chunks = expoClient.chunkPushNotifications([message]);
       for (const chunk of chunks) {
-        const tickets: ExpoPushTicket[] = await this.expo.sendPushNotificationsAsync(chunk);
+        const tickets: ExpoPushTicket[] = await expoClient.sendPushNotificationsAsync(chunk);
         for (const ticket of tickets) {
           if (ticket.status === 'error') {
             this.logger.warn(`Expo push error for user ${userId}: ${ticket.message}`);
