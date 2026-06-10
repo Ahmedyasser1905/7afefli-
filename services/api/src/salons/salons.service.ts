@@ -85,7 +85,7 @@ export class SalonsService {
       .eq('is_approved', true)
       // Subscription enforcement: expired salons are hidden from public search
       .neq('subscription_status', 'Expired')
-      .order('is_sponsored', { ascending: false })
+      .order('plan_price', { ascending: false })
       .order('average_rating', { ascending: false });
 
     if (filters.wilaya) {

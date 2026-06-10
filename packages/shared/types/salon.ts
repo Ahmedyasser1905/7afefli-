@@ -23,6 +23,7 @@ export interface Salon {
   has_premium_badge?: boolean;
   marketing_included?: boolean;
   priority_support?: boolean;
+  plan_price?: number;
   open_time: string;   // "09:00"
   close_time: string;  // "21:00"
   working_days: number[];

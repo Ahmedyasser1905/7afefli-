@@ -233,7 +233,9 @@ export function HomeScreen() {
 
       if (isPremiumClient) {
         return [...filtered].sort((a, b) => {
-          if (a.is_sponsored !== b.is_sponsored) return a.is_sponsored ? -1 : 1;
+          const priceA = a.plan_price ?? 0;
+          const priceB = b.plan_price ?? 0;
+          if (priceA !== priceB) return priceB - priceA;
           return (a.distance_meters ?? 0) - (b.distance_meters ?? 0);
         });
       }
@@ -247,7 +249,11 @@ export function HomeScreen() {
     const withinRadius = allSalons.filter(salon => getDistanceKm(location, salon) <= 50);
 
     return [...withinRadius].sort((a, b) => {
-      if (isPremiumClient && a.is_sponsored !== b.is_sponsored) return a.is_sponsored ? -1 : 1;
+      if (isPremiumClient) {
+        const priceA = a.plan_price ?? 0;
+        const priceB = b.plan_price ?? 0;
+        if (priceA !== priceB) return priceB - priceA;
+      }
       return getDistanceKm(location, a) - getDistanceKm(location, b);
     });
   }, [allSalons, location, isPremiumClient]);

@@ -142,7 +142,9 @@ export function ExploreScreen() {
         };
         return getMinPrice(a) - getMinPrice(b);
       }
-      if (a.is_sponsored !== b.is_sponsored) return a.is_sponsored ? -1 : 1;
+      const priceA = a.plan_price ?? 0;
+      const priceB = b.plan_price ?? 0;
+      if (priceA !== priceB) return priceB - priceA;
       return b.average_rating - a.average_rating;
     });
 
