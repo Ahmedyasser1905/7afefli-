@@ -211,7 +211,12 @@ export function SalonDetailScreen() {
         <View style={styles.infoCardWrapper}>
           <View style={styles.infoCard}>
             <View style={styles.infoTitleRow}>
-              <Text style={styles.salonName}>{salon.name}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={styles.salonName}>{salon.name}</Text>
+                {salon.has_premium_badge && (
+                  <Ionicons name="checkmark-circle" size={24} color={colors.amber} style={{ marginLeft: 8 }} />
+                )}
+              </View>
               {(() => {
                 const label = salon.status_label;
                 let text = 'Fermé';

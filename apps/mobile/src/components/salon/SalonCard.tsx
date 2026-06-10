@@ -92,9 +92,14 @@ export const SalonCard = React.memo(function SalonCard({ salon, onPress, selecte
 
         <View style={styles.heroInfoRow}>
           <View style={styles.heroLeftCol}>
-            <Text style={styles.heroName} numberOfLines={1}>
-              {salon.name}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+              <Text style={[styles.heroName, { marginBottom: 0 }]} numberOfLines={1}>
+                {salon.name}
+              </Text>
+              {salon.has_premium_badge && (
+                <Ionicons name="checkmark-circle" size={18} color={colors.amber} style={{ marginLeft: 6 }} />
+              )}
+            </View>
             <View style={styles.locationRow}>
               <Ionicons name="location-sharp" size={14} color={colors.textSecondary} />
               <Text style={styles.heroAddress} numberOfLines={1}>
@@ -129,6 +134,9 @@ export const SalonCard = React.memo(function SalonCard({ salon, onPress, selecte
           <Text style={styles.regularName} numberOfLines={1}>
             {salon.name}
           </Text>
+          {salon.has_premium_badge && (
+            <Ionicons name="checkmark-circle" size={16} color={colors.amber} style={{ marginRight: spacing.sm }} />
+          )}
           <View style={styles.regularRatingRow}>
             <Ionicons name="star" size={12} color={colors.amber} />
             <Text style={styles.regularRatingText}>

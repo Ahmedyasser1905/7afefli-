@@ -19,6 +19,10 @@ export interface Salon {
   is_approved: boolean;
   is_sponsored: boolean;
   sponsored_until: string | null;
+  is_featured?: boolean;
+  has_premium_badge?: boolean;
+  marketing_included?: boolean;
+  priority_support?: boolean;
   open_time: string;   // "09:00"
   close_time: string;  // "21:00"
   working_days: number[];
