@@ -99,6 +99,21 @@ export class NotificationsService {
   }
 
   /**
+   * Remove the Expo push token for a user.
+   * Called when the user opts out of push notifications.
+   */
+  async removePushToken(userId: string): Promise<void> {
+    const { error } = await this.supabase.adminClient
+      .from('profiles')
+      .update({ push_token: null })
+      .eq('id', userId);
+
+    if (error) {
+      this.logger.error(`Failed to remove push token for user ${userId}: ${error.message}`);
+    }
+  }
+
+  /**
    * Send an Expo push notification to a specific user.
    * Reads the token from profiles.push_token.
    * Silently no-ops if the user has no token or an invalid one.

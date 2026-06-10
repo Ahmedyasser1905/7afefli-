@@ -26,6 +26,7 @@ import type { Reservation } from '@barberdz/shared/types';
 import { AddWalkInModal } from '../../components/barber/AddWalkInModal';
 import { ReservationDetailModal } from '../../components/barber/ReservationDetailModal';
 import { BlockTimeModal } from '../../components/barber/BlockTimeModal';
+import { NotificationBell } from '../../components/shared/NotificationBell';
 const DEFAULT_AVATAR = 'https://phfwutugsyiutqgippqg.supabase.co/storage/v1/object/public/portfolio/defaults/default-avatar.png';
 
 export function DashboardScreen() {
@@ -417,6 +418,7 @@ export function DashboardScreen() {
               <Text style={styles.greetingTitle} numberOfLines={1}>Bonjour, {barberName} 👋</Text>
               <Text style={styles.salonNameSub} numberOfLines={1}>{salon?.name || 'Mon salon coiffeur'}</Text>
             </View>
+            <NotificationBell />
           </View>
           <TouchableOpacity
             style={[

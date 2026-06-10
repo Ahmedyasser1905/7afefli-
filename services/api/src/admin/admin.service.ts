@@ -50,13 +50,16 @@ export class AdminService {
     return data;
   }
 
-  async getAllSalons() {
-    const { data, error } = await this.supabase.adminClient
+  async getAllSalons(page: number = 1, limit: number = 50) {
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+    const { data, count, error } = await this.supabase.adminClient
       .from('salons')
-      .select('*, profiles:owner_id(full_name, phone_number)')
-      .order('created_at', { ascending: false });
+      .select('*, profiles:owner_id(full_name, phone_number)', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(from, to);
     if (error) throw new Error(error.message);
-    return data;
+    return { data, total: count, page, limit };
   }
 
   async deleteSalon(salonId: string) {
@@ -131,13 +134,16 @@ export class AdminService {
     return { success: true, isBanned };
   }
 
-  async getAllUsers() {
-    const { data, error } = await this.supabase.adminClient
+  async getAllUsers(page: number = 1, limit: number = 50) {
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+    const { data, count, error } = await this.supabase.adminClient
       .from('profiles')
-      .select('id, full_name, phone_number, role, avatar_url, wilaya, is_phone_verified, loyalty_points, created_at, updated_at')
-      .order('created_at', { ascending: false });
+      .select('id, full_name, phone_number, role, avatar_url, wilaya, is_phone_verified, loyalty_points, created_at, updated_at', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(from, to);
     if (error) throw new Error(error.message);
-    return data;
+    return { data, total: count, page, limit };
   }
 
   async changeUserRole(userId: string, newRole: string) {
@@ -253,19 +259,22 @@ export class AdminService {
     return data;
   }
 
-  async getAllReservations() {
-    const { data, error } = await this.supabase.adminClient
+  async getAllReservations(page: number = 1, limit: number = 50) {
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+    const { data, count, error } = await this.supabase.adminClient
       .from('reservations')
       .select(`
         *,
         profiles!reservations_client_id_fkey(full_name, phone_number),
         salons(name),
         services(service_name, price)
-      `)
+      `, { count: 'exact' })
       .order('appointment_date', { ascending: false })
-      .order('start_time', { ascending: false });
+      .order('start_time', { ascending: false })
+      .range(from, to);
     if (error) throw new Error(error.message);
-    return data;
+    return { data, total: count, page, limit };
   }
 
   async getAllSubscriptions() {

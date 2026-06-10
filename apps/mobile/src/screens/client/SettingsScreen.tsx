@@ -216,12 +216,22 @@ export function SettingsScreen() {
             </View>
             <Switch
               value={pushEnabled}
-              onValueChange={async (val: boolean) => {
-                setPushEnabled(val);
+              onValueChange={async (value: boolean) => {
+                setPushEnabled(value);
                 try {
-                  await SecureStore.setItemAsync('push_enabled', String(val));
+                  await SecureStore.setItemAsync('push_enabled', value.toString());
+                  if (!value) {
+                    // Clear push token from backend so notifications stop being sent
+                    await apiClient.delete('/notifications/push-token');
+                  } else {
+                    // Re-register push notifications
+                    if (user?.id) {
+                      const { registerForPushNotifications } = await import('../../lib/notifications');
+                      await registerForPushNotifications(user.id);
+                    }
+                  }
                 } catch {
-                  // Ignore storage errors
+                  // Non-fatal — preference is already saved locally
                 }
               }}
               trackColor={{ false: colors.graphite, true: colors.amberDim }}
@@ -233,7 +243,10 @@ export function SettingsScreen() {
           <View style={styles.settingsRow}>
             <View style={styles.rowLeftCol}>
               <Ionicons name="moon-outline" size={20} color={colors.amber} />
-              <Text style={styles.rowLabel}>Thème sombre industriel</Text>
+              <View>
+                <Text style={styles.rowLabel}>Thème sombre industriel</Text>
+                <Text style={{ fontFamily: 'DMSans_400Regular', fontSize: 11, color: colors.amber }}>Mode clair bientôt disponible</Text>
+              </View>
             </View>
             <Switch
               value={darkModeEnabled}

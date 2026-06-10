@@ -191,9 +191,8 @@ export function MySalonScreen() {
         style: 'destructive',
         onPress: async () => {
           try {
-            // Delete from storage
-            await supabase.storage.from('portfolio').remove([storagePath]);
-            // Delete record from DB
+            // Storage cleanup is handled server-side by DELETE /salons/:id/portfolio/:photoId
+            // The API endpoint performs both the DB record deletion and the storage file removal
             await apiClient.delete(`/salons/${salon?.id}/portfolio/${photoId}`);
             refetchPortfolio();
           } catch (err: unknown) {

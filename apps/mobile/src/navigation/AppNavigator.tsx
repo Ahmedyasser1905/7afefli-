@@ -11,6 +11,7 @@ import { useNotificationSetup } from '../hooks/useNotificationSetup';
 import { ClientTabNavigator } from './ClientTabNavigator';
 import { BarberTabNavigator } from './BarberTabNavigator';
 import { AdminTabNavigator } from './AdminTabNavigator';
+import { NotificationsScreen } from '../screens/client/NotificationsScreen';
 import PhoneInputScreen from '../screens/auth/PhoneInputScreen';
 import SignUpScreen from '../screens/auth/SignUpScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
@@ -209,6 +210,9 @@ export function AppNavigator() {
           // Client tab navigator (default)
           <RootStack.Screen name="ClientApp" component={ClientTabNavigator} />
         )}
+        <RootStack.Group screenOptions={{ presentation: 'modal' }}>
+          <RootStack.Screen name="Notifications" component={NotificationsScreen} />
+        </RootStack.Group>
       </RootStack.Navigator>
     </NavigationContainer>
   );

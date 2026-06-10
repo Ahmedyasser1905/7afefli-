@@ -102,8 +102,8 @@ export function ExploreScreen() {
 
   const allSalons = useMemo(() => {
     if (!allSalonsResponse) return [];
-    if (Array.isArray(allSalonsResponse)) return allSalonsResponse;
-    return allSalonsResponse.data ?? [];
+    // API always returns { data: [], total, page, limit } — never a raw array
+    return (allSalonsResponse as any).data ?? [];
   }, [allSalonsResponse]);
 
   // Filter + search + sort (client-side, after server already narrowed by wilaya)

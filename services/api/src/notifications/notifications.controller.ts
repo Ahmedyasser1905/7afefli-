@@ -1,5 +1,5 @@
 // services/api/src/notifications/notifications.controller.ts
-import { Controller, Get, Patch, Post, Body, Param, Query, UseGuards, BadRequestException, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Patch, Post, Delete, Body, Param, Query, UseGuards, BadRequestException, HttpCode, HttpStatus } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { SupabaseAuthGuard, AuthenticatedUser } from '../auth/auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -22,6 +22,17 @@ export class NotificationsController {
   ) {
     if (!token) throw new BadRequestException('Push token is required');
     await this.notificationsService.savePushToken(user.id, token);
+    return { success: true };
+  }
+
+  /**
+   * DELETE /notifications/push-token
+   * Unregister the device's push token (e.g., when disabling notifications).
+   */
+  @Delete('push-token')
+  @HttpCode(HttpStatus.OK)
+  async removePushToken(@CurrentUser() user: AuthenticatedUser) {
+    await this.notificationsService.removePushToken(user.id);
     return { success: true };
   }
 

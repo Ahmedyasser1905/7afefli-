@@ -10,6 +10,7 @@ import {
   UseGuards,
   Delete,
   ParseBoolPipe,
+  Query,
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { SupabaseAuthGuard } from '../auth/auth.guard';
@@ -46,8 +47,8 @@ export class AdminController {
   }
 
   @Get('salons')
-  getAllSalons() {
-    return this.adminService.getAllSalons();
+  getAllSalons(@Query('page') page?: string, @Query('limit') limit?: string) {
+    return this.adminService.getAllSalons(page ? Number(page) : 1, limit ? Number(limit) : 50);
   }
 
   @Delete('salons/:id')
@@ -56,8 +57,8 @@ export class AdminController {
   }
 
   @Get('users')
-  getAllUsers() {
-    return this.adminService.getAllUsers();
+  getAllUsers(@Query('page') page?: string, @Query('limit') limit?: string) {
+    return this.adminService.getAllUsers(page ? Number(page) : 1, limit ? Number(limit) : 50);
   }
 
   @Delete('users/:id')
@@ -106,8 +107,8 @@ export class AdminController {
   }
 
   @Get('reservations')
-  getAllReservations() {
-    return this.adminService.getAllReservations();
+  getAllReservations(@Query('page') page?: string, @Query('limit') limit?: string) {
+    return this.adminService.getAllReservations(page ? Number(page) : 1, limit ? Number(limit) : 50);
   }
 
   @Delete('reservations/:id')
