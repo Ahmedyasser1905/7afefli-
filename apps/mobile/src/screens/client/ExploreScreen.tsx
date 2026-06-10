@@ -122,8 +122,8 @@ export function ExploreScreen() {
       const q = debouncedQuery.toLowerCase();
       result = result.filter(
         (s) =>
-          s.name.toLowerCase().includes(q) ||
-          s.wilaya.toLowerCase().includes(q) ||
+          (s.name && s.name.toLowerCase().includes(q)) ||
+          (s.wilaya && s.wilaya.toLowerCase().includes(q)) ||
           (s.address && s.address.toLowerCase().includes(q)) ||
           (s.description && s.description.toLowerCase().includes(q))
       );

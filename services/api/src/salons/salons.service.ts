@@ -108,22 +108,8 @@ export class SalonsService {
 
     if (error) throw new InternalServerErrorException(`Failed to fetch salons: ${error.message}`);
 
-    // Filter out incomplete salons from public results
-    const completeSalons = (data || []).filter(salon => {
-      const hasName = !!salon.name;
-      const hasAddress = !!salon.address;
-      const hasWilaya = !!salon.wilaya;
-      const hasCommune = !!salon.commune;
-      const hasPhone = !!salon.phone;
-      const hasDesc = !!salon.description;
-      const hasCoords = salon.latitude !== null && salon.latitude !== undefined &&
-                        salon.longitude !== null && salon.longitude !== undefined;
-      const hasHours = !!salon.open_time && !!salon.close_time;
-      const hasLogo = !!salon.image_url;
-      const hasServices = salon.services && salon.services.length > 0;
-
-      return hasName && hasAddress && hasWilaya && hasCommune && hasPhone && hasDesc && hasCoords && hasHours && hasLogo && hasServices;
-    });
+    // Return all approved salons (database handles `is_approved` and `subscription_status` filtering)
+    const completeSalons = data || [];
 
     return {
       data: this.enrichSalons(completeSalons),
