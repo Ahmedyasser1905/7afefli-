@@ -138,8 +138,8 @@ export class ReviewsService {
     const { data, error } = await this.supabase.adminClient
       .from('reviews')
       .update({
-        response,
-        response_date: new Date().toISOString(),
+        owner_response: response,
+        owner_response_at: new Date().toISOString(),
       })
       .eq('id', reviewId)
       .select()
