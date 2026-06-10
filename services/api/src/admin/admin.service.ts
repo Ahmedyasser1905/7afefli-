@@ -253,7 +253,8 @@ export class AdminService {
     const { data, error } = await this.supabase.adminClient
       .from('payments')
       .select('amount, status, created_at')
-      .eq('status', 'Completed');
+      .eq('status', 'Completed')
+      .limit(10000); // safeguard against unbounded in-memory accumulation
     if (error) throw new Error(error.message);
 
     const totalRevenue = data.reduce((sum, p) => sum + Number(p.amount), 0);
