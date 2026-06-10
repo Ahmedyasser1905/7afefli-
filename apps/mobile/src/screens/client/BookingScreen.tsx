@@ -67,6 +67,21 @@ export function BookingScreen() {
     },
   });
 
+  // Fetch active reservations to check for Confirmed status
+  const { data: myReservations = [], isLoading: isReservationsLoading } = useQuery({
+    queryKey: ['my-reservations-booking-check'],
+    queryFn: async () => {
+      // The API wraps paginated responses in { data: [] }
+      const res = await apiClient.get<any>('/reservations/me');
+      return Array.isArray(res) ? res : (res?.data || []);
+    },
+    staleTime: 60 * 1000,
+  });
+
+  const hasConfirmedReservation = useMemo(() => {
+    return myReservations.some((r: any) => r.status === 'Confirmed');
+  }, [myReservations]);
+
   // Sync preselected services from Salon Detail Screen → skip to Date step
   useEffect(() => {
     if (selectedServiceIds && selectedServiceIds.length > 0 && services.length > 0) {
@@ -152,11 +167,32 @@ export function BookingScreen() {
     return staff.find((s: Record<string, unknown>) => s.id === selectedBarberId);
   }, [selectedBarberId, staff]);
 
-  if (isSalonLoading || isServicesLoading) {
+  if (isSalonLoading || isServicesLoading || isReservationsLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator color={colors.amber} size="large" />
       </View>
+    );
+  }
+
+  if (hasConfirmedReservation) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.headerBar}>
+          <TouchableOpacity style={styles.backButton} onPress={handleBackPress} activeOpacity={0.7}>
+            <Ionicons name="arrow-back" size={24} color={colors.amber} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Réservation</Text>
+          <View style={{ width: 40 }} />
+        </View>
+        <View style={[styles.emptyState, { flex: 1, justifyContent: 'center' }]}>
+          <Ionicons name="calendar-outline" size={64} color="#EAB308" />
+          <Text style={[styles.emptyTitle, { marginTop: spacing.md }]}>Réservation active</Text>
+          <Text style={[styles.emptySubtitle, { marginHorizontal: spacing.xl, textAlign: 'center' }]}>
+            Vous avez déjà une réservation confirmée en cours. Vous devez la terminer ou l'annuler avant d'en créer une nouvelle.
+          </Text>
+        </View>
+      </SafeAreaView>
     );
   }
 

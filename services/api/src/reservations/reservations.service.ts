@@ -140,6 +140,18 @@ export class ReservationsService {
       ) {
         throw new BadRequestException('Cannot book a time slot in the past');
       }
+
+      // Check if the client already has a Confirmed reservation
+      const { data: existingConfirmed } = await this.supabase.adminClient
+        .from('reservations')
+        .select('id')
+        .eq('client_id', clientId)
+        .eq('status', 'Confirmed')
+        .maybeSingle();
+
+      if (existingConfirmed) {
+        throw new BadRequestException("Vous avez déjà une réservation confirmée. Vous devez d'abord la terminer ou l'annuler avant d'en créer une nouvelle.");
+      }
     }
 
     // 2. Calculate end_time from start_time + duration
@@ -598,6 +610,18 @@ export class ReservationsService {
       updateData.cancel_reason = null;
     }
 
+    // Capture other pending reservations BEFORE the trigger auto-cancels them
+    let pendingToCancel: any[] = [];
+    if (dto.status === 'Confirmed' && reservation.status === 'Pending' && reservation.client_id) {
+       const { data: others } = await this.supabase.adminClient
+         .from('reservations')
+         .select('id, appointment_date, start_time')
+         .eq('client_id', reservation.client_id)
+         .eq('status', 'Pending')
+         .neq('id', reservationId);
+       if (others) pendingToCancel = others;
+    }
+
     const { data, error } = await this.supabase.adminClient
       .from('reservations')
       .update(updateData)
@@ -606,6 +630,19 @@ export class ReservationsService {
       .single();
 
     if (error) throw new Error(`Failed to update reservation: ${error.message}`);
+
+    // Send notifications for auto-cancelled reservations triggered by the database
+    if (pendingToCancel.length > 0) {
+      for (const res of pendingToCancel) {
+         this.notificationsService.createNotification(
+            reservation.client_id,
+            'booking_cancelled',
+            '❌ Réservation annulée',
+            `Votre demande pour le ${res.appointment_date} à ${res.start_time} a été annulée automatiquement car une autre de vos réservations a été confirmée.`,
+            { reservationId: res.id }
+         ).catch(() => {});
+      }
+    }
 
     // Invalidate slot cache since reservation status changed (e.g. cancelled)
     await this.invalidateSlotsCache(
