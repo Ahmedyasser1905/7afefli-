@@ -342,14 +342,17 @@ export class AdminService {
     const totalRevenue = payments.reduce((sum, p) => sum + Number(p.amount ?? 0), 0);
 
     // MRR = sum of active subscription prices
-    const subs = (subsResult.data ?? []) as Array<{ plans: { name: string; price: number } | null }>;
-    const mrr = subs.reduce((sum, s) => sum + Number(s.plans?.price ?? 0), 0);
+    // NOTE: Supabase returns the plans relation as an array even for to-one joins
+    // when using the shorthand select syntax — normalise with [0] to get the first (only) element.
+    type SubRow = { plans: { name: string; price: number }[] | null };
+    const subs = (subsResult.data as unknown as SubRow[]) ?? [];
+    const mrr = subs.reduce((sum, s) => sum + Number(s.plans?.[0]?.price ?? 0), 0);
     const avgSubscriptionValue = subs.length > 0 ? mrr / subs.length : 0;
 
     // Group active subscriptions by plan name
     const planCounts: Record<string, number> = {};
     for (const s of subs) {
-      const name = s.plans?.name ?? 'Inconnu';
+      const name = s.plans?.[0]?.name ?? 'Inconnu';
       planCounts[name] = (planCounts[name] ?? 0) + 1;
     }
     const subscriptionsByPlan = Object.entries(planCounts).map(([plan_name, count]) => ({ plan_name, count }));
