@@ -575,9 +575,9 @@ export function SplashScreen({ onFinish, onReady }: SplashScreenProps) {
 
             {/* Logo image */}
             <Image
-              source={require('../../assets/icon.png')}
+              source={require('../../assets/splash.png')}
               style={styles.logoImage}
-              resizeMode="contain"
+              resizeMode="cover"
             />
 
             {/* Shimmer sweep */}
@@ -777,8 +777,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(232,160,32,0.04)',
   },
   logoImage: {
-    width: LOGO_SIZE * 0.82,
-    height: LOGO_SIZE * 0.82,
+    width: LOGO_SIZE * 1.62,
+    height: LOGO_SIZE * 1.62,
+    position: 'absolute',
   },
   shimmerSweep: {
     position: 'absolute',
