@@ -25,7 +25,7 @@ import { apiClient } from '../../lib/apiClient';
 
 export function AdminDashboardScreen() {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'salons' | 'users' | 'reservations'>('salons');
+  const [activeTab, setActiveTab] = useState<'salons' | 'users' | 'reservations' | 'analytics'>('salons');
   const [selectedUser, setSelectedUser] = useState<Record<string, unknown> | null>(null);
 
   // Pagination state
@@ -67,6 +67,14 @@ export function AdminDashboardScreen() {
   });
   const reservations = reservationsResponse?.data ?? [];
   const resTotalPages = Math.ceil((reservationsResponse?.total ?? 0) / 50);
+
+  // MEDIUM-5: Analytics data — lazy loaded only when the Analytics tab is active
+  const { data: analyticsData, isLoading: analyticsLoading } = useQuery<Record<string, unknown>>({
+    queryKey: ['admin-analytics'],
+    queryFn: () => apiClient.get<Record<string, unknown>>('/admin/analytics'),
+    staleTime: 5 * 60 * 1000,
+    enabled: activeTab === 'analytics',
+  });
 
   const totalSalons = statsData?.totalSalons ?? salons.length;
   const approvedSalons = statsData?.activeSalons ?? salons.filter((s: Record<string, unknown>) => s.is_approved).length;
@@ -448,6 +456,16 @@ export function AdminDashboardScreen() {
             RDV
           </Text>
         </TouchableOpacity>
+        {/* MEDIUM-5: Analytics tab */}
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'analytics' && styles.tabActive]}
+          onPress={() => setActiveTab('analytics')}
+        >
+          <Ionicons name="bar-chart-outline" size={18} color={activeTab === 'analytics' ? colors.amber : colors.textSecondary} />
+          <Text style={[styles.tabText, activeTab === 'analytics' && styles.tabTextActive]}>
+            Analytics
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Content */}
@@ -534,6 +552,65 @@ export function AdminDashboardScreen() {
               ) : null
             }
           />
+        )
+      ) : activeTab === 'analytics' ? (
+        // MEDIUM-5: Analytics panel
+        analyticsLoading ? (
+          <ActivityIndicator color={colors.amber} size="large" style={{ marginTop: 40 }} />
+        ) : (
+          <ScrollView contentContainerStyle={[styles.list, { paddingTop: 8 }]} showsVerticalScrollIndicator={false}>
+            {/* Revenue Overview */}
+            <Text style={{ fontFamily: 'Syne_700Bold', fontSize: 16, color: colors.textPrimary, marginBottom: 12 }}>Revenus</Text>
+            <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
+              {[
+                { label: 'Revenu total', value: `${((analyticsData?.totalRevenue as number) ?? 0).toLocaleString('fr-DZ')} DZD`, icon: 'cash-outline' },
+                { label: 'MRR', value: `${((analyticsData?.mrr as number) ?? 0).toLocaleString('fr-DZ')} DZD`, icon: 'trending-up-outline' },
+                { label: 'Moy. abonnement', value: `${((analyticsData?.avgSubscriptionValue as number) ?? 0).toLocaleString('fr-DZ')} DZD`, icon: 'receipt-outline' },
+              ].map((m) => (
+                <View key={m.label} style={{ flex: 1, backgroundColor: colors.carbon, borderRadius: radius.md, padding: 12, borderWidth: 1, borderColor: 'rgba(232,160,32,0.15)', alignItems: 'center', gap: 4 }}>
+                  <Ionicons name={m.icon as any} size={20} color={colors.amber} />
+                  <Text style={{ fontFamily: 'Syne_700Bold', fontSize: 14, color: colors.textPrimary, textAlign: 'center' }}>{m.value}</Text>
+                  <Text style={{ fontFamily: 'DMSans_400Regular', fontSize: 10, color: colors.textMuted, textAlign: 'center' }}>{m.label}</Text>
+                </View>
+              ))}
+            </View>
+
+            {/* Subscriptions by Plan */}
+            <Text style={{ fontFamily: 'Syne_700Bold', fontSize: 16, color: colors.textPrimary, marginBottom: 12 }}>Abonnements par plan</Text>
+            {((analyticsData?.subscriptionsByPlan as any[]) ?? []).length === 0 ? (
+              <Text style={styles.emptyText}>Aucune donnée</Text>
+            ) : (
+              ((analyticsData?.subscriptionsByPlan as any[]) ?? []).map((p: any) => (
+                <View key={p.plan_name} style={[styles.card, { flexDirection: 'row', alignItems: 'center', marginBottom: 8 }]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontFamily: 'DMSans_700Bold', fontSize: 14, color: colors.textPrimary }}>{p.plan_name}</Text>
+                    <Text style={{ fontFamily: 'DMSans_400Regular', fontSize: 12, color: colors.textSecondary }}>{p.count} abonné(s)</Text>
+                  </View>
+                  <Text style={{ fontFamily: 'Syne_700Bold', fontSize: 16, color: colors.amber }}>{p.count}</Text>
+                </View>
+              ))
+            )}
+
+            {/* Top Salons */}
+            <Text style={{ fontFamily: 'Syne_700Bold', fontSize: 16, color: colors.textPrimary, marginTop: 8, marginBottom: 12 }}>Top salons (note)</Text>
+            {((analyticsData?.topSalons as any[]) ?? []).length === 0 ? (
+              <Text style={styles.emptyText}>Aucune donnée</Text>
+            ) : (
+              ((analyticsData?.topSalons as any[]) ?? []).map((s: any, i: number) => (
+                <View key={s.id} style={[styles.card, { flexDirection: 'row', alignItems: 'center', marginBottom: 8 }]}>
+                  <Text style={{ fontFamily: 'Syne_700Bold', fontSize: 18, color: colors.textMuted, width: 28 }}>#{i + 1}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontFamily: 'DMSans_700Bold', fontSize: 14, color: colors.textPrimary }}>{s.name}</Text>
+                    <Text style={{ fontFamily: 'DMSans_400Regular', fontSize: 12, color: colors.textSecondary }}>{s.wilaya} • {s.total_reviews ?? 0} avis</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Ionicons name="star" size={14} color={colors.amber} />
+                    <Text style={{ fontFamily: 'Syne_700Bold', fontSize: 14, color: colors.amber }}>{Number(s.average_rating ?? 0).toFixed(1)}</Text>
+                  </View>
+                </View>
+              ))
+            )}
+          </ScrollView>
         )
       ) : (
         usersLoading ? (

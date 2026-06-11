@@ -47,7 +47,9 @@ export class ChargilyService {
           description: `Abonnement ${planName} — 7afefli`,
           success_url: process.env.PAYMENT_SUCCESS_URL || 'https://7afefli.com/payment/success',
           failure_url: process.env.PAYMENT_FAILURE_URL || 'https://7afefli.com/payment/failure',
-          webhook_endpoint: null,
+          // MEDIUM-2: Use per-checkout webhook override for reliability.
+          // Set CHARGILY_WEBHOOK_URL to your deployed API URL + /api/v1/payments/webhook
+          webhook_endpoint: process.env.CHARGILY_WEBHOOK_URL || null,
           metadata: { salon_id: salonId, plan: planName },
         }),
       });

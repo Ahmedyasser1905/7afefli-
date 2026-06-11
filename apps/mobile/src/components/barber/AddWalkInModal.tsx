@@ -1,4 +1,3 @@
-// @ts-nocheck
 import Toast from 'react-native-toast-message';
 // apps/mobile/src/components/barber/AddWalkInModal.tsx
 import React, { useState, useEffect } from 'react';

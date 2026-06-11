@@ -1,4 +1,3 @@
-// @ts-nocheck
 // apps/mobile/src/components/map/SalonMapView.tsx
 // Map with Google Maps-style rotation (MapLibre GL) + Leaflet fallback
 // Stable: mapHtml is compiled exactly once. Salon and location updates are injected dynamically.

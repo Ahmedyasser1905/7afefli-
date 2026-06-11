@@ -1,4 +1,3 @@
-// @ts-nocheck
 // apps/mobile/src/navigation/AdminTabNavigator.tsx
 // Navigation structure for Admin application space
 

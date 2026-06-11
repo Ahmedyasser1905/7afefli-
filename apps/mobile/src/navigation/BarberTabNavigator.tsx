@@ -1,4 +1,3 @@
-// @ts-nocheck
 // apps/mobile/src/navigation/BarberTabNavigator.tsx
 // Navigation structure for Barber application space
 

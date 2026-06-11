@@ -1,4 +1,3 @@
-// @ts-nocheck
 import Toast from 'react-native-toast-message';
 // apps/mobile/src/components/profile/EditProfileModal.tsx
 // Modal for editing user profile: name, phone, avatar photo

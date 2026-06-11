@@ -106,6 +106,15 @@ export class AdminController {
     return this.adminService.getRevenueStats();
   }
 
+  /**
+   * GET /admin/analytics
+   * MEDIUM-5: Aggregated revenue, subscription breakdown, and top salons.
+   */
+  @Get('analytics')
+  getAnalytics() {
+    return this.adminService.getAnalytics();
+  }
+
   @Get('reservations')
   getAllReservations(@Query('page') page?: string, @Query('limit') limit?: string) {
     return this.adminService.getAllReservations(page ? Number(page) : 1, limit ? Number(limit) : 50);

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import Toast from 'react-native-toast-message';
 // apps/mobile/src/screens/client/SalonDetailScreen.tsx
 // Salon detail — info, gallery, reviews, "Book Now" CTA

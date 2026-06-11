@@ -1,4 +1,3 @@
-// @ts-nocheck
 // apps/mobile/src/components/barber/ReservationDetailModal.tsx
 import React from 'react';
 import {
