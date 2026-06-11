@@ -1,4 +1,3 @@
-// @ts-nocheck
 import Toast from 'react-native-toast-message';
 // apps/mobile/src/screens/barber/MySalonScreen.tsx
 import React, { useState } from 'react';
@@ -15,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../../store/authStore';
 import { colors, spacing, radius } from '../../theme';
@@ -32,7 +32,7 @@ import { supabase } from '../../lib/supabase';
 export function MySalonScreen() {
   const user = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<Record<string, object | undefined>>>();
   const [activeTab, setActiveTab] = useState<'services' | 'portfolio' | 'reviews' | 'staff'>('services');
   const [isServiceModalVisible, setIsServiceModalVisible] = useState(false);
   const [isStaffModalVisible, setIsStaffModalVisible] = useState(false);
@@ -44,47 +44,47 @@ export function MySalonScreen() {
   const [responseText, setResponseText] = useState('');
 
   // Fetch salon via API (consistent with other screens)
-  const { data: salon, isLoading: isSalonLoading } = useQuery({
+  const { data: salon, isLoading: isSalonLoading } = useQuery<Record<string, unknown> | null>({
     queryKey: ['my-salon', user?.id],
     queryFn: async () => {
-      return apiClient.get('/salons/my-salon');
+      return apiClient.get<Record<string, unknown>>('/salons/my-salon');
     },
     enabled: !!user,
     retry: false, // 404 = no salon yet — don't retry indefinitely
   });
 
   // Fetch services
-  const { data: services = [], isLoading: isServicesLoading, refetch: refetchServices } = useQuery({
+  const { data: services = [], isLoading: isServicesLoading, refetch: refetchServices } = useQuery<Record<string, unknown>[]>({
     queryKey: ['salon-services', salon?.id],
     queryFn: async () => {
-      return apiClient.get(`/salons/${salon?.id}/services`);
+      return apiClient.get<Record<string, unknown>[]>(`/salons/${salon?.id}/services`);
     },
     enabled: !!salon,
   });
 
   // Fetch portfolio
-  const { data: photos = [], refetch: refetchPortfolio } = useQuery({
+  const { data: photos = [], refetch: refetchPortfolio } = useQuery<Record<string, unknown>[]>({
     queryKey: ['salon-portfolio', salon?.id],
     queryFn: async () => {
-      return apiClient.get(`/salons/${salon?.id}/portfolio`);
+      return apiClient.get<Record<string, unknown>[]>(`/salons/${salon?.id}/portfolio`);
     },
     enabled: !!salon,
   });
 
   // Fetch reviews
-  const { data: reviews = [], refetch: refetchReviews } = useQuery({
+  const { data: reviews = [], refetch: refetchReviews } = useQuery<Record<string, unknown>[]>({
     queryKey: ['salon-reviews', salon?.id],
     queryFn: async () => {
-      return apiClient.get(`/salons/${salon?.id}/reviews`);
+      return apiClient.get<Record<string, unknown>[]>(`/salons/${salon?.id}/reviews`);
     },
     enabled: !!salon,
   });
 
   // Fetch staff
-  const { data: staff = [], refetch: refetchStaff } = useQuery({
+  const { data: staff = [], refetch: refetchStaff } = useQuery<Record<string, unknown>[]>({
     queryKey: ['salon-staff', salon?.id],
     queryFn: async () => {
-      return apiClient.get(`/salons/${salon?.id}/staff`);
+      return apiClient.get<Record<string, unknown>[]>(`/salons/${salon?.id}/staff`);
     },
     enabled: !!salon,
   });
@@ -169,7 +169,7 @@ export function MySalonScreen() {
       if (msg.toLowerCase().includes('limité') || msg.toLowerCase().includes('plan')) {
         Alert.alert('Limite atteinte', msg, [
           { text: 'Annuler', style: 'cancel' },
-          { text: 'Voir les abonnements', onPress: () => (navigation as any).navigate('Subscription') }
+          { text: 'Voir les abonnements', onPress: () => navigation.navigate('Subscription' as never) }
         ]);
       } else {
         Toast.show({
@@ -299,15 +299,15 @@ export function MySalonScreen() {
       <View style={styles.header}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           {salon?.image_url ? (
-            <Image source={{ uri: salon.image_url }} style={styles.headerImage} />
+            <Image source={{ uri: salon.image_url as string }} style={styles.headerImage} />
           ) : (
             <View style={styles.headerImagePlaceholder}>
               <Ionicons name="business" size={20} color={colors.textMuted} />
             </View>
           )}
           <View>
-            <Text style={styles.headerTitle}>{salon?.name || 'Mon Salon'}</Text>
-            <Text style={styles.headerSubtitle}>{salon?.wilaya} • {salon?.open_time?.substring(0,5)} - {salon?.close_time?.substring(0,5)}</Text>
+            <Text style={styles.headerTitle}>{(salon?.name as string) || 'Mon Salon'}</Text>
+            <Text style={styles.headerSubtitle}>{salon?.wilaya as string} • {(salon?.open_time as string)?.substring(0,5)} - {(salon?.close_time as string)?.substring(0,5)}</Text>
           </View>
         </View>
         <View style={styles.headerActions}>
@@ -348,16 +348,16 @@ export function MySalonScreen() {
               <Text style={styles.emptyText}>Aucun service configuré.</Text>
             ) : (
               services.map((service: Record<string, unknown>) => (
-                <View key={service.id} style={styles.serviceCard}>
+                <View key={service.id as string} style={styles.serviceCard}>
                   <View style={styles.serviceInfo}>
-                    <Text style={styles.serviceName}>{service.service_name}</Text>
-                    <Text style={styles.serviceDetail}>{service.duration_minutes} min • {formatDZD(service.price)}</Text>
+                    <Text style={styles.serviceName}>{service.service_name as string}</Text>
+                    <Text style={styles.serviceDetail}>{service.duration_minutes as number} min • {formatDZD(service.price as number)}</Text>
                   </View>
                   <View style={{ flexDirection: 'row', gap: spacing.xs }}>
                     <TouchableOpacity onPress={() => { setEditingService(service); setIsServiceModalVisible(true); }} style={styles.deleteBtn}>
                       <Ionicons name="create-outline" size={20} color={colors.amber} />
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => deleteService(service.id)} style={styles.deleteBtn}>
+                    <TouchableOpacity onPress={() => deleteService(service.id as string)} style={styles.deleteBtn}>
                       <Ionicons name="trash-outline" size={20} color={colors.error} />
                     </TouchableOpacity>
                   </View>
@@ -385,11 +385,11 @@ export function MySalonScreen() {
             ) : (
               <View style={styles.grid}>
                 {photos.map((photo: Record<string, unknown>) => (
-                  <View key={photo.id} style={styles.gridImageContainer}>
-                    <Image source={{ uri: photo.url }} style={styles.gridImage} resizeMode="cover" />
+                  <View key={photo.id as string} style={styles.gridImageContainer}>
+                    <Image source={{ uri: photo.url as string }} style={styles.gridImage} resizeMode="cover" />
                     <TouchableOpacity
                       style={styles.photoDeleteBtn}
-                      onPress={() => deletePhoto(photo.id, photo.storage_path)}
+                      onPress={() => deletePhoto(photo.id as string, photo.storage_path as string)}
                       activeOpacity={0.7}
                     >
                       <Ionicons name="trash" size={16} color="#fff" />
@@ -412,10 +412,11 @@ export function MySalonScreen() {
               <Text style={styles.emptyText}>Aucun barbier dans votre équipe.</Text>
             ) : (
               staff.map((member: Record<string, unknown>) => {
-                const avatarUrl = member.avatar_url || member.profiles?.avatar_url;
+                const profiles = member.profiles as Record<string, unknown> | undefined;
+                const avatarUrl = (member.avatar_url as string) || (profiles?.avatar_url as string);
                 return (
-                  <View key={member.id} style={styles.staffCard}>
-                    <TouchableOpacity onPress={() => pickStaffImage(member.id)} activeOpacity={0.7} style={{ position: 'relative' }}>
+                  <View key={member.id as string} style={styles.staffCard}>
+                    <TouchableOpacity onPress={() => pickStaffImage(member.id as string)} activeOpacity={0.7} style={{ position: 'relative' }}>
                       <View style={styles.staffAvatar}>
                         {avatarUrl ? (
                           <Image source={{ uri: avatarUrl }} style={{ width: 44, height: 44, borderRadius: 22 }} />
@@ -428,11 +429,11 @@ export function MySalonScreen() {
                       </View>
                     </TouchableOpacity>
                     <View style={styles.staffInfo}>
-                      <Text style={styles.staffName}>{member.custom_name || member.profiles?.full_name || 'Barbier'}</Text>
-                      <Text style={styles.staffPhone}>{member.profiles?.phone_number || 'Pas de compte'}</Text>
+                      <Text style={styles.staffName}>{(member.custom_name as string) || (profiles?.full_name as string) || 'Barbier'}</Text>
+                      <Text style={styles.staffPhone}>{(profiles?.phone_number as string) || 'Pas de compte'}</Text>
                     </View>
                     <TouchableOpacity
-                      onPress={() => removeStaff(member.id, member.custom_name || member.profiles?.full_name || 'ce barbier')}
+                      onPress={() => removeStaff(member.id as string, (member.custom_name as string) || (profiles?.full_name as string) || 'ce barbier')}
                       style={styles.deleteBtn}
                     >
                       <Ionicons name="close-circle" size={22} color={colors.error} />
@@ -449,38 +450,40 @@ export function MySalonScreen() {
             {reviews.length === 0 ? (
               <Text style={styles.emptyText}>Aucun avis pour l'instant.</Text>
             ) : (
-              reviews.map((review: Record<string, unknown>) => (
-                <View key={review.id} style={styles.reviewCard}>
+              reviews.map((review: Record<string, unknown>) => {
+                const reviewProfiles = review.profiles as Record<string, unknown> | undefined;
+                return (
+                <View key={review.id as string} style={styles.reviewCard}>
                   <View style={styles.reviewHeader}>
-                    <Text style={styles.reviewName}>{review.profiles?.full_name || 'Client anonyme'}</Text>
+                    <Text style={styles.reviewName}>{(reviewProfiles?.full_name as string) || 'Client anonyme'}</Text>
                     <View style={styles.stars}>
                       {Array.from({ length: 5 }).map((_, i) => (
                         <Ionicons
                           key={i}
                           name="star"
                           size={12}
-                          color={i < review.rating ? colors.amber : colors.steel}
+                          color={i < (review.rating as number) ? colors.amber : colors.steel}
                         />
                       ))}
                     </View>
                   </View>
-                  {review.comment && <Text style={styles.reviewComment}>{review.comment}</Text>}
-                  {review.response && (
+                  {Boolean(review.comment) && <Text style={styles.reviewComment}>{review.comment as string}</Text>}
+                  {Boolean(review.response) && (
                     <View style={{ backgroundColor: 'rgba(232,160,32,0.08)', borderRadius: radius.sm, padding: spacing.sm, marginTop: spacing.sm, borderLeftWidth: 3, borderLeftColor: colors.amber }}>
                       <Text style={{ fontFamily: 'DMSans_500Medium', fontSize: 12, color: colors.amber, marginBottom: 4 }}>Votre réponse</Text>
-                      <Text style={{ fontFamily: 'DMSans_400Regular', fontSize: 13, color: colors.textSecondary }}>{review.response}</Text>
+                      <Text style={{ fontFamily: 'DMSans_400Regular', fontSize: 13, color: colors.textSecondary }}>{review.response as string}</Text>
                     </View>
                   )}
-                  {!review.response && respondingReview !== review.id && (
-                    <TouchableOpacity 
-                      onPress={() => { setRespondingReview(review.id); setResponseText(''); }}
+                  {!review.response && respondingReview !== (review.id as string) && (
+                    <TouchableOpacity
+                      onPress={() => { setRespondingReview(review.id as string); setResponseText(''); }}
                       style={{ alignSelf: 'flex-start', marginTop: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: 4 }}
                     >
                       <Ionicons name="chatbubble-outline" size={14} color={colors.amber} />
                       <Text style={{ fontFamily: 'DMSans_500Medium', fontSize: 13, color: colors.amber }}>Répondre</Text>
                     </TouchableOpacity>
                   )}
-                  {respondingReview === review.id && (
+                  {respondingReview === (review.id as string) && (
                     <View style={{ marginTop: spacing.sm }}>
                       <TextInput
                         style={{ backgroundColor: colors.ink, borderRadius: radius.sm, padding: spacing.sm, color: colors.textPrimary, fontFamily: 'DMSans_400Regular', fontSize: 13, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', minHeight: 60, textAlignVertical: 'top' }}
@@ -497,7 +500,7 @@ export function MySalonScreen() {
                         <TouchableOpacity 
                           onPress={async () => {
                             try {
-                              await apiClient.patch(`/reviews/${review.id}/response`, { response: responseText });
+                              await apiClient.patch(`/reviews/${review.id as string}/response`, { response: responseText });
                               setRespondingReview(null);
                               setResponseText('');
                               refetchReviews();
@@ -517,7 +520,8 @@ export function MySalonScreen() {
                     </View>
                   )}
                 </View>
-              ))
+                );
+              })
             )}
           </View>
         )}
@@ -528,16 +532,16 @@ export function MySalonScreen() {
           <ServiceModal
             visible={isServiceModalVisible}
             onClose={() => { setEditingService(null); setIsServiceModalVisible(false); }}
-            salonId={salon.id}
+            salonId={salon.id as string}
             onSuccess={refetchServices}
-            service={editingService}
+            service={editingService as any}
           />
           <AddStaffModal
             visible={isStaffModalVisible}
             onClose={() => setIsStaffModalVisible(false)}
-            salonId={salon.id}
+            salonId={salon.id as string}
             onSuccess={() => {
-              queryClient.invalidateQueries({ queryKey: ['salon-staff', salon.id] });
+              queryClient.invalidateQueries({ queryKey: ['salon-staff', salon.id as string] });
               refetchStaff();
             }}
           />

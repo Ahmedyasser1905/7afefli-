@@ -1,4 +1,3 @@
-// @ts-nocheck
 // apps/mobile/src/screens/client/BookingScreen.tsx
 // 4-step booking wizard: Service → Date → Barber (optional) → Slot
 
@@ -18,9 +17,9 @@ import Ionicons from "@react-native-vector-icons/ionicons";
 import type { Service } from '@barberdz/shared/types';
 
 export function BookingScreen() {
-  const route = useRoute<Record<string, unknown>>();
-  const navigation = useNavigation<Record<string, unknown>>();
-  const { salonId, selectedServiceIds } = route.params;
+  const route = useRoute<any>();
+  const navigation = useNavigation<any>();
+  const { salonId, selectedServiceIds } = route.params as { salonId: string; selectedServiceIds?: string[] };
 
   const {
     selectedService,
@@ -42,7 +41,7 @@ export function BookingScreen() {
   const [clientPhone, setClientPhone] = useState('');
 
   // Fetch salon details
-  const { data: salon, isLoading: isSalonLoading } = useQuery({
+  const { data: salon, isLoading: isSalonLoading } = useQuery<Record<string, unknown> | null>({
     queryKey: ['salon-booking', salonId],
     queryFn: async () => {
       const data = await apiClient.get<Record<string, unknown>>(`/salons/${salonId}`);
@@ -151,7 +150,7 @@ export function BookingScreen() {
         id: reservation.id,
         appointment_date: selectedDate,
         start_time: slot.startTime,
-        salon_name: salon.name,
+        salon_name: salon.name as string,
       });
 
       navigation.navigate('BookingConfirm', {
@@ -354,20 +353,20 @@ export function BookingScreen() {
             {/* Staff list */}
             {staff.map((s: Record<string, unknown>) => (
               <TouchableOpacity
-                key={s.id}
+                key={s.id as string}
                 style={[
                   styles.barberCard,
                   selectedBarberId === s.id && styles.barberCardSelected,
                 ]}
-                onPress={() => handleBarberSelect(s.id)}
+                onPress={() => handleBarberSelect(s.id as string | null)}
                 activeOpacity={0.8}
               >
                 <Image
-                  source={{ uri: s.avatar_url || s.profiles?.avatar_url || 'https://phfwutugsyiutqgippqg.supabase.co/storage/v1/object/public/portfolio/defaults/default-avatar.png' }}
+                  source={{ uri: (s.avatar_url as string) || (s.profiles as Record<string,unknown>)?.avatar_url as string || 'https://phfwutugsyiutqgippqg.supabase.co/storage/v1/object/public/portfolio/defaults/default-avatar.png' }}
                   style={styles.barberAvatar}
                 />
                 <View style={styles.barberInfo}>
-                  <Text style={styles.barberName}>{s.custom_name || s.profiles?.full_name || 'Barbier'}</Text>
+                  <Text style={styles.barberName}>{(s.custom_name as string) || ((s.profiles as Record<string,unknown>)?.full_name as string) || 'Barbier'}</Text>
                   <Text style={styles.barberRole}>Coiffeur professionnel</Text>
                 </View>
                 <View style={styles.selectionDot}>
@@ -386,7 +385,7 @@ export function BookingScreen() {
               <Ionicons name="calendar-sharp" size={16} color={colors.amber} />
               <Text style={styles.summaryBarText}>
                 {selectedService.service_name} • {selectedDate}
-                {selectedBarber ? ` • ${selectedBarber.custom_name || selectedBarber.profiles?.full_name}` : ''}
+                {selectedBarber ? ` • ${(selectedBarber.custom_name as string) || ((selectedBarber.profiles as Record<string,unknown>)?.full_name as string)}` : ''}
               </Text>
             </View>
 
@@ -410,10 +409,10 @@ export function BookingScreen() {
               serviceId={selectedService.id}
               date={selectedDate}
               staffId={selectedBarberId ?? undefined}
-              openTime={salon.open_time.substring(0, 5)}
-              closeTime={salon.close_time.substring(0, 5)}
+              openTime={(salon.open_time as string).substring(0, 5)}
+              closeTime={(salon.close_time as string).substring(0, 5)}
               durationMin={selectedService.duration_minutes}
-              workingDays={salon.working_days}
+              workingDays={salon.working_days as number[] | undefined}
               onConfirm={handleSlotConfirm}
               onSlotSelect={setPendingSlot}
             />

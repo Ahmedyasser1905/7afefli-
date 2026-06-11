@@ -1,4 +1,3 @@
-// @ts-nocheck
 import Toast from 'react-native-toast-message';
 // apps/mobile/src/screens/client/SettingsScreen.tsx
 // Premium Settings & Profile management screen
@@ -35,7 +34,7 @@ export function SettingsScreen() {
   const [pushEnabled, setPushEnabled] = useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = useState(true);
   const [selectedWilaya, setSelectedWilaya] = useState('Alger');
-  const [profileData, setProfileData] = useState<Record<string, unknown>>(null);
+  const [profileData, setProfileData] = useState<Record<string, unknown> | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isEditProfileVisible, setIsEditProfileVisible] = useState(false);
   const [isWilayaModalVisible, setIsWilayaModalVisible] = useState(false);
@@ -175,10 +174,10 @@ export function SettingsScreen() {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* User Card — Tappable to edit */}
         <TouchableOpacity style={styles.profileCard} onPress={() => setIsEditProfileVisible(true)} activeOpacity={0.8}>
-          <Image source={{ uri: profileData?.avatar_url || DEFAULT_AVATAR }} style={styles.avatar} />
+          <Image source={{ uri: (profileData?.avatar_url as string) || DEFAULT_AVATAR }} style={styles.avatar} />
           <View style={styles.profileMeta}>
-            <Text style={styles.userName}>{displayName}</Text>
-            <Text style={styles.userPhone}>{displayPhone}</Text>
+            <Text style={styles.userName}>{displayName as string}</Text>
+            <Text style={styles.userPhone}>{displayPhone as string}</Text>
             <View style={styles.roleBadge}>
               <Text style={styles.roleBadgeText}>
                 {role === 'Coiffeur' ? 'Coiffeur Professionnel' : 'Client Premium'}
@@ -203,7 +202,7 @@ export function SettingsScreen() {
                   <View>
                     <Text style={styles.rowLabel}>Points fidélité</Text>
                     <Text style={{ fontFamily: 'DMSans_700Bold', fontSize: 18, color: colors.amber }}>
-                      🏆 {points} pts
+                      🏆 {points as number} pts
                     </Text>
                   </View>
                 </View>
@@ -356,7 +355,7 @@ export function SettingsScreen() {
       <EditProfileModal
         visible={isEditProfileVisible}
         onClose={() => setIsEditProfileVisible(false)}
-        profileData={profileData}
+        profileData={profileData ?? {}}
         onSaved={loadProfile}
       />
 

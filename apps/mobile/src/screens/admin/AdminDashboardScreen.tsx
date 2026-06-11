@@ -1,4 +1,3 @@
-// @ts-nocheck
 import Toast from 'react-native-toast-message';
 // apps/mobile/src/screens/admin/AdminDashboardScreen.tsx
 // Admin dashboard — manage salons, users, and platform stats
@@ -243,9 +242,9 @@ export function AdminDashboardScreen() {
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.cardTitle}>{item.name}</Text>
+          <Text style={styles.cardTitle}>{item.name as string}</Text>
           <Text style={styles.cardSubtitle}>
-            {item.wilaya} • {item.profiles?.full_name || 'Propriétaire inconnu'}
+            {item.wilaya as string} • {(item.profiles as Record<string, unknown>)?.full_name as string || 'Propriétaire inconnu'}
           </Text>
         </View>
         <View style={[styles.badge, item.is_approved ? styles.badgeApproved : styles.badgePending]}>
@@ -265,10 +264,10 @@ export function AdminDashboardScreen() {
         <View style={styles.metaItem}>
           <Ionicons name="time-outline" size={14} color={colors.textSecondary} />
           <Text style={styles.metaText}>
-            {item.open_time?.substring(0, 5) || '—'} - {item.close_time?.substring(0, 5) || '—'}
+            {(item.open_time as string)?.substring(0, 5) || '—'} - {(item.close_time as string)?.substring(0, 5) || '—'}
           </Text>
         </View>
-        {item.is_manually_closed && (
+        {Boolean(item.is_manually_closed) && (
           <View style={styles.metaItem}>
             <Ionicons name="lock-closed" size={14} color={colors.error} />
             <Text style={[styles.metaText, { color: colors.error }]}>Fermé</Text>
@@ -279,7 +278,7 @@ export function AdminDashboardScreen() {
       <View style={styles.cardActions}>
         <TouchableOpacity
           style={[styles.actionBtn, item.is_approved ? styles.actionBtnDanger : styles.actionBtnSuccess]}
-          onPress={() => toggleApproval.mutate({ salonId: item.id, approve: !item.is_approved })}
+          onPress={() => toggleApproval.mutate({ salonId: item.id as string, approve: !item.is_approved })}
           activeOpacity={0.7}
         >
           <Ionicons
@@ -310,7 +309,7 @@ export function AdminDashboardScreen() {
 
         <TouchableOpacity
           style={[styles.actionBtn, styles.actionBtnDelete]}
-          onPress={() => deleteSalon(item.id, item.name)}
+          onPress={() => deleteSalon(item.id as string, item.name as string)}
           activeOpacity={0.7}
         >
           <Ionicons name="trash-outline" size={18} color={colors.error} />
@@ -324,14 +323,14 @@ export function AdminDashboardScreen() {
       <View style={styles.cardHeader}>
         <View style={styles.userAvatar}>
           {item.avatar_url ? (
-            <Image source={{ uri: item.avatar_url }} style={{ width: 40, height: 40, borderRadius: 20 }} />
+            <Image source={{ uri: item.avatar_url as string }} style={{ width: 40, height: 40, borderRadius: 20 }} />
           ) : (
             <Ionicons name="person" size={20} color={colors.amber} />
           )}
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.cardTitle}>{item.full_name || 'Sans nom'}</Text>
-          <Text style={styles.cardSubtitle}>{item.phone_number || 'Pas de téléphone'}</Text>
+          <Text style={styles.cardTitle}>{(item.full_name as string) || 'Sans nom'}</Text>
+          <Text style={styles.cardSubtitle}>{(item.phone_number as string) || 'Pas de téléphone'}</Text>
         </View>
         <View style={[
           styles.badge,
@@ -343,7 +342,7 @@ export function AdminDashboardScreen() {
             item.role === 'Admin' ? styles.badgeTextAdmin :
             item.role === 'Coiffeur' ? styles.badgeTextBarber : styles.badgeTextClient
           ]}>
-            {item.role}
+            {item.role as string}
           </Text>
         </View>
         <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
@@ -354,7 +353,7 @@ export function AdminDashboardScreen() {
         <View style={styles.cardActions}>
           <TouchableOpacity
             style={[styles.actionBtn, styles.actionBtnSuccess]}
-            onPress={() => confirmRoleChange(item.id, item.role)}
+            onPress={() => confirmRoleChange(item.id as string, item.role as string)}
             activeOpacity={0.7}
           >
             <Ionicons name="arrow-up-circle" size={18} color={colors.success} />
@@ -366,7 +365,7 @@ export function AdminDashboardScreen() {
         <View style={styles.cardActions}>
           <TouchableOpacity
             style={[styles.actionBtn, styles.actionBtnWarning]}
-            onPress={() => confirmRoleChange(item.id, item.role)}
+            onPress={() => confirmRoleChange(item.id as string, item.role as string)}
             activeOpacity={0.7}
           >
             <Ionicons name="arrow-down-circle" size={18} color={colors.amber} />
@@ -458,7 +457,7 @@ export function AdminDashboardScreen() {
         ) : (
           <FlatList
             data={salons}
-            keyExtractor={(item: Record<string, unknown>) => item.id}
+            keyExtractor={(item: Record<string, unknown>) => item.id as string}
             renderItem={renderSalonItem}
             contentContainerStyle={styles.list}
             refreshControl={<RefreshControl refreshing={salonsRefetching} onRefresh={() => { setSalonsPage(1); refetchSalons(); }} tintColor={colors.amber} />}
@@ -542,7 +541,7 @@ export function AdminDashboardScreen() {
         ) : (
           <FlatList
             data={users}
-            keyExtractor={(item: Record<string, unknown>) => item.id}
+            keyExtractor={(item: Record<string, unknown>) => item.id as string}
             renderItem={renderUserItem}
             contentContainerStyle={styles.list}
             refreshControl={<RefreshControl refreshing={usersRefetching} onRefresh={() => { setUsersPage(1); refetchUsers(); }} tintColor={colors.amber} />}
@@ -584,12 +583,12 @@ export function AdminDashboardScreen() {
                 <View style={styles.modalProfileSection}>
                   <View style={styles.modalAvatar}>
                     {selectedUser.avatar_url ? (
-                      <Image source={{ uri: selectedUser.avatar_url }} style={{ width: 80, height: 80, borderRadius: 40 }} />
+                      <Image source={{ uri: selectedUser.avatar_url as string }} style={{ width: 80, height: 80, borderRadius: 40 }} />
                     ) : (
                       <Ionicons name="person" size={36} color={colors.amber} />
                     )}
                   </View>
-                  <Text style={styles.modalName}>{selectedUser.full_name || 'Sans nom'}</Text>
+                  <Text style={styles.modalName}>{(selectedUser.full_name as string) || 'Sans nom'}</Text>
                   <View style={[
                     styles.badge,
                     selectedUser.role === 'Admin' ? styles.badgeAdmin :
@@ -600,7 +599,7 @@ export function AdminDashboardScreen() {
                       selectedUser.role === 'Admin' ? styles.badgeTextAdmin :
                       selectedUser.role === 'Coiffeur' ? styles.badgeTextBarber : styles.badgeTextClient
                     ]}>
-                      {selectedUser.role}
+                      {selectedUser.role as string}
                     </Text>
                   </View>
                 </View>
@@ -610,22 +609,22 @@ export function AdminDashboardScreen() {
                   <View style={styles.modalInfoRow}>
                     <Ionicons name="call-outline" size={18} color={colors.amber} />
                     <Text style={styles.modalInfoLabel}>Téléphone</Text>
-                    <Text style={styles.modalInfoValue}>{selectedUser.phone_number || 'Non renseigné'}</Text>
+                    <Text style={styles.modalInfoValue}>{(selectedUser.phone_number as string) || 'Non renseigné'}</Text>
                   </View>
                   <View style={styles.modalInfoRow}>
                     <Ionicons name="calendar-outline" size={18} color={colors.amber} />
                     <Text style={styles.modalInfoLabel}>Inscrit le</Text>
-                    <Text style={styles.modalInfoValue}>{formatDate(selectedUser.created_at)}</Text>
+                    <Text style={styles.modalInfoValue}>{formatDate(selectedUser.created_at as string)}</Text>
                   </View>
                   <View style={styles.modalInfoRow}>
                     <Ionicons name="gift-outline" size={18} color={colors.amber} />
                     <Text style={styles.modalInfoLabel}>Points fidélité</Text>
-                    <Text style={styles.modalInfoValue}>{selectedUser.loyalty_points || 0} pts</Text>
+                    <Text style={styles.modalInfoValue}>{(selectedUser.loyalty_points as number) || 0} pts</Text>
                   </View>
                   <View style={styles.modalInfoRow}>
                     <Ionicons name="finger-print-outline" size={18} color={colors.amber} />
                     <Text style={styles.modalInfoLabel}>ID</Text>
-                    <Text style={[styles.modalInfoValue, { fontSize: 10 }]}>{selectedUser.id?.substring(0, 18)}...</Text>
+                    <Text style={[styles.modalInfoValue, { fontSize: 10 }]}>{(selectedUser.id as string)?.substring(0, 18)}...</Text>
                   </View>
                 </View>
 

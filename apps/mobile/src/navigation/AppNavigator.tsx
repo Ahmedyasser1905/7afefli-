@@ -1,4 +1,3 @@
-// @ts-nocheck
 // apps/mobile/src/navigation/AppNavigator.tsx
 // Root navigator — role-based routing with auth gate
 
@@ -6,6 +5,7 @@ import React, { useEffect } from 'react';
 import { NavigationContainer, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuthStore } from '../store/authStore';
+import type { UserRole } from '@barberdz/shared/types';
 import { supabase } from '../lib/supabase';
 import { useNotificationSetup } from '../hooks/useNotificationSetup';
 import { ClientTabNavigator } from './ClientTabNavigator';
@@ -128,7 +128,7 @@ export function AppNavigator() {
           useAuthStore.setState({
             session: session,
             user: session.user,
-            role: role as unknown,
+            role: role as UserRole,
             needsPhone: !hasPhone,
             isLoading: false,
           });
@@ -176,7 +176,7 @@ export function AppNavigator() {
           useAuthStore.setState({
             session: session,
             user: session.user,
-            role: role as unknown,
+            role: role as UserRole,
             needsPhone: !hasPhone,
             isLoading: false,
           });

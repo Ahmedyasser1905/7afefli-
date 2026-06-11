@@ -136,7 +136,7 @@ export function ClientSubscriptionScreen() {
                 {/* Plan Header */}
                 <View style={styles.planHeader}>
                   <View style={[styles.planIconWrap, { backgroundColor: `${planColor}18` }]}>
-                    <Ionicons name={getPlanIcon(plan.name)} size={26} color={planColor} />
+                    <Ionicons name={getPlanIcon(plan.name) as any} size={26} color={planColor} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.planName, { color: planColor }]}>{plan.name}</Text>

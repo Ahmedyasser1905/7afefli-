@@ -1,4 +1,3 @@
-// @ts-nocheck
 // apps/mobile/src/navigation/ClientTabNavigator.tsx
 // Navigation structure for Client application space
 
@@ -66,7 +65,7 @@ export function ClientTabNavigator() {
           marginTop: 2,
         },
         tabBarIcon: ({ focused, color }: { focused: boolean, color: string }) => {
-          let iconName: unknown = 'home';
+          let iconName = 'home';
           if (route.name === 'Home') {
             iconName = focused ? 'home' : 'home-outline';
           } else if (route.name === 'Explore') {
@@ -78,7 +77,7 @@ export function ClientTabNavigator() {
           } else if (route.name === 'Profile') {
             iconName = focused ? 'settings' : 'settings-outline';
           }
-          return <Ionicons name={iconName} size={22} color={color} />;
+          return <Ionicons name={iconName as any} size={22} color={color} />;
         },
       })}
     >

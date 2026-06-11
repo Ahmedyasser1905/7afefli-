@@ -1,4 +1,3 @@
-// @ts-nocheck
 import Toast from 'react-native-toast-message';
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
@@ -49,26 +48,28 @@ export function DashboardScreen() {
   const [viewMonth, setViewMonth] = useState(today().slice(0, 7)); // YYYY-MM
 
   // Fetch barber's salon
-  const { data: salon, isLoading: isSalonLoading } = useQuery({
+  const { data: salon, isLoading: isSalonLoading } = useQuery<Record<string, unknown> | null>({
     queryKey: ['barber-salon', user?.id],
     queryFn: async () => {
       if (!user) return null;
-      return apiClient.get('/salons/my-salon');
+      return apiClient.get<Record<string, unknown>>('/salons/my-salon');
     },
     enabled: !!user,
     staleTime: 2 * 60 * 1000,
   });
 
-  const salonId = salon?.id ?? null;
+  const salonId = (salon?.id as string) ?? null;
 
   const navigation = useNavigation();
 
   const hasServices = useMemo(() => {
-    return !!(salon?.services && salon.services.length > 0);
+    const svcs = salon?.services as unknown[] | undefined;
+    return !!(svcs && svcs.length > 0);
   }, [salon]);
 
   const hasBarbers = useMemo(() => {
-    return !!(salon?.salon_staff && salon.salon_staff.length > 0);
+    const staff = salon?.salon_staff as unknown[] | undefined;
+    return !!(staff && staff.length > 0);
   }, [salon]);
 
   const isComplete = useMemo(() => {
@@ -87,7 +88,7 @@ export function DashboardScreen() {
       salon.image_url &&
       hasServices &&
       hasBarbers &&
-      salon.portfolio_photos && salon.portfolio_photos.length > 0
+      (salon?.portfolio_photos as unknown[] | undefined) && (salon.portfolio_photos as unknown[]).length > 0
     );
   }, [salon, hasServices, hasBarbers]);
 
@@ -416,7 +417,7 @@ export function DashboardScreen() {
             <Image source={{ uri: avatarUrl }} style={styles.profileThumb} />
             <View style={{ flex: 1 }}>
               <Text style={styles.greetingTitle} numberOfLines={1}>Bonjour, {barberName} 👋</Text>
-              <Text style={styles.salonNameSub} numberOfLines={1}>{salon?.name || 'Mon salon coiffeur'}</Text>
+              <Text style={styles.salonNameSub} numberOfLines={1}>{(salon?.name as string) || 'Mon salon coiffeur'}</Text>
             </View>
             <NotificationBell />
           </View>
@@ -447,7 +448,7 @@ export function DashboardScreen() {
         </View>
 
         {/* Barbers / Services Required Banner */}
-        {(!hasServices || !hasBarbers) && (
+        {Boolean(!hasServices || !hasBarbers) && (
           <TouchableOpacity
             style={{
               backgroundColor: 'rgba(239,68,68,0.1)',
@@ -457,7 +458,7 @@ export function DashboardScreen() {
               borderWidth: 1,
               borderColor: 'rgba(239,68,68,0.2)',
             }}
-            onPress={() => navigation.navigate('Mon Salon')}
+            onPress={() => navigation.navigate('Mon Salon' as never)}
             activeOpacity={0.8}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: 4 }}>
@@ -470,7 +471,7 @@ export function DashboardScreen() {
               Vous devez impérativement ajouter au moins un service et un coiffeur (barbier) à votre salon. Les clients ne pourront pas réserver de créneaux tant que ces informations ne seront pas complétées.
             </Text>
             <View style={{ flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap', marginBottom: spacing.xs }}>
-              {!hasServices && (
+              {Boolean(!hasServices) && (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(239,68,68,0.15)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.sm }}>
                   <Ionicons name="close-circle-outline" size={14} color="#EF4444" />
                   <Text style={{ fontFamily: 'DMSans_700Bold', fontSize: 11, color: '#EF4444' }}>
@@ -478,7 +479,7 @@ export function DashboardScreen() {
                   </Text>
                 </View>
               )}
-              {!hasBarbers && (
+              {Boolean(!hasBarbers) && (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(239,68,68,0.15)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.sm }}>
                   <Ionicons name="close-circle-outline" size={14} color="#EF4444" />
                   <Text style={{ fontFamily: 'DMSans_700Bold', fontSize: 11, color: '#EF4444' }}>
@@ -494,7 +495,7 @@ export function DashboardScreen() {
         )}
 
         {/* Salon Closed Banner */}
-        {salon?.is_manually_closed && (
+        {Boolean(salon?.is_manually_closed) && (
           <View style={{ backgroundColor: 'rgba(239,68,68,0.15)', borderRadius: radius.md, padding: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md }}>
             <Ionicons name="close-circle" size={20} color="#EF4444" />
             <Text style={{ fontFamily: 'DMSans_500Medium', fontSize: 13, color: '#EF4444', flex: 1 }}>SALON FERMÉ — Les clients ne peuvent pas réserver</Text>
@@ -702,8 +703,8 @@ export function DashboardScreen() {
   );
 
   const renderBookingItem = ({ item }: { item: Record<string, unknown> }) => {
-    const client = item.profiles;
-    const service = item.services;
+    const client = item.profiles as Record<string, unknown> | undefined;
+    const service = item.services as Record<string, unknown> | undefined;
 
     // Client-side expired check — Algeria date (UTC+1) to fix midnight edge case
     const nowAlg = new Date(Date.now() + 60 * 60 * 1000);
@@ -730,15 +731,15 @@ export function DashboardScreen() {
     const isCompleted = effectiveStatus === 'Completed';
 
     const isWalkIn = item.is_walk_in === true;
-    let displayClientName = client?.full_name;
+    let displayClientName: string = (client?.full_name as string) || '';
     if (isWalkIn && item.notes) {
-      const match = item.notes.match(/Client:\s*(.*?)(?:\s*-\s*Tel:|\s*\n|$)/);
+      const match = (item.notes as string).match(/Client:\s*(.*?)(?:\s*-\s*Tel:|\s*\n|$)/);
       if (match && match[1]) {
         displayClientName = match[1].trim();
       }
     }
     if (!displayClientName || displayClientName.trim() === '') {
-      displayClientName = item.client_phone || client?.phone_number || 'Client Inconnu';
+      displayClientName = (item.client_phone as string) || (client?.phone_number as string) || 'Client Inconnu';
     }
 
     let borderLeftColor: string = colors.steel;
@@ -749,18 +750,18 @@ export function DashboardScreen() {
     return (
       <TouchableOpacity 
         style={[styles.bookingCard, { borderLeftColor }]} 
-        onPress={() => setSelectedReservation(item)}
+        onPress={() => setSelectedReservation(item as unknown as Reservation)}
         activeOpacity={0.8}
       >
         <View style={styles.cardLeftBlock}>
           <Image
-            source={{ uri: client?.avatar_url || 'https://phfwutugsyiutqgippqg.supabase.co/storage/v1/object/public/portfolio/defaults/default-avatar.png' }}
+            source={{ uri: (client?.avatar_url as string) || 'https://phfwutugsyiutqgippqg.supabase.co/storage/v1/object/public/portfolio/defaults/default-avatar.png' }}
             style={styles.clientAvatar}
           />
           <View style={styles.bookingDetails}>
             <Text style={styles.clientName}>{displayClientName}</Text>
             <Text style={styles.serviceName}>
-              {service?.service_name || 'Service'} • {item.salon_staff ? (item.salon_staff.custom_name || item.salon_staff.profiles?.full_name) : 'N\'importe quel coiffeur'}
+              {(service?.service_name as string) || 'Service'} • {item.salon_staff ? ((item.salon_staff as Record<string,unknown>).custom_name as string || ((item.salon_staff as Record<string,unknown>).profiles as Record<string,unknown>)?.full_name as string) : "N'importe quel coiffeur"}
             </Text>
             <Text style={styles.bookingTime}>
               ⏱️ {formatTime(item.start_time as string)} – {formatTime(item.end_time as string)}
@@ -773,14 +774,14 @@ export function DashboardScreen() {
             <View style={styles.pendingActionButtons}>
               <TouchableOpacity
                 style={styles.iconConfirmBtn}
-                onPress={() => handleConfirm(item.id)}
+                onPress={() => handleConfirm(item.id as string)}
                 activeOpacity={0.7}
               >
                 <Ionicons name="checkmark" size={16} color={colors.ink} />
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.iconCancelBtn}
-                onPress={() => handleCancel(item.id)}
+                onPress={() => handleCancel(item.id as string)}
                 activeOpacity={0.7}
               >
                 <Ionicons name="close" size={16} color={colors.ink} />
@@ -800,13 +801,13 @@ export function DashboardScreen() {
                   isCancelled && styles.textCancelled,
                   isCompleted && styles.textCompleted,
                 ]}>
-                  {isConfirmed ? 'Confirmé' : isCancelled ? 'Annulé' : isCompleted ? 'Terminé' : item.status}
+                  {isConfirmed ? 'Confirmé' : isCancelled ? 'Annulé' : isCompleted ? 'Terminé' : item.status as string}
                 </Text>
               </View>
               {isConfirmed && (
                 <TouchableOpacity
                   style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(139,92,246,0.15)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.sm }}
-                  onPress={() => handleComplete(item.id)}
+                  onPress={() => handleComplete(item.id as string)}
                   activeOpacity={0.7}
                 >
                   <Ionicons name="checkmark-done" size={12} color="#8B5CF6" />
@@ -865,7 +866,7 @@ export function DashboardScreen() {
         <AddWalkInModal
           visible={isWalkInModalVisible}
           onClose={() => setIsWalkInModalVisible(false)}
-          salonId={salonId}
+          salonId={salonId as string}
           onSuccess={() => refetch()}
         />
       )}
@@ -873,7 +874,7 @@ export function DashboardScreen() {
       <ReservationDetailModal
         visible={!!selectedReservation}
         onClose={() => setSelectedReservation(null)}
-        reservation={selectedReservation}
+        reservation={selectedReservation as unknown as Record<string, unknown>}
         onCancel={handleCancel}
         onConfirm={handleConfirm}
         onComplete={handleComplete}

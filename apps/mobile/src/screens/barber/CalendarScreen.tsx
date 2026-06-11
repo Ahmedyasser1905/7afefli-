@@ -1,4 +1,3 @@
-// @ts-nocheck
 import Toast from 'react-native-toast-message';
 // apps/mobile/src/screens/barber/CalendarScreen.tsx
 // Professional full-day timeline with overlap handling, future date support, and working nav
@@ -186,7 +185,7 @@ export function CalendarScreen() {
         `/reservations/salon/${salonId}?date=${selectedDate}`,
       );
       return (data || []).filter(
-        (r) => !(r as Record<string, unknown>).notes?.toString().includes('CRÉNEAU BLOQUÉ'),
+        (r) => !((r as unknown) as Record<string, unknown>).notes?.toString().includes('CRÉNEAU BLOQUÉ'),
       );
     },
     enabled: !!salonId,
@@ -265,7 +264,7 @@ export function CalendarScreen() {
           <View style={styles.monthSelectorRow}>
             <View style={{ flex: 1 }}>
               <Text style={styles.monthLabel} numberOfLines={1}>{monthYearLabel}</Text>
-              <Text style={styles.selectedDayLabel} numberOfLines={1} style={styles.selectedDayLabel}>{selectedDayLabel}</Text>
+              <Text style={styles.selectedDayLabel} numberOfLines={1}>{selectedDayLabel}</Text>
             </View>
             <View style={styles.monthNavButtons}>
               <TouchableOpacity
@@ -372,8 +371,8 @@ export function CalendarScreen() {
               const left = TIMELINE_LEFT + reservation.col * colWidth + 2;
               const width = colWidth - 4;
 
-              const client = (reservation as Record<string, unknown>).profiles as Record<string, unknown> | undefined;
-              const service = (reservation as Record<string, unknown>).services as Record<string, unknown> | undefined;
+              const client = ((reservation as unknown) as Record<string, unknown>).profiles as Record<string, unknown> | undefined;
+              const service = ((reservation as unknown) as Record<string, unknown>).services as Record<string, unknown> | undefined;
               const isWalkIn = reservation.is_walk_in === true;
 
               let walkInName = '';
@@ -388,8 +387,8 @@ export function CalendarScreen() {
               const isCompleted = reservation.status === 'Completed';
               const isCancelled = reservation.status === 'Cancelled';
 
-              let borderColor = colors.steel;
-              let bgColor = 'rgba(44,44,44,0.5)';
+              let borderColor: string = colors.steel;
+              let bgColor: string = 'rgba(44,44,44,0.5)';
               if (isPending)   { borderColor = colors.pending;  bgColor = 'rgba(52,152,219,0.12)'; }
               if (isConfirmed) { borderColor = colors.success;  bgColor = 'rgba(46,204,113,0.12)'; }
               if (isCompleted) { borderColor = colors.steel;    bgColor = 'rgba(90,90,90,0.10)'; }
@@ -466,8 +465,8 @@ export function CalendarScreen() {
               <ActivityIndicator color={colors.pending} style={{ marginVertical: spacing.md }} />
             ) : (
               pendingOtherDays.map((r) => {
-                const client = (r as Record<string, unknown>).profiles as Record<string, unknown> | undefined;
-                const service = (r as Record<string, unknown>).services as Record<string, unknown> | undefined;
+                const client = ((r as unknown) as Record<string, unknown>).profiles as Record<string, unknown> | undefined;
+                const service = ((r as unknown) as Record<string, unknown>).services as Record<string, unknown> | undefined;
                 const isWalkIn = r.is_walk_in === true;
                 const [ry, rm, rd] = r.appointment_date.split('-').map(Number);
                 return (
@@ -532,7 +531,7 @@ export function CalendarScreen() {
       <ReservationDetailModal
         visible={!!selectedReservation}
         onClose={() => setSelectedReservation(null)}
-        reservation={selectedReservation}
+        reservation={selectedReservation as unknown as Record<string, unknown>}
         onCancel={handleCancel}
         onConfirm={handleConfirm}
         onComplete={handleComplete}
