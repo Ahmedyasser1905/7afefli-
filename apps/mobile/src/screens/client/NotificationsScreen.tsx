@@ -8,9 +8,12 @@ import { colors, spacing, radius } from '../../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
 import { formatRelativeTime } from '@barberdz/shared/utils/formatters';
 
+import { useAuthStore } from '../../store/authStore';
+
 export function NotificationsScreen() {
   const navigation = useNavigation();
   const queryClient = useQueryClient();
+  const role = useAuthStore((s) => s.role);
 
   // Mark all as read when opening screen
   useEffect(() => {
@@ -105,10 +108,16 @@ export function NotificationsScreen() {
                   }).catch(() => {});
                 }
                 if (item.data?.reservationId) {
-                  // NotificationsScreen is a root modal — navigate to ClientApp
-                  // and specify the nested Appointments tab screen
-                  navigation.goBack();
-                  navigation.navigate('ClientApp' as never, { screen: 'Appointments' } as never);
+                  if (role === 'Coiffeur') {
+                    (navigation.navigate as any)('BarberApp', { screen: 'Calendar' });
+                  } else if (role === 'Client') {
+                    // NotificationsScreen is a root modal — navigate to ClientApp
+                    // and specify the nested Appointments tab screen
+                    if (navigation.canGoBack()) {
+                      navigation.goBack();
+                    }
+                    (navigation.navigate as any)('ClientApp', { screen: 'Appointments' });
+                  }
                 }
               }}
             >

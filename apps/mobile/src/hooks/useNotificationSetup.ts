@@ -82,26 +82,29 @@ export function useNotificationSetup() {
 
           if (!navigationRef.isReady()) return;
 
-          // Navigate based on notification type
-          if (data.type === 'new_booking' && data.salonId) {
-            navigationRef.navigate('BarberApp' as never);
-          } else if (
-            data.type === 'booking_confirmed' ||
-            data.type === 'booking_cancelled' ||
-            data.type === 'completed' ||
-            data.type === 'booking_reminder'
-          ) {
-            navigationRef.navigate('ClientApp' as never);
-          } else if (
-            data.type === 'salon_approved' ||
-            data.type === 'salon_rejected' ||
-            data.type === 'new_review' ||
-            data.type === 'subscription_expiring' ||
-            data.type === 'subscription_activated'
-          ) {
-            navigationRef.navigate('BarberApp' as never);
-          } else if (data.reservationId) {
-            navigationRef.navigate('ClientApp' as never);
+          // Navigate based on notification type and user role
+          const role = useAuthStore.getState().role;
+
+          if (role === 'Coiffeur') {
+            if (data.type === 'new_booking' || data.reservationId) {
+              navigationRef.navigate('BarberApp' as never, { screen: 'Calendar' } as never);
+            } else {
+              navigationRef.navigate('BarberApp' as never);
+            }
+          } else if (role === 'Client') {
+            if (
+              data.type === 'booking_confirmed' ||
+              data.type === 'booking_cancelled' ||
+              data.type === 'completed' ||
+              data.type === 'booking_reminder' ||
+              data.reservationId
+            ) {
+              navigationRef.navigate('ClientApp' as never, { screen: 'Appointments' } as never);
+            } else {
+              navigationRef.navigate('ClientApp' as never);
+            }
+          } else if (role === 'Admin') {
+            navigationRef.navigate('AdminApp' as never);
           }
         },
       );
