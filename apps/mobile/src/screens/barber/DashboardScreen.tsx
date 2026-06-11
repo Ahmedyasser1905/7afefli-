@@ -32,9 +32,11 @@ export function DashboardScreen() {
   const user = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
 
+  // HIGH-2: Use a single canonical query key ['my-salon', user?.id] so this screen
+  // shares the same React Query cache entry as MySalonScreen and SalonSetupScreen.
+  // Invalidate only that key to avoid stale Dashboard state after salon creation.
   useFocusEffect(
     useCallback(() => {
-      queryClient.invalidateQueries({ queryKey: ['barber-salon', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['my-salon', user?.id] });
     }, [queryClient, user?.id])
   );
@@ -47,9 +49,9 @@ export function DashboardScreen() {
   const [viewDate, setViewDate]   = useState(today());
   const [viewMonth, setViewMonth] = useState(today().slice(0, 7)); // YYYY-MM
 
-  // Fetch barber's salon
+  // Fetch barber's salon — HIGH-2: canonical key matches MySalonScreen/SalonSetupScreen
   const { data: salon, isLoading: isSalonLoading } = useQuery<Record<string, unknown> | null>({
-    queryKey: ['barber-salon', user?.id],
+    queryKey: ['my-salon', user?.id],
     queryFn: async () => {
       if (!user) return null;
       return apiClient.get<Record<string, unknown>>('/salons/my-salon');
@@ -447,52 +449,52 @@ export function DashboardScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Barbers / Services Required Banner */}
-        {Boolean(!hasServices || !hasBarbers) && (
-          <TouchableOpacity
-            style={{
-              backgroundColor: 'rgba(239,68,68,0.1)',
-              borderRadius: radius.md,
-              padding: spacing.md,
-              marginBottom: spacing.md,
-              borderWidth: 1,
-              borderColor: 'rgba(239,68,68,0.2)',
-            }}
-            onPress={() => navigation.navigate('Mon Salon' as never)}
-            activeOpacity={0.8}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: 4 }}>
-              <Ionicons name="alert-circle" size={22} color="#EF4444" />
-              <Text style={{ fontFamily: 'DMSans_700Bold', fontSize: 15, color: '#EF4444' }}>
-                Réservations bloquées 🔒
+        {/* HIGH-3: Onboarding Completeness Checklist
+             Shown when the salon exists but is not yet complete.
+             Lists every missing requirement with tappable deep-links. */}
+        {Boolean(salon && !isComplete) && (() => {
+          // Derive missing items as a list of { label, tab, screen } descriptors
+          const missingItems: Array<{ label: string; icon: string; onPress: () => void }> = [];
+          if (!salon?.image_url) missingItems.push({ label: 'Photo / logo du salon', icon: 'image-outline', onPress: () => navigation.navigate('Mon Salon' as never) });
+          if (!salon?.description) missingItems.push({ label: 'Description du salon', icon: 'document-text-outline', onPress: () => navigation.navigate('Mon Salon' as never) });
+          if (!salon?.commune) missingItems.push({ label: 'Commune (localisation)', icon: 'location-outline', onPress: () => navigation.navigate('SalonSetup' as never) });
+          if (!hasServices) missingItems.push({ label: 'Au moins un service', icon: 'cut-outline', onPress: () => navigation.navigate('Mon Salon' as never) });
+          if (!hasBarbers) missingItems.push({ label: 'Au moins un coiffeur', icon: 'person-add-outline', onPress: () => navigation.navigate('Mon Salon' as never) });
+          const photos = salon?.portfolio_photos as unknown[] | undefined;
+          if (!photos || photos.length === 0) missingItems.push({ label: 'Au moins une photo portfolio', icon: 'images-outline', onPress: () => navigation.navigate('Mon Salon' as never) });
+
+          if (missingItems.length === 0) return null;
+          return (
+            <View style={{ backgroundColor: 'rgba(239,68,68,0.07)', borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.md, borderWidth: 1, borderColor: 'rgba(239,68,68,0.18)' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
+                <Ionicons name="alert-circle" size={20} color="#EF4444" />
+                <Text style={{ fontFamily: 'DMSans_700Bold', fontSize: 14, color: '#EF4444', flex: 1 }}>
+                  Salon incomplet — Réservations bloquées 🔒
+                </Text>
+                <Text style={{ fontFamily: 'DMSans_500Medium', fontSize: 11, color: colors.textMuted }}>
+                  {missingItems.length} manquant{missingItems.length > 1 ? 's' : ''}
+                </Text>
+              </View>
+              <Text style={{ fontFamily: 'DMSans_400Regular', fontSize: 12, color: colors.textSecondary, marginBottom: spacing.sm, lineHeight: 17 }}>
+                Complétez les éléments ci-dessous pour que vos clients puissent réserver.
               </Text>
+              {missingItems.map((item, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 9, borderTopWidth: idx === 0 ? 0 : 1, borderTopColor: 'rgba(255,255,255,0.05)' }}
+                  onPress={item.onPress}
+                  activeOpacity={0.7}
+                >
+                  <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(239,68,68,0.12)', alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name={item.icon as any} size={15} color="#EF4444" />
+                  </View>
+                  <Text style={{ fontFamily: 'DMSans_500Medium', fontSize: 13, color: colors.textPrimary, flex: 1 }}>{item.label}</Text>
+                  <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                </TouchableOpacity>
+              ))}
             </View>
-            <Text style={{ fontFamily: 'DMSans_500Medium', fontSize: 13, color: colors.textPrimary, lineHeight: 18, marginBottom: spacing.xs }}>
-              Vous devez impérativement ajouter au moins un service et un coiffeur (barbier) à votre salon. Les clients ne pourront pas réserver de créneaux tant que ces informations ne seront pas complétées.
-            </Text>
-            <View style={{ flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap', marginBottom: spacing.xs }}>
-              {Boolean(!hasServices) && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(239,68,68,0.15)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.sm }}>
-                  <Ionicons name="close-circle-outline" size={14} color="#EF4444" />
-                  <Text style={{ fontFamily: 'DMSans_700Bold', fontSize: 11, color: '#EF4444' }}>
-                    Aucun service ajouté
-                  </Text>
-                </View>
-              )}
-              {Boolean(!hasBarbers) && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(239,68,68,0.15)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.sm }}>
-                  <Ionicons name="close-circle-outline" size={14} color="#EF4444" />
-                  <Text style={{ fontFamily: 'DMSans_700Bold', fontSize: 11, color: '#EF4444' }}>
-                    Aucun coiffeur ajouté
-                  </Text>
-                </View>
-              )}
-            </View>
-            <Text style={{ fontFamily: 'DMSans_700Bold', fontSize: 12, color: colors.amber, textDecorationLine: 'underline', marginTop: 4 }}>
-              👉 Appuyez ici pour configurer vos services et coiffeurs
-            </Text>
-          </TouchableOpacity>
-        )}
+          );
+        })()}
 
         {/* Salon Closed Banner */}
         {Boolean(salon?.is_manually_closed) && (
