@@ -70,20 +70,22 @@ export function BookingConfirmScreen() {
   const handleGoHome = () => {
     // Reset current stack (Home or Explore) to its first screen
     navigation.popToTop();
-    
-    // Switch to Home tab
-    const parent = navigation.getParent();
-    if (parent) {
-      parent.navigate('Home');
+
+    // BookingConfirm is inside HomeStack/ExploreStack (1st parent)
+    // which is itself a tab inside ClientTabNavigator (2nd parent)
+    const tabNavigator = navigation.getParent()?.getParent();
+    if (tabNavigator) {
+      tabNavigator.navigate('Home');
     }
   };
 
   const handleViewAppointments = () => {
     // Reset current stack (Home or Explore) to its first screen
     navigation.popToTop();
-    
-    // Navigate to appointments tab
-    navigation.getParent()?.navigate('Appointments');
+
+    // Navigate two levels up to reach the ClientTabNavigator
+    const tabNavigator = navigation.getParent()?.getParent();
+    tabNavigator?.navigate('Appointments');
   };
 
   return (

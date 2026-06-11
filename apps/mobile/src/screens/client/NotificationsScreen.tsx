@@ -105,7 +105,10 @@ export function NotificationsScreen() {
                   }).catch(() => {});
                 }
                 if (item.data?.reservationId) {
-                  navigation.navigate('Appointments' as never);
+                  // NotificationsScreen is a root modal — navigate to ClientApp
+                  // and specify the nested Appointments tab screen
+                  navigation.goBack();
+                  navigation.navigate('ClientApp' as never, { screen: 'Appointments' } as never);
                 }
               }}
             >
