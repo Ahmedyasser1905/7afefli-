@@ -25,14 +25,15 @@ import { colors, spacing, radius, shadows } from '../../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
 import { EditProfileModal } from '../../components/profile/EditProfileModal';
 import * as SecureStore from 'expo-secure-store';
+import { useThemeStore } from '../../store/themeStore';
 
 const DEFAULT_AVATAR = 'https://phfwutugsyiutqgippqg.supabase.co/storage/v1/object/public/portfolio/defaults/default-avatar.png';
 
 export function SettingsScreen() {
   const { user, role, clearAuth } = useAuthStore();
   const navigation = (useNavigation as () => { navigate: (s: string) => void })();
+  const { isDark, toggleTheme } = useThemeStore();
   const [pushEnabled, setPushEnabled] = useState(true);
-  const [darkModeEnabled, setDarkModeEnabled] = useState(true);
   const [selectedWilaya, setSelectedWilaya] = useState('Alger');
   const [profileData, setProfileData] = useState<Record<string, unknown> | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -282,24 +283,16 @@ export function SettingsScreen() {
               <Ionicons name="moon-outline" size={20} color={colors.amber} />
               <View>
                 <Text style={styles.rowLabel}>Thème sombre industriel</Text>
-                <Text style={{ fontFamily: 'DMSans_400Regular', fontSize: 11, color: colors.amber }}>Mode clair bientôt disponible</Text>
+                <Text style={{ fontFamily: 'DMSans_400Regular', fontSize: 11, color: colors.textMuted }}>
+                  {isDark ? 'Mode sombre actif' : 'Mode clair actif'}
+                </Text>
               </View>
             </View>
             <Switch
-              value={darkModeEnabled}
-              onValueChange={(val) => {
-                setDarkModeEnabled(val);
-                if (!val) {
-                  Toast.show({
-                    type: 'error',
-                    text1: 'Mode clair indisponible',
-                    text2: 'L\'esthétique 7afefli est optimisée pour le thème sombre.'
-                  });
-                  setDarkModeEnabled(true);
-                }
-              }}
+              value={isDark}
+              onValueChange={toggleTheme}
               trackColor={{ false: colors.graphite, true: colors.amberDim }}
-              thumbColor={darkModeEnabled ? colors.amber : colors.steel}
+              thumbColor={isDark ? colors.amber : colors.steel}
             />
           </View>
         </View>
