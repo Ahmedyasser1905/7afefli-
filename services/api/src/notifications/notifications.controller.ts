@@ -50,8 +50,9 @@ export class NotificationsController {
   }
 
   @Get('unread-count')
-  getUnreadCount(@CurrentUser() user: AuthenticatedUser) {
-    return this.notificationsService.getUnreadCount(user.id);
+  async getUnreadCount(@CurrentUser() user: AuthenticatedUser): Promise<{ count: number }> {
+    const count = await this.notificationsService.getUnreadCount(user.id);
+    return { count };
   }
 
   @Patch('read-all')
