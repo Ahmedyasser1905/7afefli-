@@ -1,15 +1,14 @@
 import React, { useEffect } from 'react';
 import { TouchableOpacity, View, Text, StyleSheet } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../../lib/apiClient';
 import { colors, radius } from '../../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
 import { useAuthStore } from '../../store/authStore';
 import { supabase } from '../../lib/supabase';
+import { navigationRef } from '../../navigation/navigationRef';
 
 export function NotificationBell() {
-  const navigation = useNavigation();
   const session = useAuthStore((s) => s.session);
   const queryClient = useQueryClient();
 
@@ -56,7 +55,7 @@ export function NotificationBell() {
     <TouchableOpacity
       style={styles.container}
       activeOpacity={0.7}
-      onPress={() => navigation.getParent()?.navigate('Notifications' as never)}
+      onPress={() => navigationRef.current?.navigate('Notifications' as never)}
     >
       <Ionicons name="notifications-outline" size={24} color={colors.textPrimary} />
       {count > 0 && (

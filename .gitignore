@@ -16,3 +16,21 @@ services/api/node_modules/
 services/api/dist/
 .next/
 apps/admin/.next/
+
+# Scratch / debug scripts (CRITICAL-3 / LOW-2)
+scratch/
+setup_db.js
+fix_dashboard.*
+debug_*.js
+remove_logs.js
+fix-images.js
+fix_any*.js
+
+# Root-level test runner scripts
+test_*.js
+test_*.ts
+
+# Environment files (belt-and-suspenders)
+.env.local
+.env.production
+.env.staging

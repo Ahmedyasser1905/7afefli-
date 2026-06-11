@@ -1,4 +1,3 @@
-// @ts-nocheck
 // apps/mobile/src/navigation/AppNavigator.tsx
 // Root navigator — role-based routing with auth gate
 
@@ -6,12 +5,15 @@ import React, { useEffect } from 'react';
 import { NavigationContainer, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuthStore } from '../store/authStore';
+import type { UserRole } from '@barberdz/shared/types';
 import { supabase } from '../lib/supabase';
 import { useNotificationSetup } from '../hooks/useNotificationSetup';
 import { ClientTabNavigator } from './ClientTabNavigator';
 import { BarberTabNavigator } from './BarberTabNavigator';
 import { AdminTabNavigator } from './AdminTabNavigator';
 import { NotificationsScreen } from '../screens/client/NotificationsScreen';
+import { LoyaltyPointsScreen } from '../screens/client/LoyaltyPointsScreen';
+import { ClientSubscriptionScreen } from '../screens/client/ClientSubscriptionScreen';
 import PhoneInputScreen from '../screens/auth/PhoneInputScreen';
 import SignUpScreen from '../screens/auth/SignUpScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
@@ -126,7 +128,7 @@ export function AppNavigator() {
           useAuthStore.setState({
             session: session,
             user: session.user,
-            role: role as unknown,
+            role: role as UserRole,
             needsPhone: !hasPhone,
             isLoading: false,
           });
@@ -174,7 +176,7 @@ export function AppNavigator() {
           useAuthStore.setState({
             session: session,
             user: session.user,
-            role: role as unknown,
+            role: role as UserRole,
             needsPhone: !hasPhone,
             isLoading: false,
           });
@@ -212,6 +214,8 @@ export function AppNavigator() {
         )}
         <RootStack.Group screenOptions={{ presentation: 'modal' }}>
           <RootStack.Screen name="Notifications" component={NotificationsScreen} />
+          <RootStack.Screen name="LoyaltyPoints" component={LoyaltyPointsScreen} />
+          <RootStack.Screen name="ClientSubscription" component={ClientSubscriptionScreen} />
         </RootStack.Group>
       </RootStack.Navigator>
     </NavigationContainer>

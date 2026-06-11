@@ -312,4 +312,57 @@ export class AdminService {
     if (error) throw new Error(error.message);
     return data;
   }
+
+  /**
+   * MEDIUM-5: GET /admin/analytics
+   * Returns aggregated revenue, subscription breakdown, and top salons.
+   */
+  async getAnalytics() {
+    const [paymentsResult, subsResult, topSalonsResult] = await Promise.all([
+      this.supabase.adminClient
+        .from('payments')
+        .select('amount, status, created_at')
+        .eq('status', 'Completed')
+        .limit(10000),
+      this.supabase.adminClient
+        .from('user_subscriptions')
+        .select('status, plans(name, price)')
+        .eq('status', 'Active')
+        .limit(1000),
+      this.supabase.adminClient
+        .from('salons')
+        .select('id, name, wilaya, average_rating, total_reviews')
+        .eq('is_approved', true)
+        .not('average_rating', 'is', null)
+        .order('average_rating', { ascending: false })
+        .limit(10),
+    ]);
+
+    const payments = paymentsResult.data ?? [];
+    const totalRevenue = payments.reduce((sum, p) => sum + Number(p.amount ?? 0), 0);
+
+    // MRR = sum of active subscription prices
+    // NOTE: Supabase returns the plans relation as an array even for to-one joins
+    // when using the shorthand select syntax — normalise with [0] to get the first (only) element.
+    type SubRow = { plans: { name: string; price: number }[] | null };
+    const subs = (subsResult.data as unknown as SubRow[]) ?? [];
+    const mrr = subs.reduce((sum, s) => sum + Number(s.plans?.[0]?.price ?? 0), 0);
+    const avgSubscriptionValue = subs.length > 0 ? mrr / subs.length : 0;
+
+    // Group active subscriptions by plan name
+    const planCounts: Record<string, number> = {};
+    for (const s of subs) {
+      const name = s.plans?.[0]?.name ?? 'Inconnu';
+      planCounts[name] = (planCounts[name] ?? 0) + 1;
+    }
+    const subscriptionsByPlan = Object.entries(planCounts).map(([plan_name, count]) => ({ plan_name, count }));
+
+    return {
+      totalRevenue,
+      mrr,
+      avgSubscriptionValue: Math.round(avgSubscriptionValue),
+      subscriptionsByPlan,
+      topSalons: topSalonsResult.data ?? [],
+    };
+  }
 }

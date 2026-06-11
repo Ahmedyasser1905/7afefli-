@@ -1,4 +1,3 @@
-// @ts-nocheck
 import Toast from 'react-native-toast-message';
 // apps/mobile/src/screens/admin/AdminDashboardScreen.tsx
 // Admin dashboard — manage salons, users, and platform stats
@@ -26,24 +25,31 @@ import { apiClient } from '../../lib/apiClient';
 
 export function AdminDashboardScreen() {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'salons' | 'users' | 'reservations'>('salons');
+  const [activeTab, setActiveTab] = useState<'salons' | 'users' | 'reservations' | 'analytics'>('salons');
   const [selectedUser, setSelectedUser] = useState<Record<string, unknown> | null>(null);
 
-  // Fetch all salons via API only — Supabase bypasses backend auth guards
+  // Pagination state
+  const [salonsPage, setSalonsPage] = useState(1);
+  const [usersPage, setUsersPage] = useState(1);
+  const [resPage, setResPage] = useState(1);
+
+  // Fetch salons via API with pagination
   const { data: salonsResponse, isLoading: salonsLoading, isRefetching: salonsRefetching, refetch: refetchSalons } = useQuery({
-    queryKey: ['admin-salons'],
-    queryFn: () => apiClient.get<any>('/admin/salons?limit=1000'), // Temporary fix to fetch many records
+    queryKey: ['admin-salons', salonsPage],
+    queryFn: () => apiClient.get<any>(`/admin/salons?page=${salonsPage}&limit=50`),
     staleTime: 60 * 1000,
   });
   const salons = salonsResponse?.data ?? [];
+  const salonsTotalPages = Math.ceil((salonsResponse?.total ?? 0) / 50);
 
-  // Fetch all users via API only
+  // Fetch users via API with pagination
   const { data: usersResponse, isLoading: usersLoading, isRefetching: usersRefetching, refetch: refetchUsers } = useQuery({
-    queryKey: ['admin-users'],
-    queryFn: () => apiClient.get<any>('/admin/users?limit=1000'),
+    queryKey: ['admin-users', usersPage],
+    queryFn: () => apiClient.get<any>(`/admin/users?page=${usersPage}&limit=50`),
     staleTime: 60 * 1000,
   });
   const users = usersResponse?.data ?? [];
+  const usersTotalPages = Math.ceil((usersResponse?.total ?? 0) / 50);
 
   // Stats via API
   const { data: statsData } = useQuery<Record<string, unknown>>({
@@ -52,14 +58,23 @@ export function AdminDashboardScreen() {
     staleTime: 60 * 1000,
   });
 
-  // Fetch all reservations via API
+  // Fetch reservations via API with pagination
   const { data: reservationsResponse, isLoading: resLoading, isRefetching: resRefetching, refetch: refetchRes } = useQuery({
-    queryKey: ['admin-reservations'],
-    queryFn: () => apiClient.get<any>('/admin/reservations?limit=1000'),
+    queryKey: ['admin-reservations', resPage],
+    queryFn: () => apiClient.get<any>(`/admin/reservations?page=${resPage}&limit=50`),
     staleTime: 60 * 1000,
     enabled: activeTab === 'reservations',
   });
   const reservations = reservationsResponse?.data ?? [];
+  const resTotalPages = Math.ceil((reservationsResponse?.total ?? 0) / 50);
+
+  // MEDIUM-5: Analytics data — lazy loaded only when the Analytics tab is active
+  const { data: analyticsData, isLoading: analyticsLoading } = useQuery<Record<string, unknown>>({
+    queryKey: ['admin-analytics'],
+    queryFn: () => apiClient.get<Record<string, unknown>>('/admin/analytics'),
+    staleTime: 5 * 60 * 1000,
+    enabled: activeTab === 'analytics',
+  });
 
   const totalSalons = statsData?.totalSalons ?? salons.length;
   const approvedSalons = statsData?.activeSalons ?? salons.filter((s: Record<string, unknown>) => s.is_approved).length;
@@ -73,6 +88,26 @@ export function AdminDashboardScreen() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-salons'] });
+    },
+    onError: (err: unknown) => Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: (err as Error).message || 'Une erreur est survenue'
+      }),
+  });
+
+  // Toggle salon sponsoring (FIX-9)
+  const toggleSponsoring = useMutation({
+    mutationFn: async ({ salonId, sponsor }: { salonId: string; sponsor: boolean }) => {
+      if (sponsor) {
+        await apiClient.post(`/admin/salons/${salonId}/sponsor`, {});
+      } else {
+        await apiClient.delete(`/admin/salons/${salonId}/sponsor`);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-salons'] });
+      Toast.show({ type: 'success', text1: 'Succès', text2: 'Sponsoring mis à jour' });
     },
     onError: (err: unknown) => Toast.show({
         type: 'error',
@@ -215,9 +250,9 @@ export function AdminDashboardScreen() {
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.cardTitle}>{item.name}</Text>
+          <Text style={styles.cardTitle}>{item.name as string}</Text>
           <Text style={styles.cardSubtitle}>
-            {item.wilaya} • {item.profiles?.full_name || 'Propriétaire inconnu'}
+            {item.wilaya as string} • {(item.profiles as Record<string, unknown>)?.full_name as string || 'Propriétaire inconnu'}
           </Text>
         </View>
         <View style={[styles.badge, item.is_approved ? styles.badgeApproved : styles.badgePending]}>
@@ -237,10 +272,10 @@ export function AdminDashboardScreen() {
         <View style={styles.metaItem}>
           <Ionicons name="time-outline" size={14} color={colors.textSecondary} />
           <Text style={styles.metaText}>
-            {item.open_time?.substring(0, 5) || '—'} - {item.close_time?.substring(0, 5) || '—'}
+            {(item.open_time as string)?.substring(0, 5) || '—'} - {(item.close_time as string)?.substring(0, 5) || '—'}
           </Text>
         </View>
-        {item.is_manually_closed && (
+        {Boolean(item.is_manually_closed) && (
           <View style={styles.metaItem}>
             <Ionicons name="lock-closed" size={14} color={colors.error} />
             <Text style={[styles.metaText, { color: colors.error }]}>Fermé</Text>
@@ -251,7 +286,7 @@ export function AdminDashboardScreen() {
       <View style={styles.cardActions}>
         <TouchableOpacity
           style={[styles.actionBtn, item.is_approved ? styles.actionBtnDanger : styles.actionBtnSuccess]}
-          onPress={() => toggleApproval.mutate({ salonId: item.id, approve: !item.is_approved })}
+          onPress={() => toggleApproval.mutate({ salonId: item.id as string, approve: !item.is_approved })}
           activeOpacity={0.7}
         >
           <Ionicons
@@ -264,9 +299,25 @@ export function AdminDashboardScreen() {
           </Text>
         </TouchableOpacity>
 
+        {/* FIX-9: Sponsor / Remove Sponsoring button */}
+        <TouchableOpacity
+          style={[styles.actionBtn, item.is_sponsored ? styles.actionBtnWarning : { borderColor: 'rgba(147,51,234,0.3)', backgroundColor: 'rgba(147,51,234,0.08)' }]}
+          onPress={() => toggleSponsoring.mutate({ salonId: item.id as string, sponsor: !item.is_sponsored })}
+          activeOpacity={0.7}
+        >
+          <Ionicons
+            name={item.is_sponsored ? 'star' : 'star-outline'}
+            size={18}
+            color={item.is_sponsored ? colors.amber : '#9333EA'}
+          />
+          <Text style={[styles.actionBtnText, { color: item.is_sponsored ? colors.amber : '#9333EA' }]}>
+            {item.is_sponsored ? 'Sponsorisé' : 'Sponsoriser'}
+          </Text>
+        </TouchableOpacity>
+
         <TouchableOpacity
           style={[styles.actionBtn, styles.actionBtnDelete]}
-          onPress={() => deleteSalon(item.id, item.name)}
+          onPress={() => deleteSalon(item.id as string, item.name as string)}
           activeOpacity={0.7}
         >
           <Ionicons name="trash-outline" size={18} color={colors.error} />
@@ -280,14 +331,14 @@ export function AdminDashboardScreen() {
       <View style={styles.cardHeader}>
         <View style={styles.userAvatar}>
           {item.avatar_url ? (
-            <Image source={{ uri: item.avatar_url }} style={{ width: 40, height: 40, borderRadius: 20 }} />
+            <Image source={{ uri: item.avatar_url as string }} style={{ width: 40, height: 40, borderRadius: 20 }} />
           ) : (
             <Ionicons name="person" size={20} color={colors.amber} />
           )}
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.cardTitle}>{item.full_name || 'Sans nom'}</Text>
-          <Text style={styles.cardSubtitle}>{item.phone_number || 'Pas de téléphone'}</Text>
+          <Text style={styles.cardTitle}>{(item.full_name as string) || 'Sans nom'}</Text>
+          <Text style={styles.cardSubtitle}>{(item.phone_number as string) || 'Pas de téléphone'}</Text>
         </View>
         <View style={[
           styles.badge,
@@ -299,7 +350,7 @@ export function AdminDashboardScreen() {
             item.role === 'Admin' ? styles.badgeTextAdmin :
             item.role === 'Coiffeur' ? styles.badgeTextBarber : styles.badgeTextClient
           ]}>
-            {item.role}
+            {item.role as string}
           </Text>
         </View>
         <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
@@ -310,7 +361,7 @@ export function AdminDashboardScreen() {
         <View style={styles.cardActions}>
           <TouchableOpacity
             style={[styles.actionBtn, styles.actionBtnSuccess]}
-            onPress={() => confirmRoleChange(item.id, item.role)}
+            onPress={() => confirmRoleChange(item.id as string, item.role as string)}
             activeOpacity={0.7}
           >
             <Ionicons name="arrow-up-circle" size={18} color={colors.success} />
@@ -322,7 +373,7 @@ export function AdminDashboardScreen() {
         <View style={styles.cardActions}>
           <TouchableOpacity
             style={[styles.actionBtn, styles.actionBtnWarning]}
-            onPress={() => confirmRoleChange(item.id, item.role)}
+            onPress={() => confirmRoleChange(item.id as string, item.role as string)}
             activeOpacity={0.7}
           >
             <Ionicons name="arrow-down-circle" size={18} color={colors.amber} />
@@ -405,6 +456,16 @@ export function AdminDashboardScreen() {
             RDV
           </Text>
         </TouchableOpacity>
+        {/* MEDIUM-5: Analytics tab */}
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'analytics' && styles.tabActive]}
+          onPress={() => setActiveTab('analytics')}
+        >
+          <Ionicons name="bar-chart-outline" size={18} color={activeTab === 'analytics' ? colors.amber : colors.textSecondary} />
+          <Text style={[styles.tabText, activeTab === 'analytics' && styles.tabTextActive]}>
+            Analytics
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Content */}
@@ -414,12 +475,24 @@ export function AdminDashboardScreen() {
         ) : (
           <FlatList
             data={salons}
-            keyExtractor={(item: Record<string, unknown>) => item.id}
+            keyExtractor={(item: Record<string, unknown>) => item.id as string}
             renderItem={renderSalonItem}
             contentContainerStyle={styles.list}
-            refreshControl={<RefreshControl refreshing={salonsRefetching} onRefresh={refetchSalons} tintColor={colors.amber} />}
+            refreshControl={<RefreshControl refreshing={salonsRefetching} onRefresh={() => { setSalonsPage(1); refetchSalons(); }} tintColor={colors.amber} />}
             ListEmptyComponent={
               <Text style={styles.emptyText}>Aucun salon enregistré</Text>
+            }
+            ListFooterComponent={
+              salonsPage < salonsTotalPages ? (
+                <TouchableOpacity
+                  style={styles.loadMoreBtn}
+                  onPress={() => setSalonsPage(p => p + 1)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.loadMoreText}>Charger plus</Text>
+                  <Ionicons name="chevron-down" size={16} color={colors.amber} />
+                </TouchableOpacity>
+              ) : null
             }
           />
         )
@@ -464,9 +537,80 @@ export function AdminDashboardScreen() {
               </View>
             )}
             contentContainerStyle={styles.list}
-            refreshControl={<RefreshControl refreshing={resRefetching} onRefresh={refetchRes} tintColor={colors.amber} />}
+            refreshControl={<RefreshControl refreshing={resRefetching} onRefresh={() => { setResPage(1); refetchRes(); }} tintColor={colors.amber} />}
             ListEmptyComponent={<Text style={styles.emptyText}>Aucune réservation</Text>}
+            ListFooterComponent={
+              resPage < resTotalPages ? (
+                <TouchableOpacity
+                  style={styles.loadMoreBtn}
+                  onPress={() => setResPage(p => p + 1)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.loadMoreText}>Charger plus</Text>
+                  <Ionicons name="chevron-down" size={16} color={colors.amber} />
+                </TouchableOpacity>
+              ) : null
+            }
           />
+        )
+      ) : activeTab === 'analytics' ? (
+        // MEDIUM-5: Analytics panel
+        analyticsLoading ? (
+          <ActivityIndicator color={colors.amber} size="large" style={{ marginTop: 40 }} />
+        ) : (
+          <ScrollView contentContainerStyle={[styles.list, { paddingTop: 8 }]} showsVerticalScrollIndicator={false}>
+            {/* Revenue Overview */}
+            <Text style={{ fontFamily: 'Syne_700Bold', fontSize: 16, color: colors.textPrimary, marginBottom: 12 }}>Revenus</Text>
+            <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
+              {[
+                { label: 'Revenu total', value: `${((analyticsData?.totalRevenue as number) ?? 0).toLocaleString('fr-DZ')} DZD`, icon: 'cash-outline' },
+                { label: 'MRR', value: `${((analyticsData?.mrr as number) ?? 0).toLocaleString('fr-DZ')} DZD`, icon: 'trending-up-outline' },
+                { label: 'Moy. abonnement', value: `${((analyticsData?.avgSubscriptionValue as number) ?? 0).toLocaleString('fr-DZ')} DZD`, icon: 'receipt-outline' },
+              ].map((m) => (
+                <View key={m.label} style={{ flex: 1, backgroundColor: colors.carbon, borderRadius: radius.md, padding: 12, borderWidth: 1, borderColor: 'rgba(232,160,32,0.15)', alignItems: 'center', gap: 4 }}>
+                  <Ionicons name={m.icon as any} size={20} color={colors.amber} />
+                  <Text style={{ fontFamily: 'Syne_700Bold', fontSize: 14, color: colors.textPrimary, textAlign: 'center' }}>{m.value}</Text>
+                  <Text style={{ fontFamily: 'DMSans_400Regular', fontSize: 10, color: colors.textMuted, textAlign: 'center' }}>{m.label}</Text>
+                </View>
+              ))}
+            </View>
+
+            {/* Subscriptions by Plan */}
+            <Text style={{ fontFamily: 'Syne_700Bold', fontSize: 16, color: colors.textPrimary, marginBottom: 12 }}>Abonnements par plan</Text>
+            {((analyticsData?.subscriptionsByPlan as any[]) ?? []).length === 0 ? (
+              <Text style={styles.emptyText}>Aucune donnée</Text>
+            ) : (
+              ((analyticsData?.subscriptionsByPlan as any[]) ?? []).map((p: any) => (
+                <View key={p.plan_name} style={[styles.card, { flexDirection: 'row', alignItems: 'center', marginBottom: 8 }]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontFamily: 'DMSans_700Bold', fontSize: 14, color: colors.textPrimary }}>{p.plan_name}</Text>
+                    <Text style={{ fontFamily: 'DMSans_400Regular', fontSize: 12, color: colors.textSecondary }}>{p.count} abonné(s)</Text>
+                  </View>
+                  <Text style={{ fontFamily: 'Syne_700Bold', fontSize: 16, color: colors.amber }}>{p.count}</Text>
+                </View>
+              ))
+            )}
+
+            {/* Top Salons */}
+            <Text style={{ fontFamily: 'Syne_700Bold', fontSize: 16, color: colors.textPrimary, marginTop: 8, marginBottom: 12 }}>Top salons (note)</Text>
+            {((analyticsData?.topSalons as any[]) ?? []).length === 0 ? (
+              <Text style={styles.emptyText}>Aucune donnée</Text>
+            ) : (
+              ((analyticsData?.topSalons as any[]) ?? []).map((s: any, i: number) => (
+                <View key={s.id} style={[styles.card, { flexDirection: 'row', alignItems: 'center', marginBottom: 8 }]}>
+                  <Text style={{ fontFamily: 'Syne_700Bold', fontSize: 18, color: colors.textMuted, width: 28 }}>#{i + 1}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontFamily: 'DMSans_700Bold', fontSize: 14, color: colors.textPrimary }}>{s.name}</Text>
+                    <Text style={{ fontFamily: 'DMSans_400Regular', fontSize: 12, color: colors.textSecondary }}>{s.wilaya} • {s.total_reviews ?? 0} avis</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Ionicons name="star" size={14} color={colors.amber} />
+                    <Text style={{ fontFamily: 'Syne_700Bold', fontSize: 14, color: colors.amber }}>{Number(s.average_rating ?? 0).toFixed(1)}</Text>
+                  </View>
+                </View>
+              ))
+            )}
+          </ScrollView>
         )
       ) : (
         usersLoading ? (
@@ -474,12 +618,24 @@ export function AdminDashboardScreen() {
         ) : (
           <FlatList
             data={users}
-            keyExtractor={(item: Record<string, unknown>) => item.id}
+            keyExtractor={(item: Record<string, unknown>) => item.id as string}
             renderItem={renderUserItem}
             contentContainerStyle={styles.list}
-            refreshControl={<RefreshControl refreshing={usersRefetching} onRefresh={refetchUsers} tintColor={colors.amber} />}
+            refreshControl={<RefreshControl refreshing={usersRefetching} onRefresh={() => { setUsersPage(1); refetchUsers(); }} tintColor={colors.amber} />}
             ListEmptyComponent={
               <Text style={styles.emptyText}>Aucun utilisateur</Text>
+            }
+            ListFooterComponent={
+              usersPage < usersTotalPages ? (
+                <TouchableOpacity
+                  style={styles.loadMoreBtn}
+                  onPress={() => setUsersPage(p => p + 1)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.loadMoreText}>Charger plus</Text>
+                  <Ionicons name="chevron-down" size={16} color={colors.amber} />
+                </TouchableOpacity>
+              ) : null
             }
           />
         )
@@ -504,12 +660,12 @@ export function AdminDashboardScreen() {
                 <View style={styles.modalProfileSection}>
                   <View style={styles.modalAvatar}>
                     {selectedUser.avatar_url ? (
-                      <Image source={{ uri: selectedUser.avatar_url }} style={{ width: 80, height: 80, borderRadius: 40 }} />
+                      <Image source={{ uri: selectedUser.avatar_url as string }} style={{ width: 80, height: 80, borderRadius: 40 }} />
                     ) : (
                       <Ionicons name="person" size={36} color={colors.amber} />
                     )}
                   </View>
-                  <Text style={styles.modalName}>{selectedUser.full_name || 'Sans nom'}</Text>
+                  <Text style={styles.modalName}>{(selectedUser.full_name as string) || 'Sans nom'}</Text>
                   <View style={[
                     styles.badge,
                     selectedUser.role === 'Admin' ? styles.badgeAdmin :
@@ -520,7 +676,7 @@ export function AdminDashboardScreen() {
                       selectedUser.role === 'Admin' ? styles.badgeTextAdmin :
                       selectedUser.role === 'Coiffeur' ? styles.badgeTextBarber : styles.badgeTextClient
                     ]}>
-                      {selectedUser.role}
+                      {selectedUser.role as string}
                     </Text>
                   </View>
                 </View>
@@ -530,22 +686,22 @@ export function AdminDashboardScreen() {
                   <View style={styles.modalInfoRow}>
                     <Ionicons name="call-outline" size={18} color={colors.amber} />
                     <Text style={styles.modalInfoLabel}>Téléphone</Text>
-                    <Text style={styles.modalInfoValue}>{selectedUser.phone_number || 'Non renseigné'}</Text>
+                    <Text style={styles.modalInfoValue}>{(selectedUser.phone_number as string) || 'Non renseigné'}</Text>
                   </View>
                   <View style={styles.modalInfoRow}>
                     <Ionicons name="calendar-outline" size={18} color={colors.amber} />
                     <Text style={styles.modalInfoLabel}>Inscrit le</Text>
-                    <Text style={styles.modalInfoValue}>{formatDate(selectedUser.created_at)}</Text>
+                    <Text style={styles.modalInfoValue}>{formatDate(selectedUser.created_at as string)}</Text>
                   </View>
                   <View style={styles.modalInfoRow}>
                     <Ionicons name="gift-outline" size={18} color={colors.amber} />
                     <Text style={styles.modalInfoLabel}>Points fidélité</Text>
-                    <Text style={styles.modalInfoValue}>{selectedUser.loyalty_points || 0} pts</Text>
+                    <Text style={styles.modalInfoValue}>{(selectedUser.loyalty_points as number) || 0} pts</Text>
                   </View>
                   <View style={styles.modalInfoRow}>
                     <Ionicons name="finger-print-outline" size={18} color={colors.amber} />
                     <Text style={styles.modalInfoLabel}>ID</Text>
-                    <Text style={[styles.modalInfoValue, { fontSize: 10 }]}>{selectedUser.id?.substring(0, 18)}...</Text>
+                    <Text style={[styles.modalInfoValue, { fontSize: 10 }]}>{(selectedUser.id as string)?.substring(0, 18)}...</Text>
                   </View>
                 </View>
 
@@ -810,6 +966,24 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: spacing.xxl,
     fontSize: 14,
+  },
+  loadMoreBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.lg,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    backgroundColor: 'rgba(232,160,32,0.08)',
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: 'rgba(232,160,32,0.2)',
+  },
+  loadMoreText: {
+    fontFamily: 'DMSans_700Bold',
+    fontSize: 14,
+    color: colors.amber,
   },
   modalOverlay: {
     flex: 1,

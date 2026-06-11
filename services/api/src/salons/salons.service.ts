@@ -168,9 +168,14 @@ export class SalonsService {
       servicesBySalon[svc.salon_id].push(svc);
     }
 
-    // Merge services into each salon
+    // Merge services into each salon and remap RPC-specific field names
+    // CRITICAL-1: RPC returns `rating` but consumers expect `average_rating`
+    // (the salons table column is `average_rating`). The RPC RETURNS TABLE
+    // also omits `total_reviews`, so we default it to 0.
     const enriched = data.map((s: any) => ({
       ...s,
+      average_rating: s.average_rating ?? s.rating ?? null, // prefer table column, fall back to RPC alias
+      total_reviews: s.total_reviews ?? 0,
       services: servicesBySalon[s.id] ?? [],
     }));
 

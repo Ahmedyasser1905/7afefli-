@@ -1,4 +1,3 @@
-// @ts-nocheck
 // apps/mobile/src/screens/client/ExploreScreen.tsx
 // Full explore & search screen — map + search + filters + results
 

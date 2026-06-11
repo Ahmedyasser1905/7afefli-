@@ -152,6 +152,15 @@ export class PaymentsController {
             })
             .eq('salon_id', salon_id);
 
+          // 2b. Immediately sync plan_price / subscription_status on the salon row
+          //     (so the salon appears at the correct sort position right away,
+          //     without waiting for the midnight cron job)
+          try {
+            await this.supabase.adminClient.rpc('sync_all_subscription_statuses');
+          } catch {
+            // Non-fatal — cron job will handle this if RPC is unavailable
+          }
+
           // 3. Notify the salon owner that their subscription is activated (fire-and-forget)
           try {
             const { data: salonData } = await this.supabase.adminClient

@@ -1,4 +1,3 @@
-// @ts-nocheck
 // apps/mobile/src/hooks/barber/useRealtimeBookings.ts
 // Supabase Realtime subscription for barbers — instant calendar updates
 

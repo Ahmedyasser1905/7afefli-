@@ -141,7 +141,9 @@ export function SubscriptionScreen() {
   const daysLeft = status === 'Trial' ? getDaysLeft(trialEnds) : status === 'Active' ? getDaysLeft(subEnds) : 0;
 
   const isLoading = plansLoading || subLoading;
-  const isRefreshing = false;
+  // HIGH-4: Use actual query loading states so the pull-to-refresh spinner
+  // actually appears while data is being refetched.
+  const isRefreshing = plansLoading || subLoading;
 
   const handleRefresh = () => {
     refetchPlans();

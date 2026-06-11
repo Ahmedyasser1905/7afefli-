@@ -1,4 +1,3 @@
-// @ts-nocheck
 import Toast from 'react-native-toast-message';
 // apps/mobile/src/screens/client/SalonDetailScreen.tsx
 // Salon detail — info, gallery, reviews, "Book Now" CTA
@@ -27,7 +26,7 @@ import Ionicons from "@react-native-vector-icons/ionicons";
 import type { Salon, Service, Review, PortfolioPhoto } from '@barberdz/shared/types';
 
 const DEFAULT_COVER = 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=600&q=80';
-const DEFAULT_AVATAR = 'https://lh3.googleusercontent.com/aida-public/AB6AXuBRQWg_Xc-hckv32TMl23w3Cmwd60Jfa3onMRJmyq2rdcvXoTRgGi6On2KOEVTvmrS9-SbemMGS51_LEHQs1ZxegGjSR4DZA3jucMor_wY0Pxy60Z3HTFdJCRlAu-rdbbhw6Sr3Ij91hYl0I8ekc8OVsjNYqWXvUGUW8s_w6Jj3MMwDInwYRhYBiVAuft8ggvfn0pVY7IOHZmM99GtHingFPzXsqQxHIG8ereW05P_VCWdAd9cuxZHbd9-TMAwJBAzB50_1gIsUU5k-';
+const DEFAULT_AVATAR = 'https://phfwutugsyiutqgippqg.supabase.co/storage/v1/object/public/portfolio/defaults/default-avatar.png';
 
 export function SalonDetailScreen() {
   const route = useRoute<Record<string, unknown>>();

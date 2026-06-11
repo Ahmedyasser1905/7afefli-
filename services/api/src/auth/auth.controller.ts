@@ -85,7 +85,7 @@ export class AuthController {
   async getProfile(@CurrentUser() user: AuthenticatedUser) {
     const { data, error } = await this.supabase.adminClient
       .from('profiles')
-      .select('id, phone_number, full_name, role, avatar_url, wilaya, is_phone_verified, created_at, updated_at')
+      .select('id, phone_number, full_name, role, avatar_url, wilaya, is_phone_verified, loyalty_points, created_at, updated_at')
       .eq('id', user.id)
       .maybeSingle();
 
@@ -110,6 +110,44 @@ export class AuthController {
     }
 
     return data;
+  }
+
+  /**
+   * GET /auth/profiles/me/loyalty
+   * Returns loyalty points total and a history derived from completed reservations.
+   */
+  @Get('profiles/me/loyalty')
+  @UseGuards(SupabaseAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get loyalty points and transaction history' })
+  async getLoyaltyPoints(@CurrentUser() user: AuthenticatedUser) {
+    // Get current total from profile
+    const { data: profile } = await this.supabase.adminClient
+      .from('profiles')
+      .select('loyalty_points')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    // Derive history from completed reservations (each completed reservation earns points)
+    const { data: reservations } = await this.supabase.adminClient
+      .from('reservations')
+      .select('id, appointment_date, created_at, services(service_name)')
+      .eq('client_id', user.id)
+      .eq('status', 'Completed')
+      .order('appointment_date', { ascending: false })
+      .limit(50);
+
+    const transactions = (reservations ?? []).map((r: Record<string, unknown>) => ({
+      id: r.id,
+      date: r.appointment_date,
+      reason: `Réservation complétée — ${(r.services as Record<string, unknown>)?.service_name ?? 'Service'}`,
+      points: 10, // 10 pts per completed reservation
+    }));
+
+    return {
+      total: profile?.loyalty_points ?? 0,
+      transactions,
+    };
   }
 
   @Patch('profiles/me')

@@ -14,7 +14,6 @@ import {
   Platform,
   ScrollView,
   Alert,
-  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
@@ -22,14 +21,14 @@ import { useAuthStore } from '../../store/authStore';
 import { colors, typography, spacing, radius, shadows } from '../../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
 
-const ALGERIA_FLAG = 'https://lh3.googleusercontent.com/aida-public/AB6AXuDacFXxGZl1XMXrTlcuNGWgQUfzYF17s_4qGH7y-f7DrLKtRSLtPaCmh1fXqV2mDLEKgVWqBBRxxOD63jwW8jL3SrP0Bf8ep_4gW-2nsaaaoNZ7j8nWuhcgM92BRiDuql6RCZiYecO2RAi6p80APUP-QPFA-0-FTpLr3MgJoX_rz4cOXSwyrhyjj1JhGeMgff2AkGXB3ecpk9NGSabzts3CuLPomarhm2ZNft7avzBZ7eGe4_NTuFilQjxMfxfz_7E77_YcsiI0uJXh';
+// Algeria flag displayed as emoji instead of external image
+const ALGERIA_FLAG_EMOJI = '🇩🇿';
 
 export default function PhoneEntryScreen() {
   const user = useAuthStore((s) => s.user);
   const setNeedsPhone = useAuthStore((s) => s.setNeedsPhone);
   const [phone, setPhone] = useState('');
 
-  
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -116,7 +115,7 @@ export default function PhoneEntryScreen() {
           <View style={styles.form}>
             <View style={styles.phoneInputCard}>
               <View style={styles.countryCodeContainer}>
-                <Image source={{ uri: ALGERIA_FLAG }} style={styles.flagIcon} />
+                <Text style={styles.flagEmoji}>{ALGERIA_FLAG_EMOJI}</Text>
                 <Text style={styles.countryCodeText}>+213</Text>
               </View>
               <TextInput
@@ -255,10 +254,9 @@ const styles = StyleSheet.create({
     borderRightColor: 'rgba(255,255,255,0.05)',
     gap: spacing.sm,
   },
-  flagIcon: {
-    width: 24,
-    height: 16,
-    borderRadius: 2,
+  flagEmoji: {
+    fontSize: 20,
+    lineHeight: 24,
   },
   countryCodeText: {
     fontFamily: 'DMSans_500Medium',

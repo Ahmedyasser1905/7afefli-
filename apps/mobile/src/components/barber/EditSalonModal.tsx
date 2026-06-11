@@ -1,4 +1,3 @@
-// @ts-nocheck
 import Toast from 'react-native-toast-message';
 // apps/mobile/src/components/barber/EditSalonModal.tsx
 // Modal for editing salon settings: name, description, wilaya, address, hours

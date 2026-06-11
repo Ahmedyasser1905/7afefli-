@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
+import { Cron } from '@nestjs/schedule';
 import { SupabaseService } from '../supabase/supabase.service';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 import { UpdateReservationStatusDto } from './dto/update-reservation-status.dto';
@@ -997,6 +998,69 @@ export class ReservationsService {
         newClients
       }
     };
+  }
+
+  /**
+   * MEDIUM-1: Booking reminder cron — fires every hour.
+   * Finds all Confirmed reservations whose start_time is between
+   * NOW()+55min and NOW()+65min in Algeria time (UTC+1).
+   * Sends a 'booking_reminder' in-app + push notification to the client.
+   */
+  @Cron('0 * * * *')
+  async sendBookingReminders(): Promise<void> {
+    try {
+      // Algeria is UTC+1 — compute the current Algeria time
+      const nowUtc = new Date();
+      const algeriaOffset = 60 * 60 * 1000; // UTC+1 in ms
+      const nowAlg = new Date(nowUtc.getTime() + algeriaOffset);
+
+      // Target window: NOW+55min to NOW+65min (Algeria)
+      const windowStart = new Date(nowAlg.getTime() + 55 * 60 * 1000);
+      const windowEnd   = new Date(nowAlg.getTime() + 65 * 60 * 1000);
+
+      const todayAlg = `${nowAlg.getUTCFullYear()}-${
+        String(nowAlg.getUTCMonth() + 1).padStart(2, '0')}-${
+        String(nowAlg.getUTCDate()).padStart(2, '0')}`;
+
+      const winStartStr = `${String(windowStart.getUTCHours()).padStart(2, '0')}:${
+        String(windowStart.getUTCMinutes()).padStart(2, '0')}:00`;
+      const winEndStr   = `${String(windowEnd.getUTCHours()).padStart(2, '0')}:${
+        String(windowEnd.getUTCMinutes()).padStart(2, '0')}:00`;
+
+      const { data: reservations, error } = await this.supabase.adminClient
+        .from('reservations')
+        .select('id, client_id, appointment_date, start_time, salons(name)')
+        .eq('status', 'Confirmed')
+        .eq('appointment_date', todayAlg)
+        .gte('start_time', winStartStr)
+        .lte('start_time', winEndStr);
+
+      if (error) {
+        this.logger.error(`Booking reminder cron error: ${error.message}`);
+        return;
+      }
+
+      if (!reservations || reservations.length === 0) return;
+
+      this.logger.log(`Sending ${reservations.length} booking reminder(s) for ${todayAlg} window ${winStartStr}-${winEndStr}`);
+
+      for (const res of reservations) {
+        if (!res.client_id) continue;
+        const salonName = (res.salons as any)?.name ?? 'votre salon';
+        const timeStr = (res.start_time as string).slice(0, 5);
+        await this.notificationsService.createNotification(
+          res.client_id,
+          'booking_reminder',
+          '⏰ Rappel RDV',
+          `Votre rendez-vous chez ${salonName} est dans environ 1 heure (${timeStr}).`,
+          { reservationId: res.id, salonName, time: timeStr },
+        ).catch((err: Error) =>
+          this.logger.warn(`Reminder notification failed for ${res.client_id}: ${err.message}`)
+        );
+      }
+    } catch (err) {
+      this.logger.error(`sendBookingReminders cron failed: ${(err as Error).message}`);
+    }
   }
 
 }

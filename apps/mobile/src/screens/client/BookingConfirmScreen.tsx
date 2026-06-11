@@ -1,4 +1,3 @@
-// @ts-nocheck
 // apps/mobile/src/screens/client/BookingConfirmScreen.tsx
 // Success screen after booking — shows confirmation details with animation
 

@@ -1,4 +1,3 @@
-// @ts-nocheck
 // apps/mobile/src/screens/barber/ClientsScreen.tsx
 // Refined Client Directory & CRM screen for Barbers/Salons
 
