@@ -12,6 +12,8 @@ import { ClientTabNavigator } from './ClientTabNavigator';
 import { BarberTabNavigator } from './BarberTabNavigator';
 import { AdminTabNavigator } from './AdminTabNavigator';
 import { NotificationsScreen } from '../screens/client/NotificationsScreen';
+import { LoyaltyPointsScreen } from '../screens/client/LoyaltyPointsScreen';
+import { ClientSubscriptionScreen } from '../screens/client/ClientSubscriptionScreen';
 import PhoneInputScreen from '../screens/auth/PhoneInputScreen';
 import SignUpScreen from '../screens/auth/SignUpScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
@@ -212,6 +214,8 @@ export function AppNavigator() {
         )}
         <RootStack.Group screenOptions={{ presentation: 'modal' }}>
           <RootStack.Screen name="Notifications" component={NotificationsScreen} />
+          <RootStack.Screen name="LoyaltyPoints" component={LoyaltyPointsScreen} />
+          <RootStack.Screen name="ClientSubscription" component={ClientSubscriptionScreen} />
         </RootStack.Group>
       </RootStack.Navigator>
     </NavigationContainer>

@@ -99,7 +99,7 @@ export function BookingScreen() {
       if (matched) {
         setService(matched);
         // Skip service selection step, go to date
-        useBookingStore.setState({ currentStep: 1 });
+        useBookingStore.getState().setStep(1);
       }
     }
   }, [selectedServiceIds, services]);
@@ -116,7 +116,7 @@ export function BookingScreen() {
     (date: string) => {
       setDate(date);
       if (staff.length === 0) {
-        useBookingStore.setState({ currentStep: 3 }); // Skip barber step
+        useBookingStore.getState().setStep(3); // Skip barber step
       } else {
         nextStep();
       }

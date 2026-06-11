@@ -29,21 +29,28 @@ export function AdminDashboardScreen() {
   const [activeTab, setActiveTab] = useState<'salons' | 'users' | 'reservations'>('salons');
   const [selectedUser, setSelectedUser] = useState<Record<string, unknown> | null>(null);
 
-  // Fetch all salons via API only — Supabase bypasses backend auth guards
+  // Pagination state
+  const [salonsPage, setSalonsPage] = useState(1);
+  const [usersPage, setUsersPage] = useState(1);
+  const [resPage, setResPage] = useState(1);
+
+  // Fetch salons via API with pagination
   const { data: salonsResponse, isLoading: salonsLoading, isRefetching: salonsRefetching, refetch: refetchSalons } = useQuery({
-    queryKey: ['admin-salons'],
-    queryFn: () => apiClient.get<any>('/admin/salons?limit=1000'), // Temporary fix to fetch many records
+    queryKey: ['admin-salons', salonsPage],
+    queryFn: () => apiClient.get<any>(`/admin/salons?page=${salonsPage}&limit=50`),
     staleTime: 60 * 1000,
   });
   const salons = salonsResponse?.data ?? [];
+  const salonsTotalPages = Math.ceil((salonsResponse?.total ?? 0) / 50);
 
-  // Fetch all users via API only
+  // Fetch users via API with pagination
   const { data: usersResponse, isLoading: usersLoading, isRefetching: usersRefetching, refetch: refetchUsers } = useQuery({
-    queryKey: ['admin-users'],
-    queryFn: () => apiClient.get<any>('/admin/users?limit=1000'),
+    queryKey: ['admin-users', usersPage],
+    queryFn: () => apiClient.get<any>(`/admin/users?page=${usersPage}&limit=50`),
     staleTime: 60 * 1000,
   });
   const users = usersResponse?.data ?? [];
+  const usersTotalPages = Math.ceil((usersResponse?.total ?? 0) / 50);
 
   // Stats via API
   const { data: statsData } = useQuery<Record<string, unknown>>({
@@ -52,14 +59,15 @@ export function AdminDashboardScreen() {
     staleTime: 60 * 1000,
   });
 
-  // Fetch all reservations via API
+  // Fetch reservations via API with pagination
   const { data: reservationsResponse, isLoading: resLoading, isRefetching: resRefetching, refetch: refetchRes } = useQuery({
-    queryKey: ['admin-reservations'],
-    queryFn: () => apiClient.get<any>('/admin/reservations?limit=1000'),
+    queryKey: ['admin-reservations', resPage],
+    queryFn: () => apiClient.get<any>(`/admin/reservations?page=${resPage}&limit=50`),
     staleTime: 60 * 1000,
     enabled: activeTab === 'reservations',
   });
   const reservations = reservationsResponse?.data ?? [];
+  const resTotalPages = Math.ceil((reservationsResponse?.total ?? 0) / 50);
 
   const totalSalons = statsData?.totalSalons ?? salons.length;
   const approvedSalons = statsData?.activeSalons ?? salons.filter((s: Record<string, unknown>) => s.is_approved).length;
@@ -73,6 +81,26 @@ export function AdminDashboardScreen() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-salons'] });
+    },
+    onError: (err: unknown) => Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: (err as Error).message || 'Une erreur est survenue'
+      }),
+  });
+
+  // Toggle salon sponsoring (FIX-9)
+  const toggleSponsoring = useMutation({
+    mutationFn: async ({ salonId, sponsor }: { salonId: string; sponsor: boolean }) => {
+      if (sponsor) {
+        await apiClient.post(`/admin/salons/${salonId}/sponsor`, {});
+      } else {
+        await apiClient.delete(`/admin/salons/${salonId}/sponsor`);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-salons'] });
+      Toast.show({ type: 'success', text1: 'Succès', text2: 'Sponsoring mis à jour' });
     },
     onError: (err: unknown) => Toast.show({
         type: 'error',
@@ -264,6 +292,22 @@ export function AdminDashboardScreen() {
           </Text>
         </TouchableOpacity>
 
+        {/* FIX-9: Sponsor / Remove Sponsoring button */}
+        <TouchableOpacity
+          style={[styles.actionBtn, item.is_sponsored ? styles.actionBtnWarning : { borderColor: 'rgba(147,51,234,0.3)', backgroundColor: 'rgba(147,51,234,0.08)' }]}
+          onPress={() => toggleSponsoring.mutate({ salonId: item.id as string, sponsor: !item.is_sponsored })}
+          activeOpacity={0.7}
+        >
+          <Ionicons
+            name={item.is_sponsored ? 'star' : 'star-outline'}
+            size={18}
+            color={item.is_sponsored ? colors.amber : '#9333EA'}
+          />
+          <Text style={[styles.actionBtnText, { color: item.is_sponsored ? colors.amber : '#9333EA' }]}>
+            {item.is_sponsored ? 'Sponsorisé' : 'Sponsoriser'}
+          </Text>
+        </TouchableOpacity>
+
         <TouchableOpacity
           style={[styles.actionBtn, styles.actionBtnDelete]}
           onPress={() => deleteSalon(item.id, item.name)}
@@ -417,9 +461,21 @@ export function AdminDashboardScreen() {
             keyExtractor={(item: Record<string, unknown>) => item.id}
             renderItem={renderSalonItem}
             contentContainerStyle={styles.list}
-            refreshControl={<RefreshControl refreshing={salonsRefetching} onRefresh={refetchSalons} tintColor={colors.amber} />}
+            refreshControl={<RefreshControl refreshing={salonsRefetching} onRefresh={() => { setSalonsPage(1); refetchSalons(); }} tintColor={colors.amber} />}
             ListEmptyComponent={
               <Text style={styles.emptyText}>Aucun salon enregistré</Text>
+            }
+            ListFooterComponent={
+              salonsPage < salonsTotalPages ? (
+                <TouchableOpacity
+                  style={styles.loadMoreBtn}
+                  onPress={() => setSalonsPage(p => p + 1)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.loadMoreText}>Charger plus</Text>
+                  <Ionicons name="chevron-down" size={16} color={colors.amber} />
+                </TouchableOpacity>
+              ) : null
             }
           />
         )
@@ -464,8 +520,20 @@ export function AdminDashboardScreen() {
               </View>
             )}
             contentContainerStyle={styles.list}
-            refreshControl={<RefreshControl refreshing={resRefetching} onRefresh={refetchRes} tintColor={colors.amber} />}
+            refreshControl={<RefreshControl refreshing={resRefetching} onRefresh={() => { setResPage(1); refetchRes(); }} tintColor={colors.amber} />}
             ListEmptyComponent={<Text style={styles.emptyText}>Aucune réservation</Text>}
+            ListFooterComponent={
+              resPage < resTotalPages ? (
+                <TouchableOpacity
+                  style={styles.loadMoreBtn}
+                  onPress={() => setResPage(p => p + 1)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.loadMoreText}>Charger plus</Text>
+                  <Ionicons name="chevron-down" size={16} color={colors.amber} />
+                </TouchableOpacity>
+              ) : null
+            }
           />
         )
       ) : (
@@ -477,9 +545,21 @@ export function AdminDashboardScreen() {
             keyExtractor={(item: Record<string, unknown>) => item.id}
             renderItem={renderUserItem}
             contentContainerStyle={styles.list}
-            refreshControl={<RefreshControl refreshing={usersRefetching} onRefresh={refetchUsers} tintColor={colors.amber} />}
+            refreshControl={<RefreshControl refreshing={usersRefetching} onRefresh={() => { setUsersPage(1); refetchUsers(); }} tintColor={colors.amber} />}
             ListEmptyComponent={
               <Text style={styles.emptyText}>Aucun utilisateur</Text>
+            }
+            ListFooterComponent={
+              usersPage < usersTotalPages ? (
+                <TouchableOpacity
+                  style={styles.loadMoreBtn}
+                  onPress={() => setUsersPage(p => p + 1)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.loadMoreText}>Charger plus</Text>
+                  <Ionicons name="chevron-down" size={16} color={colors.amber} />
+                </TouchableOpacity>
+              ) : null
             }
           />
         )
@@ -810,6 +890,24 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: spacing.xxl,
     fontSize: 14,
+  },
+  loadMoreBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.lg,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    backgroundColor: 'rgba(232,160,32,0.08)',
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: 'rgba(232,160,32,0.2)',
+  },
+  loadMoreText: {
+    fontFamily: 'DMSans_700Bold',
+    fontSize: 14,
+    color: colors.amber,
   },
   modalOverlay: {
     flex: 1,
