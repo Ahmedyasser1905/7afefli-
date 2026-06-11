@@ -21,8 +21,9 @@ import { colors, typography, spacing, radius, shadows } from '../../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
 import type { UserRole } from '@barberdz/shared/types';
 
-const INTERIOR_IMAGE = 'https://lh3.googleusercontent.com/aida-public/AB6AXuD9T7YXHOTduOR9GwBkJZcZDKoPIPA_K6fUQKA2-5O2Onv8AHz5jidATq8hWJjevjF55PEzInZvdLxzTjaGcB-TZxEw76P9YylCX4y5J0JCljM-Kz5gzeU_Pg6Eko8M5HwLo9XQbh2eh1UYz3OMkfAjeG47V5gbMk8ihVv54MMOY0k7OEA6L5u4y0lClmj1_TEa2UZb7Ke_L1O6_42zG1Vrjeer_idfegjQbtfla__nntuLCvX1VHY8aspaAIyFtYBqn2PzmT9AxoE-';
-const ALGERIA_FLAG = 'https://lh3.googleusercontent.com/aida-public/AB6AXuDacFXxGZl1XMXrTlcuNGWgQUfzYF17s_4qGH7y-f7DrLKtRSLtPaCmh1fXqV2mDLEKgVWqBBRxxOD63jwW8jL3SrP0Bf8ep_4gW-2nsaaaoNZ7j8nWuhcgM92BRiDuql6RCZiYecO2RAi6p80APUP-QPFA-0-FTpLr3MgJoX_rz4cOXSwyrhyjj1JhGeMgff2AkGXB3ecpk9NGSabzts3CuLPomarhm2ZNft7avzBZ7eGe4_NTuFilQjxMfxfz_7E77_YcsiI0uJXh';
+const INTERIOR_IMAGE = require('../../../assets/splash.png');
+// Algeria flag displayed as emoji instead of external image
+const ALGERIA_FLAG_EMOJI = '🇩🇿';
 
 export default function SignUpScreen({ navigation }: { navigation: Record<string, unknown> }) {
   const [fullName, setFullName] = useState('');
@@ -163,7 +164,7 @@ export default function SignUpScreen({ navigation }: { navigation: Record<string
           {/* Top Illustration Card */}
           <View style={styles.illustrationContainer}>
             <Image
-              source={{ uri: INTERIOR_IMAGE }}
+              source={INTERIOR_IMAGE}
               style={styles.illustrationImage}
               resizeMode="cover"
             />
@@ -239,7 +240,7 @@ export default function SignUpScreen({ navigation }: { navigation: Record<string
             <Text style={styles.phoneLabel}>Numéro de téléphone</Text>
             <View style={styles.phoneInputCard}>
               <View style={styles.countryCodeContainer}>
-                <Image source={{ uri: ALGERIA_FLAG }} style={styles.flagIcon} />
+                <Text style={styles.flagEmoji}>{ALGERIA_FLAG_EMOJI}</Text>
                 <Text style={styles.countryCodeText}>+213</Text>
               </View>
               <TextInput
@@ -458,10 +459,9 @@ const styles = StyleSheet.create({
     borderRightColor: 'rgba(255,255,255,0.05)',
     gap: spacing.sm,
   },
-  flagIcon: {
-    width: 24,
-    height: 16,
-    borderRadius: 2,
+  flagEmoji: {
+    fontSize: 20,
+    lineHeight: 24,
   },
   countryCodeText: {
     fontFamily: 'DMSans_500Medium',

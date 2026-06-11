@@ -20,7 +20,7 @@ import { useAuthStore } from '../../store/authStore';
 import { colors, typography, spacing, radius, shadows } from '../../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
 
-const INTERIOR_IMAGE = 'https://lh3.googleusercontent.com/aida-public/AB6AXuD9T7YXHOTduOR9GwBkJZcZDKoPIPA_K6fUQKA2-5O2Onv8AHz5jidATq8hWJjevjF55PEzInZvdLxzTjaGcB-TZxEw76P9YylCX4y5J0JCljM-Kz5gzeU_Pg6Eko8M5HwLo9XQbh2eh1UYz3OMkfAjeG47V5gbMk8ihVv54MMOY0k7OEA6L5u4y0lClmj1_TEa2UZb7Ke_L1O6_42zG1Vrjeer_idfegjQbtfla__nntuLCvX1VHY8aspaAIyFtYBqn2PzmT9AxoE-';
+const INTERIOR_IMAGE = require('../../../assets/splash.png');
 
 export default function PhoneInputScreen({ navigation }: { navigation: Record<string, unknown> }) {
   const [email, setEmail] = useState('');
@@ -85,7 +85,7 @@ export default function PhoneInputScreen({ navigation }: { navigation: Record<st
           
           <View style={styles.illustrationContainer}>
             <Image
-              source={{ uri: INTERIOR_IMAGE }}
+              source={INTERIOR_IMAGE}
               style={styles.illustrationImage}
               resizeMode="cover"
             />

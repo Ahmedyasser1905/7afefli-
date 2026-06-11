@@ -18,6 +18,7 @@ import {
   TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
 import { apiClient } from '../../lib/apiClient';
 import { useAuthStore } from '../../store/authStore';
@@ -26,10 +27,11 @@ import Ionicons from "@react-native-vector-icons/ionicons";
 import { EditProfileModal } from '../../components/profile/EditProfileModal';
 import * as SecureStore from 'expo-secure-store';
 
-const DEFAULT_AVATAR = 'https://lh3.googleusercontent.com/aida-public/AB6AXuDhsTHtiP3Z4tCtsj3LGHwYS5xdJSlpMbLr-LvZld6LDrXErLk7k8pnjAS32G_HSNI0P2IuYAfQwpOp6Wr_9ufZKN6Klf7rxMQhmAnJmKwnPZIuuttQO7lWVDMWVmvbYLskVk5Ocfp_zGhXguCLwBCGAf8i0IbCjWKcjYkjEhCD3lEeJlMSlIAkiPwLvg1yvPehfA1FUh8sJwyUIeVjhtiKmRuyLFwa9Jo3HVhFr1t6_hj4T5WdrFjZki5vffu7I-q1rZHS5Owb9XUe';
+const DEFAULT_AVATAR = 'https://phfwutugsyiutqgippqg.supabase.co/storage/v1/object/public/portfolio/defaults/default-avatar.png';
 
 export function SettingsScreen() {
   const { user, role, clearAuth } = useAuthStore();
+  const navigation = (useNavigation as () => { navigate: (s: string) => void })();
   const [pushEnabled, setPushEnabled] = useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = useState(true);
   const [selectedWilaya, setSelectedWilaya] = useState('Alger');
@@ -185,6 +187,42 @@ export function SettingsScreen() {
           </View>
           <Ionicons name="create-outline" size={20} color={colors.amber} />
         </TouchableOpacity>
+
+        {/* Loyalty Points Row — client only */}
+        {role === 'Client' && (
+          <>
+            <Text style={styles.sectionHeaderTitle}>Programme Fidélité</Text>
+            <View style={styles.settingsGroup}>
+              <TouchableOpacity
+                style={styles.settingsRow}
+                onPress={() => navigation.navigate('LoyaltyPoints' as never)}
+                activeOpacity={0.8}
+              >
+                <View style={styles.rowLeftCol}>
+                  <Ionicons name="trophy-outline" size={20} color={colors.amber} />
+                  <View>
+                    <Text style={styles.rowLabel}>Points fidélité</Text>
+                    <Text style={{ fontFamily: 'DMSans_700Bold', fontSize: 18, color: colors.amber }}>
+                      🏆 {points} pts
+                    </Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.settingsRow}
+                onPress={() => navigation.navigate('ClientSubscription' as never)}
+                activeOpacity={0.8}
+              >
+                <View style={styles.rowLeftCol}>
+                  <Ionicons name="diamond-outline" size={20} color={colors.amber} />
+                  <Text style={styles.rowLabel}>Abonnement Premium</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
 
         {/* Wilaya Picker — Client only */}
         {role === 'Client' && (
