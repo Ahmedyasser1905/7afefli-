@@ -2,7 +2,11 @@
 -- H-NEW-1: Remove dropped 'force_closed' column reference
 -- M-NEW-4: Add 'commune' and 'phone' which are required for completeness validation
 -- Also adds 'open_time', 'close_time', 'is_manually_closed' for full salon data
+-- CRITICAL-2: Drop BOTH old signatures to ensure idempotency regardless of migration order
+--   Old signature 1 (critical_fixes.sql): (double precision, double precision, double precision, integer)
+--   Old signature 2 (this file v1):       (double precision, double precision, integer, integer)
 
+DROP FUNCTION IF EXISTS public.find_nearby_salons(double precision, double precision, double precision, integer);
 DROP FUNCTION IF EXISTS public.find_nearby_salons(double precision, double precision, integer, integer);
 
 CREATE OR REPLACE FUNCTION public.find_nearby_salons(
