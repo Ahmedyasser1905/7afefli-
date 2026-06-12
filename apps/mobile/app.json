@@ -13,18 +13,18 @@
       "splash": {
         "image": "./assets/splash.png",
         "tabletImage": "./assets/splash.png",
-        "backgroundColor": "#070608",
+        "backgroundColor": "#050A1A",
         "resizeMode": "contain"
       }
     },
     "android": {
       "package": "com.ahmedyasser.hafefli",
       "adaptiveIcon": {
-        "backgroundColor": "#070608",
+        "backgroundColor": "#050A1A",
         "foregroundImage": "./assets/splash.png"
       },
       "splash": {
-        "backgroundColor": "#070608",
+        "backgroundColor": "#050A1A",
         "resizeMode": "contain",
         "ldpi":    "./assets/splash.png",
         "mdpi":    "./assets/splash.png",
@@ -56,7 +56,7 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#070608"
+      "backgroundColor": "#050A1A"
     },
     "extra": {
       "eas": {
