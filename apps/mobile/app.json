@@ -4,7 +4,7 @@
     "slug": "barberdz-monorepo",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/splash.png",
     "userInterfaceStyle": "dark",
     "scheme": "hafefli",
     "ios": {
@@ -12,25 +12,21 @@
       "bundleIdentifier": "com.ahmedyasser.hafefli",
       "splash": {
         "image": "./assets/splash.png",
-        "tabletImage": "./assets/splash.png",
-        "backgroundColor": "#050A1A",
-        "resizeMode": "contain"
+        "tabletImage": "./assets/splash.png"
       }
     },
     "android": {
       "package": "com.ahmedyasser.hafefli",
       "adaptiveIcon": {
-        "backgroundColor": "#050A1A",
+        "backgroundColor": "#1A1A1A",
         "foregroundImage": "./assets/splash.png"
       },
       "splash": {
-        "backgroundColor": "#050A1A",
-        "resizeMode": "contain",
-        "ldpi":    "./assets/splash.png",
-        "mdpi":    "./assets/splash.png",
-        "hdpi":    "./assets/splash.png",
-        "xhdpi":   "./assets/splash.png",
-        "xxhdpi":  "./assets/splash.png",
+        "ldpi": "./assets/splash.png",
+        "mdpi": "./assets/splash.png",
+        "hdpi": "./assets/splash.png",
+        "xhdpi": "./assets/splash.png",
+        "xxhdpi": "./assets/splash.png",
         "xxxhdpi": "./assets/splash.png"
       },
       "predictiveBackGestureEnabled": false,
@@ -55,8 +51,8 @@
     ],
     "splash": {
       "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#050A1A"
+      "resizeMode": "cover",
+      "backgroundColor": "#1A1A1A"
     },
     "extra": {
       "eas": {

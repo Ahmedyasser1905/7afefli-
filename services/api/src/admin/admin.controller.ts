@@ -151,4 +151,58 @@ export class AdminController {
   unsponsorSalon(@Param('id') id: string) {
     return this.adminService.unsponsorSalon(id);
   }
+
+  /**
+   * PATCH /admin/salons/:id
+   * Update salon fields such as is_sponsored (Admin only).
+   */
+  @Patch('salons/:id')
+  updateSalon(
+    @Param('id') id: string,
+    @Body() dto: Record<string, unknown>,
+  ) {
+    return this.adminService.updateSalon(id, dto);
+  }
+
+  /**
+   * GET /admin/payments
+   * Get paginated payment records with joined salon data (Admin only).
+   */
+  @Get('payments')
+  getPayments(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.adminService.getPayments(
+      page ? Number(page) : 1,
+      limit ? Number(limit) : 50,
+    );
+  }
+
+  /**
+   * GET /admin/reviews
+   * Get all reviews for moderation (Admin only).
+   */
+  @Get('reviews')
+  getAllReviews(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.adminService.getAllReviews(
+      page ? Number(page) : 1,
+      limit ? Number(limit) : 50,
+    );
+  }
+
+  /**
+   * PATCH /admin/plans/:id
+   * Update a subscription plan's name, price, limits (Admin only).
+   */
+  @Patch('plans/:id')
+  updatePlan(
+    @Param('id') id: string,
+    @Body() dto: Record<string, unknown>,
+  ) {
+    return this.adminService.updatePlan(id, dto);
+  }
 }

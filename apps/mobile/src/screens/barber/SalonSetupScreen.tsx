@@ -68,6 +68,24 @@ export function SalonSetupScreen({ onComplete, existingSalon }: { onComplete: ()
       return;
     }
 
+    // A-5/COIF-1 fix: Block submission if user never placed the pin on the map.
+    // coordsChosen is set to true only when the user explicitly taps a point on the WebView map.
+    // If they skip the map step entirely, the default Algiers coordinates (36.7538, 3.0588)
+    // would silently be submitted and the salon would appear at the wrong location.
+    const DEFAULT_LAT = 36.7538;
+    const DEFAULT_LNG = 3.0588;
+    const coordsAreDefault =
+      Math.abs(form.latitude - DEFAULT_LAT) < 0.0001 &&
+      Math.abs(form.longitude - DEFAULT_LNG) < 0.0001;
+
+    if (!coordsChosen || coordsAreDefault) {
+      Alert.alert(
+        'Position requise',
+        'Veuillez placer votre salon sur la carte avant de continuer.',
+      );
+      return;
+    }
+
     // Validate Algeria bounding box instead of requiring explicit map interaction
     // This allows barbers whose salon IS at Algiers default coords to submit freely
     const ALG_BOUNDS = { minLat: 18, maxLat: 38, minLng: -9, maxLng: 12 };

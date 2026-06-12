@@ -2,7 +2,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { Cron, CronExpression } from '@nestjs/schedule';
+import { Cron } from '@nestjs/schedule';
 
 @Injectable()
 export class SubscriptionsService {
@@ -58,7 +58,7 @@ export class SubscriptionsService {
    * 2. Expire active subscriptions past ends_at
    * 3. Sync salon status (handled by trigger, but double-check)
    */
-  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  @Cron('0 0 * * *', { timeZone: 'Africa/Algiers' })
   async handleDailySubscriptionChecks() {
     this.logger.log('Running daily subscription checks...');
     const now = new Date().toISOString();

@@ -2,7 +2,7 @@ import Toast from 'react-native-toast-message';
 // apps/mobile/src/screens/client/MyAppointmentsScreen.tsx
 // Client's appointments list — Separated into Upcoming and Past
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../../lib/apiClient';
 import { useAuthStore } from '../../store/authStore';
+import { supabase } from '../../lib/supabase';
 import { colors, spacing, radius, shadows } from '../../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
 import { formatDZD } from '@barberdz/shared/utils/formatters';
@@ -81,6 +82,29 @@ export function MyAppointmentsScreen() {
     staleTime: 0,
     refetchInterval: 2 * 60 * 1000,
   });
+
+  // RT-2 fix: Realtime subscription — invalidate reservations list when any
+  // booking status changes (e.g. Confirmed, Cancelled) so clients see updates
+  // without needing to pull-to-refresh.
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel(`client-reservations:${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'reservations',
+          filter: `client_id=eq.${user.id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['my-reservations', user.id] });
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user?.id, queryClient]);
 
   // Cancel reservation mutation
   const cancelMutation = useMutation({

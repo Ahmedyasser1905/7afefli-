@@ -366,4 +366,75 @@ export class AdminService {
       topSalons: topSalonsResult.data ?? [],
     };
   }
+
+  /**
+   * GET /admin/payments — paginated payment records with joined salon data.
+   */
+  async getPayments(page: number = 1, limit: number = 50) {
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+    const { data, count, error } = await this.supabase.adminClient
+      .from('payments')
+      .select('id, amount, status, created_at, salon_id, salons(name)', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(from, to);
+    if (error) throw new Error(error.message);
+    return { data, total: count, page, limit };
+  }
+
+  /**
+   * GET /admin/reviews — all reviews for moderation.
+   */
+  async getAllReviews(page: number = 1, limit: number = 50) {
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+    const { data, count, error } = await this.supabase.adminClient
+      .from('reviews')
+      .select(
+        'id, rating, body, created_at, salons(name), profiles!reviews_client_id_fkey(full_name)',
+        { count: 'exact' },
+      )
+      .order('created_at', { ascending: false })
+      .range(from, to);
+    if (error) throw new Error(error.message);
+    return { data, total: count, page, limit };
+  }
+
+  /**
+   * PATCH /admin/plans/:id — update a subscription plan.
+   */
+  async updatePlan(planId: string, dto: Record<string, unknown>) {
+    const allowedFields = ['name', 'price', 'max_barbers', 'max_portfolio_photos', 'max_reservations', 'duration_days', 'is_active'];
+    const update: Record<string, unknown> = {};
+    for (const key of allowedFields) {
+      if (dto[key] !== undefined) update[key] = dto[key];
+    }
+    const { data, error } = await this.supabase.adminClient
+      .from('plans')
+      .update(update)
+      .eq('id', planId)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
+  }
+
+  /**
+   * PATCH /admin/salons/:id — update salon fields (e.g. is_sponsored toggle).
+   */
+  async updateSalon(salonId: string, dto: Record<string, unknown>) {
+    const allowedFields = ['is_sponsored', 'is_approved', 'is_manually_closed'];
+    const update: Record<string, unknown> = {};
+    for (const key of allowedFields) {
+      if (dto[key] !== undefined) update[key] = dto[key];
+    }
+    const { data, error } = await this.supabase.adminClient
+      .from('salons')
+      .update(update)
+      .eq('id', salonId)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
+  }
 }

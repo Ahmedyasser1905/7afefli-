@@ -36,20 +36,15 @@ export default function PaymentsPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      // Fetch revenue stats (fix C5: uses apiFetch which adds /api/v1)
-      const revenueData = await apiFetch('/admin/revenue', session.access_token).catch(() => null);
+      // FIX-C5/AUTH-BOUNDARY: Use backend API instead of direct Supabase
+      // so admin authorization is enforced on the server side.
+      const [revenueData, paymentsResponse] = await Promise.all([
+        apiFetch('/admin/revenue', session.access_token).catch(() => null),
+        apiFetch<{ data: Payment[]; total: number }>('/admin/payments?page=1&limit=100', session.access_token).catch(() => null),
+      ]);
+
       if (revenueData) setRevenue(revenueData as typeof revenue);
-
-      // Fetch payments directly from Supabase for the detailed list
-      const { data, error } = await supabase
-        .from('payments')
-        .select('id, salon_id, amount, status, provider_payment_id, created_at, updated_at, salons(name)')
-        .order('created_at', { ascending: false })
-        .limit(100);
-
-      if (!error && data) {
-        setPayments(data as unknown as Payment[]);
-      }
+      if (paymentsResponse?.data) setPayments(paymentsResponse.data);
     } catch (e) {
       console.error('Failed to load payments:', e);
     } finally {

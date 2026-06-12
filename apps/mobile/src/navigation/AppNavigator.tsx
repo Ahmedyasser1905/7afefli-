@@ -13,7 +13,6 @@ import { BarberTabNavigator } from './BarberTabNavigator';
 import { AdminTabNavigator } from './AdminTabNavigator';
 import { NotificationsScreen } from '../screens/client/NotificationsScreen';
 import { LoyaltyPointsScreen } from '../screens/client/LoyaltyPointsScreen';
-import { ClientSubscriptionScreen } from '../screens/client/ClientSubscriptionScreen';
 import PhoneInputScreen from '../screens/auth/PhoneInputScreen';
 import SignUpScreen from '../screens/auth/SignUpScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
@@ -68,7 +67,8 @@ async function fetchProfileInfo(user: any): Promise<{ role: string; hasPhone: bo
     } else if (!error && !profile) {
       // Profile is missing, auto-create it using user metadata
       const metaName = user.user_metadata?.full_name || 'New User';
-      const metaRole = user.user_metadata?.role || 'Client';
+      // SECURITY FIX (H-3/AUTH-3): Always hardcode 'Client' — never trust
+      // client-provided metadata for role assignment to prevent privilege escalation.
       const userPhone = user.phone || null;
       
       const { data: newProfile, error: insertError } = await supabase
@@ -77,7 +77,7 @@ async function fetchProfileInfo(user: any): Promise<{ role: string; hasPhone: bo
           id: user.id,
           full_name: metaName,
           phone_number: userPhone,
-          role: metaRole
+          role: 'Client',  // Never trust client-provided metadata for role assignment
         })
         .select('role, phone_number')
         .maybeSingle();
@@ -213,11 +213,8 @@ export function AppNavigator() {
           <RootStack.Screen name="ClientApp" component={ClientTabNavigator} />
         )}
         <RootStack.Group screenOptions={{ presentation: 'modal' }}>
-          {/* FIX-9: Notifications modal removed — barbers have it in BarberTabNavigator tab;
-              clients now have it in ClientTabNavigator tab (FIX-8).
-              Keeping only non-tab modals here: LoyaltyPoints and ClientSubscription. */}
+          {/* Modal screens accessible from any tab */}
           <RootStack.Screen name="LoyaltyPoints" component={LoyaltyPointsScreen} />
-          <RootStack.Screen name="ClientSubscription" component={ClientSubscriptionScreen} />
         </RootStack.Group>
       </RootStack.Navigator>
     </NavigationContainer>

@@ -713,6 +713,18 @@ export class ReservationsService {
       }
     } catch { /* ignore notification failures */ }
 
+    // NOTIF-1 fix: Send loyalty points notification when reservation is Completed
+    if (dto.status === 'Completed' && reservation.client_id) {
+      const loyaltyPoints = parseInt(process.env.LOYALTY_POINTS_PER_RESERVATION ?? '10', 10);
+      this.notificationsService.createNotification(
+        reservation.client_id,
+        'loyalty_points',
+        '🏆 Points de fidélité gagnés !',
+        `Vous avez gagné ${loyaltyPoints} points pour votre visite. Continuez comme ça !`,
+        { reservationId: reservationId },
+      ).catch(() => {}); // fire-and-forget
+    }
+
     return data;
   }
 

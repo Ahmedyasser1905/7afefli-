@@ -14,19 +14,18 @@ import { WebView } from 'react-native-webview';
 
 const { width, height } = Dimensions.get('window');
 
-// ─── Design Tokens ────────────────────────────────────────────────────────────
-const C = {
-  bg:       '#050A1A',          // deep navy midnight
-  bgMid:    '#071226',
-  teal:     '#00D4FF',          // electric cyan
-  tealDim:  '#00A8CC',
-  tealGhost:'rgba(0,212,255,0.08)',
-  violet:   '#7B61FF',          // electric violet accent
-  white:    '#F0F8FF',
-  whiteOff: 'rgba(240,248,255,0.75)',
-  whiteDim: 'rgba(240,248,255,0.35)',
-  navy2:    '#0A1428',
-  gridLine: 'rgba(0,212,255,0.06)',
+// ─── Brand Tokens ──────────────────────────────────────────────────────────────
+const COLOR = {
+  obsidian:   '#0A090C',
+  obsidianMid:'#111014',
+  amber:      '#E8A020',
+  amberDeep:  '#C4831A',
+  gold:       '#F5C55A',
+  goldLight:  '#FAD97A',
+  fog:        '#F2EDE4',
+  mist:       'rgba(242,237,228,0.55)',
+  dim:        'rgba(242,237,228,0.28)',
+  ghost:      'rgba(232,160,32,0.08)',
 };
 
 export interface SplashScreenProps {
@@ -34,21 +33,20 @@ export interface SplashScreenProps {
   onReady?: () => void;
 }
 
-// ─── Midnight Navy × Teal Canvas ──────────────────────────────────────────────
-// Features:
-//   • Hexagonal grid matrix that pulses with electricity
-//   • Rising particle streams (ascending data streams)
-//   • Electric arc connections between nodes
-//   • Scanline CRT overlay for depth
-//   • Central teal radial burst
-//   • Floating geometric diamond shapes
-const BG_HTML = `<!DOCTYPE html>
+// ─── WebGL-grade Aurora HTML ───────────────────────────────────────────────────
+// Runs entirely off the RN thread via Canvas 2D with:
+//   • Multi-layer depth field of 700 stars with parallax drift
+//   • 3 concentric orbital ring halos with counter-rotation
+//   • Radial light-ray burst (crepuscular rays) from center
+//   • Atmospheric scattering vignette
+//   • Chromatic bokeh blobs for depth
+const AURORA_HTML = `<!DOCTYPE html>
 <html>
 <head>
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
-    html,body{width:100%;height:100%;background:#050A1A;overflow:hidden}
+    html,body{width:100%;height:100%;background:#0A090C;overflow:hidden}
     canvas{position:absolute;top:0;left:0;width:100%;height:100%}
   </style>
 </head>
@@ -57,644 +55,593 @@ const BG_HTML = `<!DOCTYPE html>
 <script>
 const cv=document.getElementById('c');
 const cx=cv.getContext('2d');
-let W=cv.width=window.innerWidth, H=cv.height=window.innerHeight;
-const CX=W/2, CY=H*0.42;
+let W=cv.width=window.innerWidth,H=cv.height=window.innerHeight;
+const CX=W/2,CY=H/2;
+const R=Math.min(W,H)*0.38;
 
-window.addEventListener('resize',()=>{ W=cv.width=window.innerWidth; H=cv.height=window.innerHeight; });
+window.addEventListener('resize',()=>{
+  W=cv.width=window.innerWidth;H=cv.height=window.innerHeight;
+});
 
-// ── Hexagonal grid ───────────────────────────────────────────────────────────
-const HEX_SIZE=38, HEX_GAP=4;
-const hexes=[];
-const hx=HEX_SIZE*1.732+HEX_GAP, hy=HEX_SIZE*1.5+HEX_GAP;
-const cols=Math.ceil(W/hx)+2, rows=Math.ceil(H/hy)+2;
-for(let r=0;r<rows;r++){
-  for(let c=0;c<cols;c++){
-    const x=(c-1)*hx+(r%2)*hx*0.5;
-    const y=(r-1)*hy;
-    const dist=Math.sqrt(Math.pow(x-CX,2)+Math.pow(y-CY,2));
-    hexes.push({
-      x,y,
-      dist,
+// ── Stars: 3 depth layers ──────────────────────────────────────────────
+const LAYERS=[
+  {count:320,speedMult:0.06,sizeRange:[0.3,1.0],opMax:0.45},
+  {count:220,speedMult:0.12,sizeRange:[0.8,1.6],opMax:0.65},
+  {count:80, speedMult:0.22,sizeRange:[1.4,2.4],opMax:0.85},
+];
+const stars=[];
+LAYERS.forEach(({count,speedMult,sizeRange,opMax})=>{
+  for(let i=0;i<count;i++){
+    const amber=Math.random()<0.28;
+    const gold=!amber&&Math.random()<0.12;
+    stars.push({
+      x:Math.random()*W,y:Math.random()*H,
+      r:sizeRange[0]+Math.random()*(sizeRange[1]-sizeRange[0]),
+      vx:(Math.random()-0.5)*speedMult,vy:(Math.random()-0.5)*speedMult,
+      op:Math.random()*opMax*0.6+opMax*0.4,
+      dOp:(Math.random()*0.008+0.003)*(Math.random()<0.5?1:-1),
+      opMax,
+      amber,gold,
       phase:Math.random()*Math.PI*2,
-      speed:Math.random()*0.008+0.003,
-      baseOp:Math.max(0.015, 0.10-dist/(Math.max(W,H)*0.9)),
-      lit:false, litOp:0,
-      litTimer:0,
     });
   }
-}
+});
 
-// Randomly "light up" hexes near center
-function lightHex(){
-  const candidates=hexes.filter(h=>h.dist<Math.min(W,H)*0.55);
-  if(candidates.length){
-    const h=candidates[Math.floor(Math.random()*candidates.length)];
-    h.lit=true; h.litOp=0; h.litTimer=60+Math.random()*80;
-  }
-  setTimeout(lightHex, 180+Math.random()*320);
-}
-lightHex();
-
-function drawHex(x,y,size){
-  cx.beginPath();
-  for(let i=0;i<6;i++){
-    const a=Math.PI/180*(60*i-30);
-    i===0?cx.moveTo(x+size*Math.cos(a),y+size*Math.sin(a)):cx.lineTo(x+size*Math.cos(a),y+size*Math.sin(a));
-  }
-  cx.closePath();
-}
-
-// ── Rising particle streams ──────────────────────────────────────────────────
-const STREAM_COUNT=28;
-const streams=[];
-for(let i=0;i<STREAM_COUNT;i++){
-  streams.push({
-    x:Math.random()*W,
-    y:H+Math.random()*H,
-    speed:0.4+Math.random()*1.2,
-    len:Math.random()*80+30,
-    op:Math.random()*0.5+0.2,
-    w:Math.random()*1.4+0.4,
-    isTeal:Math.random()<0.6,
-    isViolet:Math.random()<0.3,
+// ── Bokeh blobs ────────────────────────────────────────────────────────
+const bokeh=[];
+for(let i=0;i<14;i++){
+  bokeh.push({
+    x:Math.random()*W,y:Math.random()*H,
+    r:Math.random()*22+8,
+    op:0,
+    targetOp:Math.random()*0.06+0.02,
+    amber:Math.random()<0.5,
+    phase:Math.random()*Math.PI*2,
+    speed:Math.random()*0.004+0.002,
   });
 }
 
-// ── Electric arc nodes ───────────────────────────────────────────────────────
-const NODE_COUNT=14;
-const nodes=[];
-const nodeAngleStep=Math.PI*2/NODE_COUNT;
-const nodeR=Math.min(W,H)*0.34;
-for(let i=0;i<NODE_COUNT;i++){
-  nodes.push({
-    angle:nodeAngleStep*i,
-    orbitR:nodeR*(0.85+Math.random()*0.3),
-    speed:(Math.random()*0.0006+0.0003)*(Math.random()<0.5?1:-1),
-    size:Math.random()*2.2+0.8,
-    op:0.1+Math.random()*0.5,
-    arcTimer:0,
-  });
-}
-
-// ── Floating diamond shapes ──────────────────────────────────────────────────
-const DIAMONDS=[];
-for(let i=0;i<8;i++){
-  DIAMONDS.push({
-    x:Math.random()*W, y:Math.random()*H,
-    size:Math.random()*16+6,
-    op:0, tOp:Math.random()*0.12+0.04,
-    rot:Math.random()*Math.PI,
-    rotSpeed:(Math.random()-0.5)*0.008,
-    vy:-(Math.random()*0.3+0.1),
-    isViolet:Math.random()<0.4,
-    ph:Math.random()*Math.PI*2, sp:Math.random()*0.02+0.01,
-  });
-}
-
-// ── Scanlines ────────────────────────────────────────────────────────────────
-function drawScanlines(){
-  const spacing=4;
-  cx.fillStyle='rgba(0,0,0,0.04)';
-  for(let y=0;y<H;y+=spacing*2){
-    cx.fillRect(0,y,W,spacing);
+// ── Orbital rings ─────────────────────────────────────────────────────
+const rings=[
+  {r:R*0.82, speed:0.0004, particleCount:80, particleR:0.9, color:'rgba(232,160,32,',  baseOp:0.28, variance:0.18},
+  {r:R*1.02, speed:-0.00028,particleCount:55,particleR:1.3,color:'rgba(245,197,90,',   baseOp:0.18, variance:0.12},
+  {r:R*1.24, speed:0.00018, particleCount:38,particleR:0.7,color:'rgba(242,237,228,',  baseOp:0.10, variance:0.07},
+];
+rings.forEach(ring=>{
+  ring.angle=Math.random()*Math.PI*2;
+  ring.particles=[];
+  const spread=Math.PI*2/ring.particleCount;
+  for(let i=0;i<ring.particleCount;i++){
+    ring.particles.push({
+      offset:spread*i+(Math.random()-0.5)*spread*0.8,
+      op:ring.baseOp*0.4+Math.random()*ring.baseOp,
+      opSpeed:(Math.random()*0.01+0.004)*(Math.random()<0.5?1:-1),
+      r:ring.particleR*(0.7+Math.random()*0.6),
+      radialOffset:(Math.random()-0.5)*R*0.03,
+    });
   }
+});
+
+// ── Light rays ────────────────────────────────────────────────────────
+const NUM_RAYS=12;
+const rays=[];
+for(let i=0;i<NUM_RAYS;i++){
+  rays.push({
+    angle:(Math.PI*2/NUM_RAYS)*i+(Math.random()-0.5)*0.18,
+    length:R*(1.4+Math.random()*0.5),
+    width:Math.random()*2.4+0.6,
+    op:0,
+    targetOp:Math.random()*0.045+0.012,
+    phase:Math.random()*Math.PI*2,
+    speed:Math.random()*0.005+0.002,
+  });
 }
 
 let t=0;
+const globalFadeIn={v:0};
 const startT=Date.now();
-const FADE=600;
+const FADE_DUR=800;
 
 function animate(){
   requestAnimationFrame(animate);
   t+=0.016;
-  const gf=Math.min(1,(Date.now()-startT)/FADE);
+  const elapsed=Date.now()-startT;
+  globalFadeIn.v=Math.min(1,elapsed/FADE_DUR);
+  const gf=globalFadeIn.v;
 
   cx.clearRect(0,0,W,H);
 
-  // Background
-  const bg=cx.createRadialGradient(CX,CY,50,CX,CY,Math.max(W,H)*0.9);
-  bg.addColorStop(0,'rgba(10,20,50,'+0.95*gf+')');
-  bg.addColorStop(0.4,'rgba(5,10,26,'+0.98*gf+')');
-  bg.addColorStop(1,'rgba(2,4,10,1)');
-  cx.fillStyle=bg; cx.fillRect(0,0,W,H);
+  // ── Deep vignette background ───────────────────────────────────────
+  const bgGrad=cx.createRadialGradient(CX,CY*0.92,R*0.1,CX,CY*0.92,Math.max(W,H)*0.72);
+  bgGrad.addColorStop(0,'rgba(28,22,14,'+0.9*gf+')');
+  bgGrad.addColorStop(0.5,'rgba(10,9,12,'+0.98*gf+')');
+  bgGrad.addColorStop(1,'rgba(6,5,8,1)');
+  cx.fillStyle=bgGrad;
+  cx.fillRect(0,0,W,H);
 
-  // Hexagonal grid
-  for(const h of hexes){
-    h.phase+=h.speed;
-    const pulse=0.5+0.5*Math.sin(h.phase-h.dist*0.008);
-    if(h.lit){
-      h.litTimer--;
-      h.litOp=Math.min(1,h.litOp+0.08);
-      if(h.litTimer<=0){ h.lit=false; }
-    } else {
-      h.litOp=Math.max(0,h.litOp-0.04);
-    }
-    const baseOp=h.baseOp*pulse*gf;
-    const litBoost=h.litOp*0.18*gf;
-    const totalOp=baseOp+litBoost;
-    if(totalOp<0.005) continue;
-    drawHex(h.x,h.y,HEX_SIZE-1);
-    if(h.litOp>0.05){
-      cx.strokeStyle='rgba(0,212,255,'+(litBoost*2.5)+')';
-      cx.lineWidth=0.8;
-      cx.stroke();
-      // Inner fill on lit hex
-      cx.fillStyle='rgba(0,212,255,'+(litBoost*0.3)+')';
-      cx.fill();
-    } else {
-      cx.strokeStyle='rgba(0,212,255,'+totalOp+')';
-      cx.lineWidth=0.4;
-      cx.stroke();
-    }
+  // ── Stars ───────────────────────────────────────────────────────────
+  for(const s of stars){
+    s.x+=s.vx; s.y+=s.vy;
+    if(s.x<-4)s.x=W+4; if(s.x>W+4)s.x=-4;
+    if(s.y<-4)s.y=H+4; if(s.y>H+4)s.y=-4;
+    s.op+=s.dOp;
+    if(s.op>=s.opMax){s.op=s.opMax;s.dOp=-Math.abs(s.dOp);}
+    if(s.op<=0.04){s.op=0.04;s.dOp=Math.abs(s.dOp);}
+
+    const col=s.amber?'rgba(232,160,32,':s.gold?'rgba(245,197,90,':'rgba(242,237,228,';
+    cx.beginPath();
+    cx.arc(s.x,s.y,s.r,0,Math.PI*2);
+    cx.fillStyle=col+(s.op*gf)+')';
+    if((s.amber||s.gold)&&s.r>1.1){
+      cx.shadowBlur=s.r*4;
+      cx.shadowColor=s.amber?'#E8A020':'#F5C55A';
+    }else{cx.shadowBlur=0;}
+    cx.fill();
+  }
+  cx.shadowBlur=0;
+
+  // ── Bokeh ────────────────────────────────────────────────────────────
+  for(const b of bokeh){
+    b.phase+=b.speed;
+    b.op+=(b.targetOp-b.op)*0.04;
+    const bOp=b.op*(0.7+0.3*Math.sin(b.phase))*gf;
+    const grad=cx.createRadialGradient(b.x,b.y,0,b.x,b.y,b.r);
+    const c=b.amber?'232,160,32':'245,197,90';
+    grad.addColorStop(0,'rgba('+c+','+bOp+')');
+    grad.addColorStop(1,'rgba('+c+',0)');
+    cx.beginPath();cx.arc(b.x,b.y,b.r,0,Math.PI*2);
+    cx.fillStyle=grad;cx.fill();
   }
 
-  // Rising streams
-  for(const s of streams){
-    s.y-=s.speed;
-    if(s.y+s.len<0){ s.y=H+Math.random()*200; s.x=Math.random()*W; }
-    const col=s.isTeal?'0,212,255':s.isViolet?'123,97,255':'240,248,255';
-    const sg=cx.createLinearGradient(s.x,s.y+s.len,s.x,s.y);
-    sg.addColorStop(0,'rgba('+col+',0)');
-    sg.addColorStop(0.5,'rgba('+col+','+(s.op*gf)+')');
-    sg.addColorStop(1,'rgba('+col+',0)');
-    cx.beginPath(); cx.moveTo(s.x,s.y+s.len); cx.lineTo(s.x,s.y);
-    cx.strokeStyle=sg; cx.lineWidth=s.w; cx.stroke();
-  }
+  // ── Atmospheric center glow ──────────────────────────────────────────
+  const pulse=0.055+Math.sin(t*0.7)*0.022+Math.sin(t*1.3)*0.008;
+  const cGrad=cx.createRadialGradient(CX,CY,0,CX,CY,R*1.5);
+  cGrad.addColorStop(0,'rgba(232,160,32,'+(pulse*gf)+')');
+  cGrad.addColorStop(0.35,'rgba(196,131,26,'+(pulse*0.45*gf)+')');
+  cGrad.addColorStop(0.7,'rgba(80,50,10,'+(pulse*0.12*gf)+')');
+  cGrad.addColorStop(1,'rgba(10,9,12,0)');
+  cx.fillStyle=cGrad;
+  cx.fillRect(0,0,W,H);
 
-  // Central radial teal burst
-  const burstPulse=0.045+Math.sin(t*0.7)*0.018+Math.sin(t*1.4)*0.007;
-  const burst=cx.createRadialGradient(CX,CY,0,CX,CY,Math.min(W,H)*0.52);
-  burst.addColorStop(0,'rgba(0,212,255,'+(burstPulse*gf)+')');
-  burst.addColorStop(0.22,'rgba(0,168,204,'+(burstPulse*0.55*gf)+')');
-  burst.addColorStop(0.55,'rgba(0,60,100,'+(burstPulse*0.18*gf)+')');
-  burst.addColorStop(1,'rgba(5,10,26,0)');
-  cx.save(); cx.globalCompositeOperation='screen';
-  cx.fillStyle=burst; cx.fillRect(0,0,W,H);
+  // ── Light rays ───────────────────────────────────────────────────────
+  cx.save();cx.globalCompositeOperation='screen';
+  for(const ray of rays){
+    ray.phase+=ray.speed;
+    ray.op+=(ray.targetOp*(0.5+0.5*Math.sin(ray.phase))-ray.op)*0.03;
+    const ex=CX+Math.cos(ray.angle)*ray.length;
+    const ey=CY+Math.sin(ray.angle)*ray.length;
+    const rGrad=cx.createLinearGradient(CX,CY,ex,ey);
+    rGrad.addColorStop(0,'rgba(245,197,90,'+(ray.op*1.2*gf)+')');
+    rGrad.addColorStop(0.3,'rgba(232,160,32,'+(ray.op*gf)+')');
+    rGrad.addColorStop(1,'rgba(232,160,32,0)');
+    cx.beginPath();
+    cx.moveTo(CX,CY);
+    const perp=ray.angle+Math.PI/2;
+    const hw=ray.width*0.5;
+    cx.lineTo(CX+Math.cos(perp)*hw,CY+Math.sin(perp)*hw);
+    cx.lineTo(ex+Math.cos(perp)*ray.width*3,ey+Math.sin(perp)*ray.width*3);
+    cx.lineTo(ex-Math.cos(perp)*ray.width*3,ey-Math.sin(perp)*ray.width*3);
+    cx.lineTo(CX-Math.cos(perp)*hw,CY-Math.sin(perp)*hw);
+    cx.closePath();
+    cx.fillStyle=rGrad;cx.fill();
+  }
   cx.restore();
 
-  // Electric arc nodes
-  for(let i=0;i<nodes.length;i++){
-    const n=nodes[i];
-    n.angle+=n.speed;
-    const nx=CX+Math.cos(n.angle)*n.orbitR;
-    const ny=CY+Math.sin(n.angle)*n.orbitR;
-    // Node dot
-    cx.beginPath(); cx.arc(nx,ny,n.size,0,Math.PI*2);
-    cx.fillStyle='rgba(0,212,255,'+(n.op*gf)+')';
-    cx.shadowColor='#00D4FF'; cx.shadowBlur=n.size*8;
-    cx.fill(); cx.shadowBlur=0;
-    // Arc to next node if close
-    const n2=nodes[(i+1)%nodes.length];
-    const nx2=CX+Math.cos(n2.angle)*n2.orbitR;
-    const ny2=CY+Math.sin(n2.angle)*n2.orbitR;
-    const dist=Math.sqrt((nx-nx2)**2+(ny-ny2)**2);
-    if(dist<nodeR*0.9){
-      const arcOp=Math.max(0,(1-dist/(nodeR*0.9))*0.12*gf);
-      cx.beginPath(); cx.moveTo(nx,ny); cx.lineTo(nx2,ny2);
-      cx.strokeStyle='rgba(0,212,255,'+arcOp+')';
-      cx.lineWidth=0.6; cx.stroke();
+  // ── Orbital particle rings ───────────────────────────────────────────
+  for(const ring of rings){
+    ring.angle+=ring.speed;
+    for(const p of ring.particles){
+      p.op+=p.opSpeed;
+      if(p.op>=ring.baseOp+ring.variance){p.op=ring.baseOp+ring.variance;p.opSpeed=-Math.abs(p.opSpeed);}
+      if(p.op<=0.02){p.op=0.02;p.opSpeed=Math.abs(p.opSpeed);}
+      const a=ring.angle+p.offset;
+      const pr=ring.r+p.radialOffset;
+      const px=CX+Math.cos(a)*pr;
+      const py=CY+Math.sin(a)*pr;
+      cx.beginPath();cx.arc(px,py,p.r,0,Math.PI*2);
+      cx.fillStyle=ring.color+(p.op*gf)+')';
+      if(p.r>1.0){cx.shadowBlur=p.r*3.5;cx.shadowColor='#E8A020';}
+      else cx.shadowBlur=0;
+      cx.fill();
     }
   }
   cx.shadowBlur=0;
 
-  // Floating diamonds
-  for(const d of DIAMONDS){
-    d.ph+=d.sp; d.rot+=d.rotSpeed;
-    d.y+=d.vy;
-    if(d.y<-50){ d.y=H+50; d.x=Math.random()*W; }
-    d.op+=(d.tOp*(0.5+0.5*Math.sin(d.ph))-d.op)*0.03;
-    const col=d.isViolet?'123,97,255':'0,212,255';
-    cx.save(); cx.translate(d.x,d.y); cx.rotate(d.rot);
-    cx.beginPath();
-    cx.moveTo(0,-d.size); cx.lineTo(d.size*0.6,0);
-    cx.lineTo(0,d.size);  cx.lineTo(-d.size*0.6,0);
-    cx.closePath();
-    cx.strokeStyle='rgba('+col+','+(d.op*gf)+')';
-    cx.lineWidth=0.7; cx.stroke();
-    cx.fillStyle='rgba('+col+','+(d.op*0.15*gf)+')'; cx.fill();
-    cx.restore();
-  }
+  // ── Inner halo corona ────────────────────────────────────────────────
+  const coronaPulse=0.5+Math.sin(t*0.9)*0.1;
+  const corona=cx.createRadialGradient(CX,CY,R*0.62,CX,CY,R*0.82);
+  corona.addColorStop(0,'rgba(232,160,32,0)');
+  corona.addColorStop(0.4,'rgba(232,160,32,'+(0.06*coronaPulse*gf)+')');
+  corona.addColorStop(0.75,'rgba(245,197,90,'+(0.04*coronaPulse*gf)+')');
+  corona.addColorStop(1,'rgba(245,197,90,0)');
+  cx.beginPath();cx.arc(CX,CY,R*0.82,0,Math.PI*2);
+  cx.fillStyle=corona;cx.fill();
 
-  // Scanlines
-  drawScanlines();
-
-  // Outer vignette
-  const vig=cx.createRadialGradient(CX,CY,Math.min(W,H)*0.22,CX,CY,Math.max(W,H)*0.78);
-  vig.addColorStop(0,'rgba(0,0,0,0)'); vig.addColorStop(1,'rgba(0,0,0,0.82)');
-  cx.fillStyle=vig; cx.fillRect(0,0,W,H);
+  // ── Outer edge vignette ──────────────────────────────────────────────
+  const vign=cx.createRadialGradient(CX,CY,Math.min(W,H)*0.3,CX,CY,Math.max(W,H)*0.72);
+  vign.addColorStop(0,'rgba(0,0,0,0)');
+  vign.addColorStop(1,'rgba(0,0,0,0.72)');
+  cx.fillStyle=vign;cx.fillRect(0,0,W,H);
 }
 animate();
 </script>
 </body>
 </html>`;
 
-// ─── Animated teal node particles around logo ────────────────────────────────
-const NODE_COUNT = 28;
-type NodeParticle = { angle: number; r: number; size: number; delay: number; isTeal: boolean };
-const NODES: NodeParticle[] = Array.from({ length: NODE_COUNT }, (_, i) => ({
-  angle:  (Math.PI * 2 * i) / NODE_COUNT,
-  r:      86 + (i % 4 === 0 ? 12 : i % 4 === 1 ? -8 : i % 4 === 2 ? 4 : -4),
-  size:   i % 6 === 0 ? 3.5 : i % 3 === 0 ? 2.2 : 1.4,
-  delay:  (i / NODE_COUNT) * 1600,
-  isTeal: i % 3 !== 2,
+// ─── Particle shimmer used for the logo ring in RN ────────────────────────────
+const PARTICLE_COUNT = 24;
+type ParticleStyle = {
+  angle: number;
+  radius: number;
+  delay: number;
+  size: number;
+  amber: boolean;
+};
+const RING_PARTICLES: ParticleStyle[] = Array.from({ length: PARTICLE_COUNT }, (_, i) => ({
+  angle: (Math.PI * 2 * i) / PARTICLE_COUNT,
+  radius: 88 + Math.random() * 12,
+  delay: (i / PARTICLE_COUNT) * 1200,
+  size: Math.random() * 2.8 + 1.0,
+  amber: i % 3 !== 0,
 }));
 
-function NodeParticleView({ node, master }: { node: NodeParticle; master: Animated.Value }) {
+// ─── Single orbital particle ───────────────────────────────────────────────────
+function OrbitalParticle({
+  particle,
+  masterProgress,
+}: {
+  particle: ParticleStyle;
+  masterProgress: Animated.Value;
+}) {
   const anim = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.delay(particle.delay),
+        Animated.timing(anim, {
+          toValue: 1,
+          duration: 2600 + Math.random() * 800,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+        Animated.timing(anim, {
+          toValue: 0,
+          duration: 2600 + Math.random() * 800,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, []);
+
+  const x = Math.cos(particle.angle) * particle.radius;
+  const y = Math.sin(particle.angle) * particle.radius;
+
+  const opacity = Animated.multiply(
+    masterProgress,
+    anim.interpolate({ inputRange: [0, 1], outputRange: [0.1, 0.9] })
+  );
+
+  const scale = anim.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1.15] });
+
+  return (
+    <Animated.View
+      style={[
+        styles.orbParticle,
+        {
+          width: particle.size,
+          height: particle.size,
+          borderRadius: particle.size / 2,
+          backgroundColor: particle.amber ? COLOR.amber : COLOR.gold,
+          opacity,
+          transform: [{ translateX: x - particle.size / 2 }, { translateY: y - particle.size / 2 }, { scale }],
+          shadowColor: particle.amber ? COLOR.amber : COLOR.gold,
+          shadowOpacity: 0.9,
+          shadowRadius: particle.size * 2.5,
+        },
+      ]}
+    />
+  );
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+export function SplashScreen({ onFinish, onReady }: SplashScreenProps) {
+  const [webLoaded, setWebLoaded] = useState(false);
+  const [phase, setPhase] = useState<'idle' | 'running' | 'done'>('idle');
+
+  // Master fade
+  const masterOpacity = useRef(new Animated.Value(1)).current;
+
+  // Logo & halo
+  const logoOpacity      = useRef(new Animated.Value(0)).current;
+  const logoScale        = useRef(new Animated.Value(1.18)).current;
+  const logoBlur         = useRef(new Animated.Value(0)).current; // fake via opacity layering
+  const haloOpacity      = useRef(new Animated.Value(0)).current;
+  const haloScale        = useRef(new Animated.Value(0.55)).current;
+  const haloRotate       = useRef(new Animated.Value(0)).current;
+  const haloRotate2      = useRef(new Animated.Value(0)).current;
+  const orbitProgress    = useRef(new Animated.Value(0)).current;
+
+  // Glow rings
+  const innerGlowOpacity = useRef(new Animated.Value(0)).current;
+  const innerGlowScale   = useRef(new Animated.Value(0.6)).current;
+  const outerGlowOpacity = useRef(new Animated.Value(0)).current;
+  const outerGlowScale   = useRef(new Animated.Value(0.4)).current;
+
+  // Typography
+  const taglineOpacity    = useRef(new Animated.Value(0)).current;
+  const taglineTranslate  = useRef(new Animated.Value(16)).current;
+  const dividerScaleX     = useRef(new Animated.Value(0)).current;
+  const tagline2Opacity   = useRef(new Animated.Value(0)).current;
+
+  // Footer
+  const footerOpacity    = useRef(new Animated.Value(0)).current;
+  const footerTranslate  = useRef(new Animated.Value(20)).current;
+  const progressAnim     = useRef(new Animated.Value(0)).current;
+  const progressGlow     = useRef(new Animated.Value(0)).current;
+
+  // Ambient logo breath
+  const breathAnim       = useRef(new Animated.Value(0)).current;
+
+  // Shimmer sweep across logo
+  const shimmerAnim      = useRef(new Animated.Value(-1)).current;
+
+  useEffect(() => { if (onReady) onReady(); }, []);
+
+  const startBreath = useCallback(() => {
     Animated.loop(
       Animated.sequence([
-        Animated.delay(node.delay),
-        Animated.timing(anim, { toValue: 1, duration: 2200 + Math.random() * 1000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(anim, { toValue: 0, duration: 2200 + Math.random() * 1000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(breathAnim, { toValue: 1, duration: 2200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(breathAnim, { toValue: 0, duration: 2200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
       ])
     ).start();
   }, []);
 
-  const x = Math.cos(node.angle) * node.r;
-  const y = Math.sin(node.angle) * node.r;
-  const opacity = Animated.multiply(master, anim.interpolate({ inputRange: [0, 1], outputRange: [0.05, 1.0] }));
-  const scale   = anim.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1.3] });
-
-  return (
-    <Animated.View
-      style={{
-        position:        'absolute',
-        width:           node.size,
-        height:          node.size,
-        borderRadius:    node.size / 2,
-        backgroundColor: node.isTeal ? C.teal : C.violet,
-        opacity,
-        transform: [
-          { translateX: x - node.size / 2 },
-          { translateY: y - node.size / 2 },
-          { scale },
-        ],
-        shadowColor:   node.isTeal ? C.teal : C.violet,
-        shadowOpacity: 1,
-        shadowRadius:  node.size * 3.5,
-      }}
-    />
-  );
-}
-
-// ─── Corner accent lines ─────────────────────────────────────────────────────
-function CornerAccent({ pos }: { pos: 'tl' | 'tr' | 'bl' | 'br' }) {
-  const size = 26;
-  const thick = 1.5;
-  const color = C.teal;
-  const isLeft  = pos === 'tl' || pos === 'bl';
-  const isTop   = pos === 'tl' || pos === 'tr';
-
-  return (
-    <View
-      style={{
-        position: 'absolute',
-        [isTop  ? 'top'    : 'bottom']: 40,
-        [isLeft ? 'left'   : 'right']:  28,
-        width: size, height: size,
-        borderTopWidth:    isTop    ? thick : 0,
-        borderBottomWidth: !isTop   ? thick : 0,
-        borderLeftWidth:   isLeft   ? thick : 0,
-        borderRightWidth:  !isLeft  ? thick : 0,
-        borderColor: color,
-        opacity: 0.55,
-      }}
-    />
-  );
-}
-
-// ─── Main SplashScreen ────────────────────────────────────────────────────────
-export function SplashScreen({ onFinish, onReady }: SplashScreenProps) {
-  const [webReady, setWebReady] = useState(false);
-  const [phase, setPhase]       = useState<'idle' | 'running' | 'done'>('idle');
-
-  // ── Animated values ──
-  const masterOp      = useRef(new Animated.Value(1)).current;
-
-  // Glow layers
-  const glowInnerOp   = useRef(new Animated.Value(0)).current;
-  const glowInnerS    = useRef(new Animated.Value(0.3)).current;
-  const glowOuterOp   = useRef(new Animated.Value(0)).current;
-  const glowOuterS    = useRef(new Animated.Value(0.2)).current;
-
-  // Logo card
-  const cardOp        = useRef(new Animated.Value(0)).current;
-  const cardS         = useRef(new Animated.Value(0.7)).current;
-  const cardRotate    = useRef(new Animated.Value(-0.03)).current;
-  const nodeProgress  = useRef(new Animated.Value(0)).current;
-
-  // Scan line that sweeps down over the logo
-  const scanY         = useRef(new Animated.Value(-1)).current;
-
-  // Ring halos
-  const ring1Op       = useRef(new Animated.Value(0)).current;
-  const ring1S        = useRef(new Animated.Value(0.4)).current;
-  const ring1Rot      = useRef(new Animated.Value(0)).current;
-  const ring2Op       = useRef(new Animated.Value(0)).current;
-  const ring2S        = useRef(new Animated.Value(0.4)).current;
-  const ring2Rot      = useRef(new Animated.Value(0)).current;
-
-  // Top brand line
-  const brandLineOp   = useRef(new Animated.Value(0)).current;
-  const brandLineW    = useRef(new Animated.Value(0)).current;
-
-  // App name
-  const nameOp        = useRef(new Animated.Value(0)).current;
-  const nameY         = useRef(new Animated.Value(28)).current;
-
-  // Divider
-  const divOp         = useRef(new Animated.Value(0)).current;
-  const divW          = useRef(new Animated.Value(0)).current;
-
-  // Taglines
-  const tag1Op        = useRef(new Animated.Value(0)).current;
-  const tag1Y         = useRef(new Animated.Value(16)).current;
-  const tag2Op        = useRef(new Animated.Value(0)).current;
-
-  // Corner accents
-  const cornerOp      = useRef(new Animated.Value(0)).current;
-
-  // Footer
-  const footerOp      = useRef(new Animated.Value(0)).current;
-  const footerY       = useRef(new Animated.Value(22)).current;
-  const barAnim       = useRef(new Animated.Value(0)).current;
-  const dotPulse      = useRef(new Animated.Value(0)).current;
-
-  // Perpetual
-  const breathAnim    = useRef(new Animated.Value(0)).current;
-  const shimmerX      = useRef(new Animated.Value(-1)).current;
-
-  useEffect(() => { onReady?.(); }, []);
-
-  const runPerpetual = useCallback(() => {
-    // Breathing glow
-    Animated.loop(Animated.sequence([
-      Animated.timing(breathAnim, { toValue: 1, duration: 2600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      Animated.timing(breathAnim, { toValue: 0, duration: 2600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-    ])).start();
-
-    // Shimmer sweep
-    Animated.loop(Animated.sequence([
-      Animated.timing(shimmerX, { toValue: 2, duration: 2800, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-      Animated.delay(2000),
-      Animated.timing(shimmerX, { toValue: -1, duration: 0, useNativeDriver: true }),
-    ])).start();
-
-    // Ring rotations
-    Animated.loop(Animated.timing(ring1Rot, { toValue: 1, duration: 20000, easing: Easing.linear, useNativeDriver: true })).start();
-    Animated.loop(Animated.timing(ring2Rot, { toValue: 1, duration: 14000, easing: Easing.linear, useNativeDriver: true })).start();
-
-    // Scan sweep over logo (repeating)
-    Animated.loop(Animated.sequence([
-      Animated.timing(scanY, { toValue: 2, duration: 2400, easing: Easing.inOut(Easing.cubic), useNativeDriver: true }),
-      Animated.delay(2800),
-      Animated.timing(scanY, { toValue: -1, duration: 0, useNativeDriver: true }),
-    ])).start();
-
-    // Dot pulse
-    Animated.loop(Animated.sequence([
-      Animated.timing(dotPulse, { toValue: 1, duration: 700, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
-      Animated.timing(dotPulse, { toValue: 0, duration: 700, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
-    ])).start();
+  const startShimmer = useCallback(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(shimmerAnim, { toValue: 2, duration: 2400, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.delay(1800),
+        Animated.timing(shimmerAnim, { toValue: -1, duration: 0, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
   }, []);
 
-  const startAnimations = useCallback(() => {
-    setWebReady(true);
+  const startHaloRotation = useCallback(() => {
+    Animated.loop(Animated.timing(haloRotate,  { toValue: 1, duration: 18000, easing: Easing.linear, useNativeDriver: true })).start();
+    Animated.loop(Animated.timing(haloRotate2, { toValue: 1, duration: 11000, easing: Easing.linear, useNativeDriver: true })).start();
+  }, []);
+
+  const startEnterAnimations = useCallback(() => {
+    setWebLoaded(true);
     setPhase('running');
-    runPerpetual();
+    startHaloRotation();
 
     Animated.sequence([
-      // ── ACT 1 — Grid awakens, outer glow (0–700ms) ───────────────────────
+      // ── Act 1: Glow rings expand from nothingness (0–900ms) ──────────
       Animated.parallel([
-        Animated.timing(glowOuterOp, { toValue: 0.45, duration: 700, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-        Animated.timing(glowOuterS,  { toValue: 1.0,  duration: 700, easing: Easing.bezier(0.16,1,0.3,1), useNativeDriver: true }),
-        Animated.timing(glowInnerOp, { toValue: 0.70, duration: 550, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-        Animated.timing(glowInnerS,  { toValue: 1.0,  duration: 550, easing: Easing.bezier(0.16,1,0.3,1), useNativeDriver: true }),
-        Animated.timing(cornerOp,    { toValue: 1,    duration: 700, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(innerGlowOpacity, { toValue: 0.55, duration: 900, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(innerGlowScale,   { toValue: 1.0,  duration: 900, easing: Easing.bezier(0.16,1,0.3,1), useNativeDriver: true }),
+        Animated.timing(outerGlowOpacity, { toValue: 0.30, duration: 1100, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(outerGlowScale,   { toValue: 1.0,  duration: 1100, easing: Easing.bezier(0.16,1,0.3,1), useNativeDriver: true }),
       ]),
 
-      // ── ACT 2 — Logo card materialises from 0 (700–2000ms) ───────────────
+      // ── Act 2: Logo materialises (900–2100ms) ─────────────────────────
       Animated.parallel([
-        Animated.timing(cardOp,    { toValue: 1,   duration: 750, easing: Easing.bezier(0.16,1,0.3,1), useNativeDriver: true }),
-        Animated.timing(cardS,     { toValue: 1.0, duration: 900, easing: Easing.bezier(0.16,1,0.3,1), useNativeDriver: true }),
-        Animated.timing(cardRotate,{ toValue: 0,   duration: 900, easing: Easing.bezier(0.16,1,0.3,1), useNativeDriver: true }),
-        Animated.timing(ring1Op,   { toValue: 1,   duration: 600, easing: Easing.out(Easing.cubic),    useNativeDriver: true }),
-        Animated.timing(ring1S,    { toValue: 1.0, duration: 800, easing: Easing.bezier(0.16,1,0.3,1), useNativeDriver: true }),
-        Animated.timing(ring2Op,   { toValue: 1,   duration: 650, easing: Easing.out(Easing.cubic),    useNativeDriver: true }),
-        Animated.timing(ring2S,    { toValue: 1.0, duration: 850, easing: Easing.bezier(0.16,1,0.3,1), useNativeDriver: true }),
-        Animated.timing(nodeProgress,{ toValue: 1, duration: 900, easing: Easing.bezier(0.16,1,0.3,1), useNativeDriver: true }),
+        Animated.timing(logoOpacity, { toValue: 1,   duration: 700, easing: Easing.bezier(0.16,1,0.3,1), useNativeDriver: true }),
+        Animated.timing(logoScale,   { toValue: 1.0, duration: 900, easing: Easing.bezier(0.16,1,0.3,1), useNativeDriver: true }),
+        Animated.timing(haloOpacity, { toValue: 1,   duration: 600, easing: Easing.out(Easing.cubic),    useNativeDriver: true }),
+        Animated.timing(haloScale,   { toValue: 1.0, duration: 800, easing: Easing.bezier(0.16,1,0.3,1), useNativeDriver: true }),
+        Animated.timing(orbitProgress,{ toValue: 1,  duration: 800, easing: Easing.bezier(0.16,1,0.3,1), useNativeDriver: true }),
       ]),
 
-      // ── ACT 3 — Top brand bar, app name drops in (2000–3000ms) ──────────
+      // ── Act 3: Typography reveal (2100–3000ms) ────────────────────────
       Animated.parallel([
-        Animated.timing(brandLineOp,{ toValue: 1,   duration: 380, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-        Animated.timing(brandLineW, { toValue: 1,   duration: 520, easing: Easing.bezier(0.4,0,0.2,1), useNativeDriver: true }),
+        Animated.timing(dividerScaleX, { toValue: 1, duration: 550, easing: Easing.bezier(0.4,0,0.2,1), useNativeDriver: true }),
         Animated.sequence([
-          Animated.delay(80),
+          Animated.delay(120),
           Animated.parallel([
-            Animated.timing(nameOp, { toValue: 1, duration: 640, easing: Easing.bezier(0.16,1,0.3,1), useNativeDriver: true }),
-            Animated.timing(nameY,  { toValue: 0, duration: 720, easing: Easing.bezier(0.16,1,0.3,1), useNativeDriver: true }),
+            Animated.timing(taglineOpacity,   { toValue: 1,  duration: 560, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+            Animated.timing(taglineTranslate, { toValue: 0,  duration: 620, easing: Easing.bezier(0.16,1,0.3,1), useNativeDriver: true }),
           ]),
         ]),
-      ]),
-
-      // ── ACT 4 — Divider + taglines (3000–3900ms) ─────────────────────────
-      Animated.parallel([
-        Animated.timing(divOp, { toValue: 1, duration: 360, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-        Animated.timing(divW,  { toValue: 1, duration: 500, easing: Easing.bezier(0.4,0,0.2,1), useNativeDriver: true }),
         Animated.sequence([
-          Animated.delay(100),
-          Animated.timing(tag1Op, { toValue: 1, duration: 460, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-          Animated.timing(tag1Y,  { toValue: 0, duration: 500, easing: Easing.bezier(0.16,1,0.3,1), useNativeDriver: true }),
-        ]),
-        Animated.sequence([
-          Animated.delay(260),
-          Animated.timing(tag2Op, { toValue: 1, duration: 400, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+          Animated.delay(280),
+          Animated.timing(tagline2Opacity, { toValue: 1, duration: 480, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
         ]),
       ]),
 
-      // ── ACT 5 — Footer + progress bar (3900–5400ms) ──────────────────────
+      // ── Act 4: Footer + progress (3000–4700ms) ────────────────────────
       Animated.sequence([
-        Animated.delay(140),
+        Animated.delay(180),
         Animated.parallel([
-          Animated.timing(footerOp, { toValue: 1, duration: 440, easing: Easing.out(Easing.cubic),             useNativeDriver: true }),
-          Animated.timing(footerY,  { toValue: 0, duration: 540, easing: Easing.bezier(0.16,1,0.3,1),          useNativeDriver: true }),
-          Animated.timing(barAnim,  { toValue: 1, duration: 1500, easing: Easing.bezier(0.25,0.46,0.45,0.94),  useNativeDriver: false }),
+          Animated.timing(footerOpacity,   { toValue: 1, duration: 500, easing: Easing.out(Easing.cubic),      useNativeDriver: true }),
+          Animated.timing(footerTranslate, { toValue: 0, duration: 600, easing: Easing.bezier(0.16,1,0.3,1),   useNativeDriver: true }),
+          Animated.timing(progressAnim,    { toValue: 1, duration: 1300, easing: Easing.bezier(0.25,0.46,0.45,0.94), useNativeDriver: false }),
         ]),
       ]),
     ]).start(() => {
-      // ── ACT 6 — Dissolve into app ─────────────────────────────────────────
+      // ── Act 5: Graceful cinematic dissolve ────────────────────────────
       Animated.parallel([
-        Animated.timing(masterOp,    { toValue: 0,   duration: 700, easing: Easing.inOut(Easing.cubic), useNativeDriver: true }),
-        Animated.timing(glowOuterS,  { toValue: 1.5, duration: 700, easing: Easing.out(Easing.cubic),   useNativeDriver: true }),
-        Animated.timing(cardS,       { toValue: 0.88,duration: 700, easing: Easing.in(Easing.cubic),    useNativeDriver: true }),
-      ]).start(() => { setPhase('done'); onFinish(); });
+        Animated.timing(masterOpacity, { toValue: 0, duration: 680, easing: Easing.inOut(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(logoScale, { toValue: 0.94, duration: 680, easing: Easing.in(Easing.cubic), useNativeDriver: true }),
+      ]).start(() => {
+        setPhase('done');
+        onFinish();
+      });
     });
+
+    // Side-channel perpetual animations
+    startBreath();
+    startShimmer();
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(progressGlow, { toValue: 1, duration: 800, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+        Animated.timing(progressGlow, { toValue: 0, duration: 800, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+      ])
+    ).start();
   }, []);
 
-  // ── Derived values ──
-  const ring1RotDeg  = ring1Rot.interpolate({ inputRange: [0, 1], outputRange: ['0deg',  '360deg'] });
-  const ring2RotDeg  = ring2Rot.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '-360deg'] });
-  const cardRotDeg   = cardRotate.interpolate({ inputRange: [-0.03, 0], outputRange: ['-4deg', '0deg'] });
+  // ── Derived animated values ──────────────────────────────────────────────────
+  const haloRotateDeg  = haloRotate.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
+  const haloRotate2Deg = haloRotate2.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '-360deg'] });
 
-  const breathS      = breathAnim.interpolate({ inputRange: [0, 1], outputRange: [1.0, 1.035] });
-  const breathGlow   = breathAnim.interpolate({ inputRange: [0, 1], outputRange: [0.50, 0.92] });
+  const progressWidth = progressAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
+  const progressShadowR = progressGlow.interpolate({ inputRange: [0, 1], outputRange: [3, 10] });
 
-  const shimmerTX    = shimmerX.interpolate({ inputRange: [-1, 2], outputRange: [-160, 280] });
-  const scanTY       = scanY.interpolate({ inputRange: [-1, 2], outputRange: [-LOGO_SZ, LOGO_SZ] });
+  const breathScale = breathAnim.interpolate({ inputRange: [0, 1], outputRange: [1.0, 1.028] });
+  const breathGlowOp = breathAnim.interpolate({ inputRange: [0, 1], outputRange: [0.55, 0.85] });
 
-  const barW         = barAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
-  const dotSR        = dotPulse.interpolate({ inputRange: [0, 1], outputRange: [5, 18] });
+  const shimmerTX = shimmerAnim.interpolate({ inputRange: [-1, 2], outputRange: [-120, 220] });
 
   if (phase === 'done') return null;
 
   return (
-    <Animated.View style={[S.root, { opacity: masterOp }]}>
-      <StatusBar barStyle="light-content" backgroundColor={C.bg} translucent />
+    <Animated.View style={[styles.root, { opacity: masterOpacity }]}>
+      <StatusBar barStyle="light-content" backgroundColor={COLOR.obsidian} translucent />
 
-      {/* ── Canvas background ──────────────────────────────────────────── */}
+      {/* ── Layer 0: WebGL-grade aurora canvas ──────────────────────────── */}
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
         <WebView
-          source={{ html: BG_HTML }}
-          style={S.webView}
-          containerStyle={{ backgroundColor: C.bg }}
+          source={{ html: AURORA_HTML }}
+          style={styles.webView}
+          containerStyle={{ backgroundColor: COLOR.obsidian }}
           originWhitelist={['*']}
           javaScriptEnabled
           scrollEnabled={false}
           overScrollMode="never"
           bounces={false}
-          onLoadEnd={startAnimations}
+          onLoadEnd={startEnterAnimations}
           scalesPageToFit={false}
         />
       </View>
 
-      {/* ── Corner bracket accents ────────────────────────────────────── */}
-      <Animated.View style={[S.full, { opacity: cornerOp }]} pointerEvents="none">
-        <CornerAccent pos="tl" />
-        <CornerAccent pos="tr" />
-        <CornerAccent pos="bl" />
-        <CornerAccent pos="br" />
-      </Animated.View>
+      {webLoaded && (
+        <View style={styles.overlay} pointerEvents="none">
 
-      {webReady && (
-        <View style={S.overlay} pointerEvents="none">
-
-          {/* ── Outer glow ─────────────────────────────────────────────── */}
+          {/* ── Layer 1: Outer atmospheric glow ───────────────────────────── */}
           <Animated.View
-            style={[S.glowOuter, {
-              opacity:   Animated.multiply(glowOuterOp, breathGlow) as any,
-              transform: [{ scale: Animated.multiply(glowOuterS, breathS) as any }],
+            style={[styles.outerGlow, {
+              opacity: outerGlowOpacity,
+              transform: [{ scale: outerGlowScale }],
             }]}
           />
 
-          {/* ── Inner glow ─────────────────────────────────────────────── */}
+          {/* ── Layer 2: Inner energy glow ────────────────────────────────── */}
           <Animated.View
-            style={[S.glowInner, {
-              opacity:   glowInnerOp,
-              transform: [{ scale: glowInnerS }],
+            style={[styles.innerGlow, {
+              opacity: Animated.multiply(innerGlowOpacity, breathGlowOp) as any,
+              transform: [{ scale: Animated.multiply(innerGlowScale, breathScale) as any }],
             }]}
           />
 
-          {/* ── Ring 1 CW ─────────────────────────────────────────────── */}
+          {/* ── Layer 3: Orbital ring 1 (slow CW) ────────────────────────── */}
           <Animated.View
-            style={[S.ring, S.ring1, {
-              opacity:   ring1Op,
-              transform: [{ scale: ring1S }, { rotate: ring1RotDeg }],
+            style={[styles.orbitalRing, styles.orbRing1, {
+              opacity: haloOpacity,
+              transform: [{ scale: haloScale }, { rotate: haloRotateDeg }],
             }]}
           />
 
-          {/* ── Ring 2 CCW (dashed feel via small dots) ───────────────── */}
+          {/* ── Layer 4: Orbital ring 2 (faster CCW) ──────────────────────── */}
           <Animated.View
-            style={[S.ring, S.ring2, {
-              opacity:   ring2Op,
-              transform: [{ scale: ring2S }, { rotate: ring2RotDeg }],
+            style={[styles.orbitalRing, styles.orbRing2, {
+              opacity: haloOpacity,
+              transform: [{ scale: haloScale }, { rotate: haloRotate2Deg }],
             }]}
           />
 
-          {/* ── Ring 3 static subtle ──────────────────────────────────── */}
-          <Animated.View
-            style={[S.ring, S.ring3, {
-              opacity:   Animated.multiply(ring1Op, 0.4 as any) as any,
-            }]}
-          />
-
-          {/* ── Node particles ────────────────────────────────────────── */}
-          <View style={S.nodeContainer}>
-            {NODES.map((n, i) => <NodeParticleView key={i} node={n} master={nodeProgress} />)}
+          {/* ── Layer 5: Orbital particles ────────────────────────────────── */}
+          <View style={styles.particleContainer}>
+            {RING_PARTICLES.map((p, i) => (
+              <OrbitalParticle key={i} particle={p} masterProgress={orbitProgress} />
+            ))}
           </View>
 
-          {/* ── Logo card ─────────────────────────────────────────────── */}
+          {/* ── Layer 6: Central logo card ────────────────────────────────── */}
           <Animated.View
-            style={[S.card, {
-              opacity:   cardOp,
-              transform: [{ scale: cardS }, { rotate: cardRotDeg }],
+            style={[styles.logoCard, {
+              opacity: logoOpacity,
+              transform: [{ scale: logoScale }],
             }]}
           >
-            {/* Glass backdrop */}
-            <View style={S.cardGlass} />
-            {/* Teal top border */}
-            <View style={S.cardTopBorder} />
-            {/* Logo */}
+            {/* Soft logo backdrop */}
+            <View style={styles.logoBackdrop} />
+
+            {/* Logo image */}
             <Image
               source={require('../../assets/splash.png')}
-              style={S.logoImg}
+              style={styles.logoImage}
               resizeMode="cover"
             />
-            {/* Scan sweep */}
+
+            {/* Shimmer sweep */}
             <Animated.View
-              style={[S.scanLine, { transform: [{ translateY: scanTY }] }]}
+              style={[styles.shimmerSweep, {
+                transform: [{ translateX: shimmerTX }, { rotate: '20deg' }],
+              }]}
             />
-            {/* Shimmer */}
-            <Animated.View
-              style={[S.shimmer, { transform: [{ translateX: shimmerTX }, { rotate: '15deg' }] }]}
-            />
-            {/* Corner ticks inside card */}
-            <View style={[S.cardTick, S.ctTL]} />
-            <View style={[S.cardTick, S.ctTR]} />
-            <View style={[S.cardTick, S.ctBL]} />
-            <View style={[S.cardTick, S.ctBR]} />
           </Animated.View>
 
-          {/* ── App name ──────────────────────────────────────────────── */}
+          {/* ── Layer 7: Typography ───────────────────────────────────────── */}
+          <View style={styles.typoBlock}>
+            {/* Decorative divider line */}
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerDot} />
+              <Animated.View style={[styles.dividerLine, { transform: [{ scaleX: dividerScaleX }] }]} />
+              <View style={styles.dividerDot} />
+            </View>
+
+            {/* Primary tagline */}
+            <Animated.Text
+              style={[styles.tagline, {
+                opacity: taglineOpacity,
+                transform: [{ translateY: taglineTranslate }],
+              }]}
+            >
+              L'EXCELLENCE AU MASCULIN
+            </Animated.Text>
+
+            {/* Secondary eyebrow */}
+            <Animated.Text style={[styles.tagline2, { opacity: tagline2Opacity }]}>
+              COLLECTION · ÉTÉ 2025
+            </Animated.Text>
+          </View>
+
+          {/* ── Layer 8: Footer progress ──────────────────────────────────── */}
           <Animated.View
-            style={[S.nameRow, {
-              opacity:   nameOp,
-              transform: [{ translateY: nameY }],
+            style={[styles.footer, {
+              opacity: footerOpacity,
+              transform: [{ translateY: footerTranslate }],
             }]}
           >
-            <Text style={S.name7}>7</Text>
-            <Text style={S.nameRest}>afefli</Text>
-          </Animated.View>
+            <Text style={styles.loadingLabel}>Préparation de votre univers</Text>
 
-          {/* ── Divider ───────────────────────────────────────────────── */}
-          <Animated.View style={[S.divRow, { opacity: divOp }]}>
-            <View style={S.divDot} />
-            <Animated.View style={[S.divLine, { transform: [{ scaleX: divW }] }]} />
-            <View style={[S.divDot, S.divDotCenter]} />
-            <Animated.View style={[S.divLine, { transform: [{ scaleX: divW }] }]} />
-            <View style={S.divDot} />
-          </Animated.View>
+            <View style={styles.progressTrack}>
+              {/* Track glow */}
+              <View style={styles.progressTrackGlow} />
 
-          {/* ── Taglines ──────────────────────────────────────────────── */}
-          <Animated.Text style={[S.tag1, { opacity: tag1Op, transform: [{ translateY: tag1Y }] }]}>
-            RÉSERVEZ · DÉCOUVREZ · BRILLEZ
-          </Animated.Text>
-          <Animated.Text style={[S.tag2, { opacity: tag2Op }]}>
-            BARBERSHOP BOOKING DZ
-          </Animated.Text>
-
-          {/* ── Footer ────────────────────────────────────────────────── */}
-          <Animated.View style={[S.footer, { opacity: footerOp, transform: [{ translateY: footerY }] }]}>
-            <Text style={S.footerLabel}>INITIALISATION DU SYSTÈME</Text>
-            <View style={S.barTrack}>
-              {/* Animated fill */}
-              <Animated.View style={[S.barFill, { width: barW }]}>
-                <Animated.View style={[S.barDot, { shadowRadius: dotSR }]} />
+              {/* Fill bar */}
+              <Animated.View style={[styles.progressFill, { width: progressWidth }]}>
+                {/* Leading edge glow dot */}
+                <Animated.View
+                  style={[styles.progressDot, {
+                    shadowRadius: progressShadowR,
+                  }]}
+                />
               </Animated.View>
+
               {/* Tick marks */}
-              {[0.25, 0.5, 0.75].map(p => (
-                <View key={p} style={[S.barTick, { left: `${p * 100}%` as any }]} />
+              {[0.25, 0.5, 0.75].map((pos) => (
+                <View
+                  key={pos}
+                  style={[styles.tickMark, { left: `${pos * 100}%` as any }]}
+                />
               ))}
             </View>
           </Animated.View>
@@ -705,254 +652,255 @@ export function SplashScreen({ onFinish, onReady }: SplashScreenProps) {
   );
 }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-const LOGO_SZ   = 162;
-const GLOW_IN   = 240;
-const GLOW_OUT  = 360;
-const TICK_W    = 9;
-const TICK_T    = 1.2;
-
 // ─── Styles ───────────────────────────────────────────────────────────────────
-const S = StyleSheet.create({
+const LOGO_SIZE = 148;
+const INNER_GLOW_SIZE = 210;
+const OUTER_GLOW_SIZE = 310;
+
+const styles = StyleSheet.create({
   root: {
     position: 'absolute',
     top: 0, bottom: 0, left: 0, right: 0,
-    backgroundColor: C.bg,
+    backgroundColor: COLOR.obsidian,
     zIndex: 99999,
   },
   webView: {
-    width, height,
+    width,
+    height,
     backgroundColor: 'transparent',
   },
-  full: {
-    ...StyleSheet.absoluteFillObject,
-  },
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-  // ── Glows ────────────────────────────────────────────────────────────────
-  glowOuter: {
+  // ── Glow layers ──────────────────────────────────────────────────────────────
+  outerGlow: {
     position: 'absolute',
-    width: GLOW_OUT, height: GLOW_OUT,
-    borderRadius: GLOW_OUT / 2,
+    width: OUTER_GLOW_SIZE,
+    height: OUTER_GLOW_SIZE,
+    borderRadius: OUTER_GLOW_SIZE / 2,
     backgroundColor: 'transparent',
-    shadowColor: C.teal,
+    shadowColor: COLOR.amber,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 1,
-    shadowRadius: 110,
-    ...Platform.select({ android: { backgroundColor: C.tealDim, opacity: 0.07 } }),
+    shadowRadius: 80,
+    // Android fallback: soft amber circle
+    ...Platform.select({
+      android: {
+        backgroundColor: COLOR.amberDeep,
+        opacity: 0.08,
+      },
+    }),
   },
-  glowInner: {
+  innerGlow: {
     position: 'absolute',
-    width: GLOW_IN, height: GLOW_IN,
-    borderRadius: GLOW_IN / 2,
+    width: INNER_GLOW_SIZE,
+    height: INNER_GLOW_SIZE,
+    borderRadius: INNER_GLOW_SIZE / 2,
     backgroundColor: 'transparent',
-    shadowColor: C.teal,
+    shadowColor: COLOR.amber,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 1,
-    shadowRadius: 60,
-    ...Platform.select({ android: { backgroundColor: C.teal, opacity: 0.08 } }),
+    shadowRadius: 45,
+    ...Platform.select({
+      android: {
+        backgroundColor: COLOR.amber,
+        opacity: 0.10,
+      },
+    }),
   },
 
-  // ── Rings ─────────────────────────────────────────────────────────────────
-  ring: {
+  // ── Orbital rings ─────────────────────────────────────────────────────────
+  orbitalRing: {
     position: 'absolute',
     borderRadius: 9999,
     borderStyle: 'solid' as const,
   },
-  ring1: {
-    width: 228, height: 228,
-    borderWidth: 1.0,
-    borderColor: 'rgba(0,212,255,0.30)',
-    shadowColor: C.teal, shadowOpacity: 0.5, shadowRadius: 8,
-    shadowOffset: { width: 0, height: 0 },
-  },
-  ring2: {
-    width: 274, height: 274,
-    borderWidth: 0.55,
-    borderColor: 'rgba(123,97,255,0.18)',
-    shadowColor: C.violet, shadowOpacity: 0.35, shadowRadius: 5,
-    shadowOffset: { width: 0, height: 0 },
-  },
-  ring3: {
-    width: 324, height: 324,
-    borderWidth: 0.3,
-    borderColor: 'rgba(0,212,255,0.08)',
-  },
-
-  // ── Node particles ─────────────────────────────────────────────────────────
-  nodeContainer: {
-    position: 'absolute',
-    width: 0, height: 0,
-    alignItems: 'center', justifyContent: 'center',
-  },
-
-  // ── Logo card ──────────────────────────────────────────────────────────────
-  card: {
-    width:  LOGO_SZ, height: LOGO_SZ,
-    borderRadius: LOGO_SZ * 0.18,
-    alignItems: 'center', justifyContent: 'center',
-    overflow: 'hidden',
+  orbRing1: {
+    width: 210,
+    height: 210,
     borderWidth: 0.8,
-    borderColor: 'rgba(0,212,255,0.35)',
-    backgroundColor: 'rgba(5,18,45,0.75)',
-    shadowColor: C.teal,
+    borderColor: 'rgba(232,160,32,0.25)',
+    shadowColor: COLOR.amber,
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.55,
-    shadowRadius: 40,
-    elevation: 28,
+    // Dashes via small border breaks via borderDashOffset trick (iOS only, graceful)
   },
-  cardGlass: {
-    position: 'absolute', top: 0, bottom: 0, left: 0, right: 0,
-    backgroundColor: 'rgba(0,212,255,0.025)',
-  },
-  cardTopBorder: {
-    position: 'absolute', top: 0, left: 16, right: 16,
-    height: 1.5,
-    backgroundColor: C.teal,
-    opacity: 0.6,
-  },
-  logoImg: {
-    width: LOGO_SZ * 1.7, height: LOGO_SZ * 1.7,
-    position: 'absolute',
-  },
-  scanLine: {
-    position: 'absolute', left: 0, right: 0,
-    height: 2,
-    backgroundColor: 'rgba(0,212,255,0.18)',
-    shadowColor: C.teal, shadowOpacity: 1, shadowRadius: 8,
+  orbRing2: {
+    width: 248,
+    height: 248,
+    borderWidth: 0.5,
+    borderColor: 'rgba(245,197,90,0.14)',
+    shadowColor: COLOR.gold,
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
     shadowOffset: { width: 0, height: 0 },
   },
-  shimmer: {
-    position: 'absolute', top: -20, left: 0,
-    width: 48, height: LOGO_SZ + 40,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 8,
-  },
-  // Card corner ticks
-  cardTick: {
+
+  // ── Orbital particles container ───────────────────────────────────────────
+  particleContainer: {
     position: 'absolute',
-    width: TICK_W, height: TICK_W,
-    borderColor: C.teal,
-    opacity: 0.7,
+    width: 0,
+    height: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  ctTL: { top: 8,  left:  8,  borderTopWidth: TICK_T, borderLeftWidth:  TICK_T },
-  ctTR: { top: 8,  right: 8,  borderTopWidth: TICK_T, borderRightWidth: TICK_T },
-  ctBL: { bottom: 8, left:  8, borderBottomWidth: TICK_T, borderLeftWidth:  TICK_T },
-  ctBR: { bottom: 8, right: 8, borderBottomWidth: TICK_T, borderRightWidth: TICK_T },
-
-  // ── App name ────────────────────────────────────────────────────────────────
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    marginTop: 26,
-  },
-  name7: {
-    fontSize: 50,
-    fontFamily: 'Syne_700Bold',
-    color: C.teal,
-    letterSpacing: -1.5,
-    lineHeight: 54,
-    textShadowColor: C.teal,
-    textShadowRadius: 22,
-    textShadowOffset: { width: 0, height: 0 },
-  },
-  nameRest: {
-    fontSize: 44,
-    fontFamily: 'Syne_700Bold',
-    color: C.white,
-    letterSpacing: 0.5,
-    lineHeight: 54,
+  orbParticle: {
+    position: 'absolute',
+    elevation: 4,
   },
 
-  // ── Divider ─────────────────────────────────────────────────────────────────
-  divRow: {
+  // ── Logo card ─────────────────────────────────────────────────────────────
+  logoCard: {
+    width: LOGO_SIZE,
+    height: LOGO_SIZE,
+    borderRadius: LOGO_SIZE * 0.22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    // Subtle card border
+    borderWidth: 0.5,
+    borderColor: 'rgba(232,160,32,0.22)',
+    backgroundColor: 'rgba(18,14,8,0.70)',
+    shadowColor: COLOR.amber,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.35,
+    shadowRadius: 28,
+    elevation: 20,
+  },
+  logoBackdrop: {
+    position: 'absolute',
+    top: 0, bottom: 0, left: 0, right: 0,
+    backgroundColor: 'rgba(232,160,32,0.04)',
+  },
+  logoImage: {
+    width: LOGO_SIZE * 1.62,
+    height: LOGO_SIZE * 1.62,
+    position: 'absolute',
+  },
+  shimmerSweep: {
+    position: 'absolute',
+    top: -20,
+    left: 0,
+    width: 40,
+    height: LOGO_SIZE + 40,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 4,
+  },
+
+  // ── Typography ────────────────────────────────────────────────────────────
+  typoBlock: {
+    marginTop: 32,
+    alignItems: 'center',
+  },
+  dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 12,
-    gap: 6,
+    marginBottom: 14,
   },
-  divDot: {
-    width: 3, height: 3, borderRadius: 1.5,
-    backgroundColor: C.teal,
+  dividerDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: COLOR.amber,
+    shadowColor: COLOR.amber,
+    shadowOpacity: 0.9,
+    shadowRadius: 4,
   },
-  divDotCenter: {
-    width: 5, height: 5, borderRadius: 0,
-    transform: [{ rotate: '45deg' }],
+  dividerLine: {
+    width: 72,
+    height: 0.6,
+    backgroundColor: COLOR.amber,
+    marginHorizontal: 8,
+    shadowColor: COLOR.amber,
+    shadowOpacity: 0.7,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 0 },
+    // Scale from center
+    transformOrigin: 'center' as any,
   },
-  divLine: {
-    width: 60, height: 0.8,
-    backgroundColor: C.teal,
-    opacity: 0.45,
-    transformOrigin: 'left',
-  },
-
-  // ── Taglines ────────────────────────────────────────────────────────────────
-  tag1: {
-    marginTop: 10,
-    fontSize: 10.5,
+  tagline: {
     fontFamily: 'DMSans_500Medium',
-    color: C.white,
-    letterSpacing: 3,
-    textTransform: 'uppercase',
-    opacity: 0.80,
+    fontSize: 11.5,
+    color: COLOR.fog,
+    letterSpacing: 4.8,
+    textAlign: 'center',
+    opacity: 0.88,
   },
-  tag2: {
-    marginTop: 5,
-    fontSize: 9,
+  tagline2: {
     fontFamily: 'DMSans_400Regular',
-    color: C.teal,
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-    opacity: 0.55,
+    fontSize: 9.5,
+    color: COLOR.dim,
+    letterSpacing: 3.2,
+    textAlign: 'center',
+    marginTop: 7,
   },
 
-  // ── Footer ──────────────────────────────────────────────────────────────────
+  // ── Footer ────────────────────────────────────────────────────────────────
   footer: {
     position: 'absolute',
-    bottom: 60,
-    left: 36, right: 36,
+    bottom: 56 + (Platform.OS === 'ios' ? 28 : 0),
+    left: 48,
+    right: 48,
     alignItems: 'center',
-    gap: 11,
   },
-  footerLabel: {
-    fontSize: 9.5,
+  loadingLabel: {
     fontFamily: 'DMSans_400Regular',
-    color: 'rgba(0,212,255,0.45)',
-    letterSpacing: 2.2,
-    textTransform: 'uppercase',
+    fontSize: 11,
+    color: 'rgba(155,145,130,0.7)',
+    letterSpacing: 1.6,
+    marginBottom: 14,
   },
-  barTrack: {
-    width: '100%', height: 1.5,
-    backgroundColor: 'rgba(0,212,255,0.10)',
-    borderRadius: 2,
+  progressTrack: {
+    width: '68%',
+    height: 2,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: 1,
     overflow: 'visible',
     position: 'relative',
   },
-  barFill: {
-    height: '100%',
-    backgroundColor: C.teal,
+  progressTrackGlow: {
+    position: 'absolute',
+    top: -1,
+    left: 0,
+    right: 0,
+    height: 4,
     borderRadius: 2,
-    shadowColor: C.teal,
-    shadowOpacity: 1,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 0 },
+    backgroundColor: 'rgba(232,160,32,0.06)',
   },
-  barDot: {
-    position: 'absolute', right: -4, top: -5,
-    width: 11, height: 11, borderRadius: 5.5,
-    backgroundColor: C.white,
-    shadowColor: C.teal,
-    shadowOpacity: 1,
-    shadowOffset: { width: 0, height: 0 },
-  },
-  barTick: {
-    position: 'absolute', top: -3,
-    width: 1, height: 7,
-    backgroundColor: 'rgba(0,212,255,0.22)',
+  progressFill: {
+    height: '100%',
+    backgroundColor: COLOR.amber,
     borderRadius: 1,
+    overflow: 'visible',
+    shadowColor: COLOR.amber,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 6,
+  },
+  progressDot: {
+    position: 'absolute',
+    right: -3,
+    top: -2,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: COLOR.goldLight,
+    shadowColor: COLOR.amber,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  tickMark: {
+    position: 'absolute',
+    top: -2,
+    width: 1,
+    height: 6,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 0.5,
   },
 });
