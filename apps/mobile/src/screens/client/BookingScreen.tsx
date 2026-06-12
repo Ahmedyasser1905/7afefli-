@@ -61,6 +61,23 @@ export function BookingScreen() {
     },
   });
 
+  // Fetch client profile to pre-fill phone number
+  const { data: profile } = useQuery<Record<string, unknown> | null>({
+    queryKey: ['profile', user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      return await apiClient.get<Record<string, unknown>>('/auth/profiles/me');
+    },
+    enabled: !!user,
+  });
+
+  // Pre-fill phone when profile loads
+  useEffect(() => {
+    if (profile?.phone_number && !clientPhone) {
+      setClientPhone(profile.phone_number as string);
+    }
+  }, [profile?.phone_number]);
+
   // Fetch staff via API only — no Supabase fallback
   const { data: staff = [] } = useQuery<Record<string, unknown>[]>({
     queryKey: ['salon-staff', salonId],
