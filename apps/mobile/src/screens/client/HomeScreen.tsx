@@ -294,7 +294,7 @@ export function HomeScreen() {
     }
 
     return result;
-  }, [salons, activeFilters, searchQuery, isPremiumClient, location]);
+  }, [salons, activeFilters, searchQuery, location]);
 
   // Reset selected salon when the filtered list changes so the map popup
   // never lingers for a salon that has been filtered out
