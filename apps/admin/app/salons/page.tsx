@@ -74,6 +74,39 @@ export default function SalonApprovalsPage() {
     setActionLoading(null);
   }
 
+  // FIX-4: Delete salon with cascade cleanup
+  async function deleteSalon(salonId: string) {
+    if (!confirm('Supprimer définitivement ce salon ? Cette action est irréversible.')) return;
+    setActionLoading(salonId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      await apiFetch(`/admin/salons/${salonId}`, session?.access_token ?? '', { method: 'DELETE' });
+      setPending((prev) => prev.filter((s) => s.id !== salonId));
+    } catch (e) {
+      console.error('Failed to delete salon:', e);
+      alert('Erreur lors de la suppression du salon.');
+    }
+    setActionLoading(null);
+  }
+
+  // FIX-4: Sponsor salon for 30 days
+  async function sponsorSalon(salonId: string) {
+    if (!confirm('Sponsoriser ce salon pour 30 jours ?')) return;
+    setActionLoading(salonId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      await apiFetch(`/admin/salons/${salonId}/sponsor`, session?.access_token ?? '', {
+        method: 'POST',
+        body: JSON.stringify({ days: 30 }),
+      });
+      alert('Salon sponsorisé pour 30 jours !');
+    } catch (e) {
+      console.error('Failed to sponsor salon:', e);
+      alert('Erreur lors de la sponsorisation.');
+    }
+    setActionLoading(null);
+  }
+
   function formatDate(dateStr: string): string {
     return new Date(dateStr).toLocaleDateString('fr-FR', {
       day: 'numeric',
@@ -168,23 +201,39 @@ export default function SalonApprovalsPage() {
                       <span style={styles.dateText}>{formatDate(salon.created_at)}</span>
                     </td>
                     <td style={styles.td}>
-                      <div style={styles.actionCell}>
-                        <button
-                          onClick={() => approveSalon(salon.id)}
-                          disabled={actionLoading === salon.id}
-                          style={styles.approveBtn}
-                        >
-                          {actionLoading === salon.id ? '...' : '✓ Approuver'}
-                        </button>
-                        <button
-                          onClick={() => rejectSalon(salon.id)}
-                          disabled={actionLoading === salon.id}
-                          style={styles.rejectBtn}
-                        >
-                          ✕ Rejeter
-                        </button>
-                        <button style={styles.viewBtn}>👁️</button>
-                      </div>
+                        <div style={styles.actionCell}>
+                          <button
+                            onClick={() => approveSalon(salon.id)}
+                            disabled={actionLoading === salon.id}
+                            style={styles.approveBtn}
+                          >
+                            {actionLoading === salon.id ? '...' : '✓ Approuver'}
+                          </button>
+                          <button
+                            onClick={() => rejectSalon(salon.id)}
+                            disabled={actionLoading === salon.id}
+                            style={styles.rejectBtn}
+                          >
+                            ✕ Rejeter
+                          </button>
+                          {/* FIX-4: Sponsor button */}
+                          <button
+                            onClick={() => sponsorSalon(salon.id)}
+                            disabled={actionLoading === salon.id}
+                            style={styles.sponsorBtn}
+                          >
+                            ✨ Sponsoriser 30j
+                          </button>
+                          {/* FIX-4: Delete button */}
+                          <button
+                            onClick={() => deleteSalon(salon.id)}
+                            disabled={actionLoading === salon.id}
+                            style={styles.deleteBtn}
+                          >
+                            🗑️ Supprimer
+                          </button>
+                          <button style={styles.viewBtn}>👁️</button>
+                        </div>
                     </td>
                   </tr>
                 ))}
@@ -368,6 +417,27 @@ const styles: Record<string, React.CSSProperties> = {
     backgroundColor: 'transparent',
     cursor: 'pointer',
     fontSize: 14,
+  },
+  // FIX-4: Sponsor and Delete styles
+  sponsorBtn: {
+    padding: '6px 12px',
+    borderRadius: 6,
+    border: 'none',
+    backgroundColor: 'rgba(232, 160, 32, 0.2)',
+    color: '#E8A020',
+    cursor: 'pointer',
+    fontSize: 12,
+    fontWeight: 600,
+  },
+  deleteBtn: {
+    padding: '6px 12px',
+    borderRadius: 6,
+    border: 'none',
+    backgroundColor: 'rgba(231, 76, 60, 0.2)',
+    color: '#E74C3C',
+    cursor: 'pointer',
+    fontSize: 12,
+    fontWeight: 600,
   },
   loadingContainer: {
     display: 'flex',

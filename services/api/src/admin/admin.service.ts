@@ -307,7 +307,8 @@ export class AdminService {
   async getAllSubscriptions() {
     const { data, error } = await this.supabase.adminClient
       .from('user_subscriptions')
-      .select('*, salons(name)')
+      // FIX-2: Join plans to get name/price instead of displaying raw UUIDs
+      .select('*, plans(name, price), salons(name)')
       .order('starts_at', { ascending: false });
     if (error) throw new Error(error.message);
     return data;

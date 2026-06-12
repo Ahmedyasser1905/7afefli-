@@ -18,6 +18,15 @@ interface RevenueStats {
   totalPayments: number;
 }
 
+// FIX-5: Analytics stats interface
+interface AnalyticsStats {
+  totalRevenue: number;
+  mrr: number;
+  avgSubscriptionValue: number;
+  subscriptionsByPlan: { plan_name: string; count: number }[];
+  topSalons: { id: string; name: string; wilaya: string; average_rating: number; total_reviews: number }[];
+}
+
 interface AuditLog {
   id: string;
   action: string;
@@ -30,6 +39,7 @@ interface AuditLog {
 export default function DashboardPage() {
   const [stats, setStats] = useState<PlatformStats | null>(null);
   const [revenue, setRevenue] = useState<RevenueStats | null>(null);
+  const [analytics, setAnalytics] = useState<AnalyticsStats | null>(null);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -45,16 +55,18 @@ export default function DashboardPage() {
 
       const token = session.access_token;
 
-      // Parallel fetch for stats, revenue, and audit logs (fix C5: now routes through /api/v1)
-      const [statsData, revenueData, auditData] = await Promise.all([
+      // FIX-5: Add analytics fetch to parallel block
+      const [statsData, revenueData, auditData, analyticsData] = await Promise.all([
         apiFetch<PlatformStats>('/admin/stats', token).catch(() => null),
         apiFetch<RevenueStats>('/admin/revenue', token).catch(() => null),
         apiFetch<{ data: AuditLog[] }>('/admin/audit?limit=10', token).catch(() => null),
+        apiFetch<AnalyticsStats>('/admin/analytics', token).catch(() => null),
       ]);
 
       if (statsData) setStats(statsData);
       if (revenueData) setRevenue(revenueData);
       if (auditData) setAuditLogs(auditData.data || []);
+      if (analyticsData) setAnalytics(analyticsData);
     } catch (e) {
       console.error('Failed to load dashboard data:', e);
     } finally {
@@ -166,7 +178,84 @@ export default function DashboardPage() {
                   </p>
                 </div>
               </div>
+              {/* FIX-5: Analytics stat cards */}
+              {analytics && (
+                <>
+                  <div style={styles.statCard}>
+                    <span style={styles.statIcon}>📈</span>
+                    <div>
+                      <h3 style={styles.statLabel}>MRR</h3>
+                      <p style={{ ...styles.statValue, color: '#9B59B6' }}>
+                        {analytics.mrr} DZD
+                      </p>
+                    </div>
+                  </div>
+                  <div style={styles.statCard}>
+                    <span style={styles.statIcon}>🎯</span>
+                    <div>
+                      <h3 style={styles.statLabel}>Valeur moy. abonnement</h3>
+                      <p style={{ ...styles.statValue, color: '#3498DB' }}>
+                        {analytics.avgSubscriptionValue} DZD
+                      </p>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
+
+            {/* FIX-5: Top Salons section */}
+            {analytics?.topSalons && analytics.topSalons.length > 0 && (
+              <>
+                <h2 style={{ ...styles.pageTitle, marginTop: 40, marginBottom: 16 }}>Top 5 Salons</h2>
+                <div style={styles.tableContainer}>
+                  <table style={styles.table}>
+                    <thead>
+                      <tr>
+                        <th style={styles.th}>Salon</th>
+                        <th style={styles.th}>Wilaya</th>
+                        <th style={styles.th}>Note moy.</th>
+                        <th style={styles.th}>Avis</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {analytics.topSalons.slice(0, 5).map((s) => (
+                        <tr key={s.id} style={styles.tr}>
+                          <td style={styles.td}>{s.name}</td>
+                          <td style={styles.td}>{s.wilaya}</td>
+                          <td style={styles.td}>⭐ {s.average_rating?.toFixed(1)}</td>
+                          <td style={styles.td}>{s.total_reviews}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+
+            {/* FIX-5: Plan breakdown section */}
+            {analytics?.subscriptionsByPlan && analytics.subscriptionsByPlan.length > 0 && (
+              <>
+                <h2 style={{ ...styles.pageTitle, marginTop: 40, marginBottom: 16 }}>Répartition des plans</h2>
+                <div style={styles.tableContainer}>
+                  <table style={styles.table}>
+                    <thead>
+                      <tr>
+                        <th style={styles.th}>Plan</th>
+                        <th style={styles.th}>Abonnements actifs</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {analytics.subscriptionsByPlan.map((p) => (
+                        <tr key={p.plan_name} style={styles.tr}>
+                          <td style={styles.td}>✨ {p.plan_name}</td>
+                          <td style={styles.td}>{p.count}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
 
             {/* Audit Logs Table */}
             <h2 style={{ ...styles.pageTitle, marginTop: 40, marginBottom: 16 }}>Journal d'audit</h2>

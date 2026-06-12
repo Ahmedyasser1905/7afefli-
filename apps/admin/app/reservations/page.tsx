@@ -39,8 +39,9 @@ export default function AdminReservationsPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      const data = await apiFetch('/admin/reservations', session.access_token);
-      setReservations(data as typeof reservations);
+      // FIX-1: API returns { data: Reservation[], total: number } — unwrap correctly
+      const response = await apiFetch<{ data: Reservation[]; total: number }>('/admin/reservations', session.access_token);
+      setReservations(response.data ?? []);
     } catch (e) {
       console.error('Failed to fetch reservations:', e);
     } finally {

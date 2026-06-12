@@ -29,6 +29,11 @@ export class SalonServicesService {
   async create(salonId: string, dto: CreateServiceDto, userId: string) {
     await this.verifySalonOwnership(salonId, userId);
 
+    // FIX-11 decision: max_services is intentionally unlimited for all plans.
+    // The plans table enforces max_barbers, max_portfolio_photos, and max_reservations,
+    // but services are unrestricted to avoid discouraging barbers from setting up their catalog.
+    // If plan-based service limits are needed in the future, add a max_services column to plans
+    // and check it here (same pattern as addStaff() in SalonsService).
     const { data, error } = await this.supabase.adminClient
       .from('services')
       .insert({

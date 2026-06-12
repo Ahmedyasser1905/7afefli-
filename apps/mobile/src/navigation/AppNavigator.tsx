@@ -213,7 +213,9 @@ export function AppNavigator() {
           <RootStack.Screen name="ClientApp" component={ClientTabNavigator} />
         )}
         <RootStack.Group screenOptions={{ presentation: 'modal' }}>
-          <RootStack.Screen name="Notifications" component={NotificationsScreen} />
+          {/* FIX-9: Notifications modal removed — barbers have it in BarberTabNavigator tab;
+              clients now have it in ClientTabNavigator tab (FIX-8).
+              Keeping only non-tab modals here: LoyaltyPoints and ClientSubscription. */}
           <RootStack.Screen name="LoyaltyPoints" component={LoyaltyPointsScreen} />
           <RootStack.Screen name="ClientSubscription" component={ClientSubscriptionScreen} />
         </RootStack.Group>

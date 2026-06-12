@@ -159,6 +159,20 @@ export class SubscriptionsService {
       // Ignore if function doesn't exist yet
     }
 
+    // FIX-10: Auto-unsponsor salons whose sponsored_until date has passed
+    const { error: sponsorErr } = await this.supabase.adminClient
+      .from('salons')
+      .update({ is_sponsored: false, sponsored_until: null })
+      .eq('is_sponsored', true)
+      .lt('sponsored_until', new Date().toISOString())
+      .not('sponsored_until', 'is', null);
+
+    if (sponsorErr) {
+      this.logger.error('Failed to auto-unsponsor expired salons:', sponsorErr.message);
+    } else {
+      this.logger.log('Auto-unsponsor check completed.');
+    }
+
     this.logger.log('Daily subscription checks completed.');
   }
 
