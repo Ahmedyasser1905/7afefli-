@@ -198,17 +198,7 @@ export function SettingsScreen() {
                 </View>
                 <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.settingsRow}
-                onPress={() => navigation.navigate('ClientSubscription' as never)}
-                activeOpacity={0.8}
-              >
-                <View style={styles.rowLeftCol}>
-                  <Ionicons name="diamond-outline" size={20} color={colors.amber} />
-                  <Text style={styles.rowLabel}>Abonnement Premium</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-              </TouchableOpacity>
+
             </View>
           </>
         )}

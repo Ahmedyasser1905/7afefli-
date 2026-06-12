@@ -11,6 +11,7 @@ import { colors, spacing, radius, shadows } from '../../theme';
 import { DateStrip } from '../../components/booking/DateStrip';
 import { SlotPicker } from '../../components/booking/SlotPicker';
 import { useBookingStore } from '../../store/bookingStore';
+import { useAuthStore } from '../../store/authStore';
 import { useCreateReservation } from '../../hooks/booking/useCreateReservation';
 import { scheduleAppointmentReminder } from '../../lib/notifications';
 import Ionicons from "@react-native-vector-icons/ionicons";
@@ -38,7 +39,9 @@ export function BookingScreen() {
 
   const createReservation = useCreateReservation();
   const [pendingSlot, setPendingSlot] = useState<{ startTime: string; endTime: string } | null>(null);
-  const [clientPhone, setClientPhone] = useState('');
+  
+  const { user } = useAuthStore();
+  const [clientPhone, setClientPhone] = useState(user?.phone || user?.user_metadata?.phone || '');
 
   // Fetch salon details
   const { data: salon, isLoading: isSalonLoading } = useQuery<Record<string, unknown> | null>({
