@@ -224,16 +224,22 @@ export function HomeScreen() {
     const hasServerDistance = allSalons[0]?.distance_meters !== undefined;
 
     if (hasServerDistance) {
-      // The backend RPC already filtered these to 50km. Just sort them.
+      // The backend RPC already filtered these to 50km. Sort: sponsored → plan_price → distance.
       let filtered = allSalons;
-      
+
       // Secondary safety check: ensure strictly <= 50km
       filtered = filtered.filter(a => (a.distance_meters ?? 0) <= 50000);
 
       return [...filtered].sort((a, b) => {
+        // 1. Sponsored salons always appear first
+        const sponsA = a.is_sponsored ? 1 : 0;
+        const sponsB = b.is_sponsored ? 1 : 0;
+        if (sponsA !== sponsB) return sponsB - sponsA;
+        // 2. Higher plan tier next
         const priceA = a.plan_price ?? 0;
         const priceB = b.plan_price ?? 0;
         if (priceA !== priceB) return priceB - priceA;
+        // 3. Closest last tiebreaker
         return (a.distance_meters ?? 0) - (b.distance_meters ?? 0);
       });
     }
@@ -245,9 +251,15 @@ export function HomeScreen() {
     const withinRadius = allSalons.filter(salon => getDistanceKm(location, salon) <= 50);
 
     return [...withinRadius].sort((a, b) => {
+      // 1. Sponsored salons always appear first
+      const sponsA = a.is_sponsored ? 1 : 0;
+      const sponsB = b.is_sponsored ? 1 : 0;
+      if (sponsA !== sponsB) return sponsB - sponsA;
+      // 2. Higher plan tier
       const priceA = a.plan_price ?? 0;
       const priceB = b.plan_price ?? 0;
       if (priceA !== priceB) return priceB - priceA;
+      // 3. Closest distance
       return getDistanceKm(location, a) - getDistanceKm(location, b);
     });
   }, [allSalons, location, isPremiumClient]);
