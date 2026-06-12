@@ -114,6 +114,10 @@ export function FavoritesScreen() {
         <FlatList
           data={favorites}
           keyExtractor={(item) => item.id}
+          initialNumToRender={8}
+          windowSize={5}
+          maxToRenderPerBatch={10}
+          removeClippedSubviews={true}
           renderItem={renderItem}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}

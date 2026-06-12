@@ -4,6 +4,8 @@ import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { invalidateRoleCache } from '../auth/auth.guard';
 import { NotificationsService } from '../notifications/notifications.service';
+import { UpdatePlanDto } from './dto/update-plan.dto';
+import { UpdateAdminSalonDto } from './dto/update-admin-salon.dto';
 
 @Injectable()
 export class AdminService {
@@ -401,13 +403,26 @@ export class AdminService {
   }
 
   /**
+   * DELETE /admin/reviews/:id
+   */
+  async deleteReview(reviewId: string) {
+    const { error } = await this.supabase.adminClient
+      .from('reviews')
+      .delete()
+      .eq('id', reviewId);
+    if (error) throw new Error(error.message);
+    return { success: true };
+  }
+
+  /**
    * PATCH /admin/plans/:id — update a subscription plan.
    */
-  async updatePlan(planId: string, dto: Record<string, unknown>) {
+  async updatePlan(planId: string, updates: UpdatePlanDto) {
     const allowedFields = ['name', 'price', 'max_barbers', 'max_portfolio_photos', 'max_reservations', 'duration_days', 'is_active'];
     const update: Record<string, unknown> = {};
     for (const key of allowedFields) {
-      if (dto[key] !== undefined) update[key] = dto[key];
+      const val = (updates as any)[key];
+      if (val !== undefined) update[key] = val;
     }
     const { data, error } = await this.supabase.adminClient
       .from('plans')
@@ -422,11 +437,12 @@ export class AdminService {
   /**
    * PATCH /admin/salons/:id — update salon fields (e.g. is_sponsored toggle).
    */
-  async updateSalon(salonId: string, dto: Record<string, unknown>) {
-    const allowedFields = ['is_sponsored', 'is_approved', 'is_manually_closed'];
+  async updateSalon(salonId: string, dto: UpdateAdminSalonDto) {
+    const allowedFields = ['name', 'description', 'address', 'wilaya', 'commune', 'phone', 'open_time', 'close_time', 'working_days', 'is_approved', 'is_sponsored', 'is_manually_closed', 'latitude', 'longitude'];
     const update: Record<string, unknown> = {};
     for (const key of allowedFields) {
-      if (dto[key] !== undefined) update[key] = dto[key];
+      const val = (dto as any)[key];
+      if (val !== undefined) update[key] = val;
     }
     const { data, error } = await this.supabase.adminClient
       .from('salons')

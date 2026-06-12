@@ -1,3 +1,4 @@
+import Link from 'next/link';
 // apps/admin/app/reservations/page.tsx
 'use client';
 
@@ -79,17 +80,17 @@ export default function AdminReservationsPage() {
           <span style={styles.adminBadge}>Admin</span>
         </div>
         <nav style={styles.nav}>
-          <a href="/dashboard" style={styles.navLink}>📊 Dashboard</a>
-          <a href="/salons" style={styles.navLink}>🏪 Approbations</a>
-          <a href="/users" style={styles.navLink}>👥 Utilisateurs</a>
-          <a href="/reservations" style={{ ...styles.navLink, ...styles.navLinkActive }}>
+          <Link href="/dashboard" style={styles.navLink}>📊 Dashboard</Link>
+          <Link href="/salons" style={styles.navLink}>🏪 Approbations</Link>
+          <Link href="/users" style={styles.navLink}>👥 Utilisateurs</Link>
+          <Link href="/reservations" style={{ ...styles.navLink, ...styles.navLinkActive }}>
             📅 Réservations
-          </a>
-          <a href="/subscriptions" style={styles.navLink}>💳 Abonnements</a>
-          <a href="/payments" style={styles.navLink}>💰 Paiements</a>
-          <a href="/reviews" style={styles.navLink}>⭐ Avis</a>
-          <a href="/plans" style={styles.navLink}>📊 Plans</a>
-          <a href="/analytics" style={styles.navLink}>📈 Analytiques</a>
+          </Link>
+          <Link href="/subscriptions" style={styles.navLink}>💳 Abonnements</Link>
+          <Link href="/payments" style={styles.navLink}>💰 Paiements</Link>
+          <Link href="/reviews" style={styles.navLink}>⭐ Avis</Link>
+          <Link href="/plans" style={styles.navLink}>📊 Plans</Link>
+          <Link href="/analytics" style={styles.navLink}>📈 Analytiques</Link>
         </nav>
       </aside>
 

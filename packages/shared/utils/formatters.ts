@@ -112,3 +112,21 @@ export function getDayNameShort(dateStr: string): string {
 export function getDayNumber(dateStr: string): number {
   return new Date(dateStr + 'T00:00:00').getDate();
 }
+
+/**
+ * Calculate the great-circle distance between two points in kilometers.
+ */
+export function getDistanceKm(
+  point1: { latitude: number; longitude: number },
+  point2: { latitude: number; longitude: number }
+): number {
+  const R = 6371;
+  const dLat = ((point2.latitude - point1.latitude) * Math.PI) / 180;
+  const dLon = ((point2.longitude - point1.longitude) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((point1.latitude * Math.PI) / 180) *
+      Math.cos((point2.latitude * Math.PI) / 180) *
+      Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}

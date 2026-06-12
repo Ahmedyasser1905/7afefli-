@@ -1,3 +1,4 @@
+import Link from 'next/link';
 // apps/admin/app/users/page.tsx
 'use client';
 
@@ -124,14 +125,14 @@ export default function AdminUsersPage() {
           <span style={styles.adminBadge}>Admin</span>
         </div>
         <nav style={styles.nav}>
-          <a href="/dashboard" style={styles.navLink}>📊 Dashboard</a>
-          <a href="/salons" style={styles.navLink}>🏪 Approbations</a>
-          <a href="/users" style={{ ...styles.navLink, ...styles.navLinkActive }}>
+          <Link href="/dashboard" style={styles.navLink}>📊 Dashboard</Link>
+          <Link href="/salons" style={styles.navLink}>🏪 Approbations</Link>
+          <Link href="/users" style={{ ...styles.navLink, ...styles.navLinkActive }}>
             👥 Utilisateurs
-          </a>
-          <a href="/reservations" style={styles.navLink}>📅 Réservations</a>
-          <a href="/subscriptions" style={styles.navLink}>💳 Abonnements</a>
-          <a href="/payments" style={styles.navLink}>💰 Paiements</a>
+          </Link>
+          <Link href="/reservations" style={styles.navLink}>📅 Réservations</Link>
+          <Link href="/subscriptions" style={styles.navLink}>💳 Abonnements</Link>
+          <Link href="/payments" style={styles.navLink}>💰 Paiements</Link>
         </nav>
       </aside>
 
@@ -153,6 +154,12 @@ export default function AdminUsersPage() {
           <div style={styles.loadingContainer}>
             <div style={styles.spinner} />
             <p style={styles.loadingText}>Chargement des profils...</p>
+          </div>
+        ) : users.length === 0 ? (
+          <div style={styles.emptyState}>
+            <p style={styles.emptyIcon}>👥</p>
+            <p style={styles.emptyTitle}>Aucun utilisateur trouvé</p>
+            <p style={styles.emptySubtitle}>Il n'y a actuellement aucun utilisateur sur la plateforme.</p>
           </div>
         ) : (
           <div style={styles.tableContainer}>
@@ -515,6 +522,17 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 12,
     fontWeight: 600,
   },
+  emptyState: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 80,
+    gap: 8,
+  },
+  emptyIcon: { fontSize: 48 },
+  emptyTitle: { fontSize: 18, fontWeight: 600, color: '#F5F5F5' },
+  emptySubtitle: { fontSize: 14, color: '#9A9A9A' },
   loadingContainer: {
     display: 'flex',
     flexDirection: 'column',

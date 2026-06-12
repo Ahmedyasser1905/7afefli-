@@ -288,6 +288,10 @@ export function ClientsScreen() {
         <FlatList
           data={filteredClients}
           keyExtractor={(item) => item.id}
+          initialNumToRender={8}
+          windowSize={5}
+          maxToRenderPerBatch={10}
+          removeClippedSubviews={true}
           renderItem={renderClientItem}
           contentContainerStyle={styles.listContainer}
           refreshing={isReservationsLoading}

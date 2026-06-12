@@ -95,6 +95,10 @@ export function NotificationsScreen() {
         <FlatList
           data={notifications}
           keyExtractor={(item: any) => item.id}
+          initialNumToRender={10}
+          windowSize={5}
+          maxToRenderPerBatch={10}
+          removeClippedSubviews={true}
           contentContainerStyle={styles.list}
           renderItem={({ item }: { item: any }) => (
             <TouchableOpacity 

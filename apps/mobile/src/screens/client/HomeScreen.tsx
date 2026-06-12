@@ -22,21 +22,8 @@ import { useMapPreferences } from '../../store/mapPreferencesStore';
 import { NotificationBell } from '../../components/shared/NotificationBell';
 
 import { WILAYA_BOUNDS, getWilayaFromCoords } from '@barberdz/shared/constants/wilayas';
+import { getDistanceKm } from '@barberdz/shared/utils/formatters';
 
-function getDistanceKm(
-  user: { latitude: number; longitude: number },
-  salon: { latitude: number; longitude: number }
-): number {
-  const R = 6371;
-  const dLat = ((salon.latitude - user.latitude) * Math.PI) / 180;
-  const dLon = ((salon.longitude - user.longitude) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((user.latitude * Math.PI) / 180) *
-      Math.cos((salon.latitude * Math.PI) / 180) *
-      Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
 
 const FILTER_OPTIONS = [
   { id: 'nearby', label: '📍 À proximité' },
@@ -199,20 +186,6 @@ export function HomeScreen() {
     return [];
   }, [hasLocation, nearbyResponse, wilayaResponse]);
 
-  // 3. Client Premium plan
-  const { data: clientPlan } = useQuery<{ plan: string; isPremium: boolean }>({
-    queryKey: ['client-plan'],
-    queryFn: async () => {
-      try {
-        return await apiClient.get<{ plan: string; isPremium: boolean }>('/subscriptions/my-client-plan');
-      } catch {
-        return { plan: 'Free', isPremium: false };
-      }
-    },
-    staleTime: 10 * 60 * 1000,
-  });
-
-  const isPremiumClient = clientPlan?.isPremium ?? false;
 
   // 4. Sort and filter by proximity (strict 50km limit)
   //    - If nearby RPC was used, results already come sorted and filtered by distance_meters ASC.
@@ -262,7 +235,7 @@ export function HomeScreen() {
       // 3. Closest distance
       return getDistanceKm(location, a) - getDistanceKm(location, b);
     });
-  }, [allSalons, location, isPremiumClient]);
+  }, [allSalons, location]);
 
   // 5. Apply UI filters & search on top
   const filteredSalons = useMemo(() => {
@@ -462,6 +435,10 @@ export function HomeScreen() {
             ref={flatListRef}
             data={filteredSalons}
             keyExtractor={(item) => item.id}
+            initialNumToRender={5}
+            windowSize={5}
+            maxToRenderPerBatch={10}
+            removeClippedSubviews={true}
             renderItem={({ item }) => (
               <SalonCard
                 salon={item}

@@ -21,7 +21,6 @@ import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
 import PhoneEntryScreen from '../screens/auth/PhoneEntryScreen';
 import { colors } from '../theme';
 import { navigationRef } from './navigationRef';
-import { BackHandler } from 'react-native';
 
 const AuthStack = createNativeStackNavigator();
 function AuthStackNavigator() {

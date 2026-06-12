@@ -3,6 +3,7 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { CreateServiceDto } from './dto/create-service.dto';
+import { UpdateServiceDto } from './dto/update-service.dto';
 
 @Injectable()
 export class SalonServicesService {
@@ -53,7 +54,7 @@ export class SalonServicesService {
   /**
    * Update a service (owner only).
    */
-  async update(salonId: string, serviceId: string, dto: Partial<CreateServiceDto>, userId: string) {
+  async update(salonId: string, serviceId: string, dto: UpdateServiceDto, userId: string) {
     await this.verifySalonOwnership(salonId, userId);
 
     const { data, error } = await this.supabase.adminClient

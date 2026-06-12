@@ -80,7 +80,6 @@ export function MyAppointmentsScreen() {
     },
     enabled: !!user,
     staleTime: 0,
-    refetchInterval: 2 * 60 * 1000,
   });
 
   // RT-2 fix: Realtime subscription — invalidate reservations list when any
@@ -343,6 +342,10 @@ export function MyAppointmentsScreen() {
           <FlatList
             data={filteredReservations}
             keyExtractor={(item) => item.id}
+            initialNumToRender={5}
+            windowSize={5}
+            maxToRenderPerBatch={10}
+            removeClippedSubviews={true}
             renderItem={renderItem}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}

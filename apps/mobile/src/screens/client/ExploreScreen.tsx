@@ -24,6 +24,7 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import type { Salon } from '@barberdz/shared/types';
 import { WILAYAS_WITH_ALL } from '@barberdz/shared/constants/wilayas';
 import { useMapPreferences } from '../../store/mapPreferencesStore';
+import { getDistanceKm } from '@barberdz/shared/utils/formatters';
 
 const WILAYAS = WILAYAS_WITH_ALL;
 
@@ -62,14 +63,17 @@ export function ExploreScreen() {
   // Get user location continuously
   useEffect(() => {
     let locationSubscription: Location.LocationSubscription | null = null;
+    let isMounted = true;
 
     (async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
+        if (!isMounted) return;
         if (status === 'granted') {
           locationSubscription = await Location.watchPositionAsync(
             { accuracy: Location.Accuracy.Balanced, distanceInterval: 50, timeInterval: 30000 },
             (loc) => {
+              if (!isMounted) return;
               const { latitude, longitude } = loc.coords;
               const prev = lastLocationRef.current;
               if (
@@ -86,11 +90,14 @@ export function ExploreScreen() {
           setLocation({ latitude: 36.7538, longitude: 3.0588 });
         }
       } catch {
-        setLocation({ latitude: 36.7538, longitude: 3.0588 });
+        if (isMounted) {
+          setLocation({ latitude: 36.7538, longitude: 3.0588 });
+        }
       }
     })();
 
     return () => { 
+      isMounted = false;
       locationSubscription?.remove(); 
       setSelectedSalonId(null);
     };
@@ -98,7 +105,7 @@ export function ExploreScreen() {
 
   // Fetch salons — pass wilaya as query param when selected for server-side filtering
   const { data: allSalonsResponse, isLoading, error: queryError, refetch } = useQuery({
-    queryKey: ['explore-explore-salons', selectedWilaya],
+    queryKey: ['explore-salons', selectedWilaya],
     queryFn: async () => {
       const wilayaParam = selectedWilaya !== 'Toutes'
         ? `&wilaya=${encodeURIComponent(selectedWilaya)}`
@@ -341,6 +348,10 @@ export function ExploreScreen() {
           ref={flatListRef}
           data={filteredSalons}
           keyExtractor={(item) => item.id}
+          initialNumToRender={5}
+          windowSize={5}
+          maxToRenderPerBatch={10}
+          removeClippedSubviews={true}
           renderItem={({ item }) => (
             <SalonCard
               salon={item}
@@ -385,21 +396,6 @@ export function ExploreScreen() {
   );
 }
 
-// Haversine distance for client-side sorting
-function getDistanceKm(
-  user: Coords,
-  salon: { latitude: number; longitude: number }
-): number {
-  const R = 6371;
-  const dLat = ((salon.latitude - user.latitude) * Math.PI) / 180;
-  const dLon = ((salon.longitude - user.longitude) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((user.latitude * Math.PI) / 180) *
-      Math.cos((salon.latitude * Math.PI) / 180) *
-      Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
 
 const styles = StyleSheet.create({
   container: {

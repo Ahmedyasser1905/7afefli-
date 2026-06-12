@@ -96,6 +96,10 @@ export function LoyaltyPointsScreen() {
         <FlatList
           data={transactions}
           keyExtractor={(item) => item.id}
+          initialNumToRender={10}
+          windowSize={5}
+          maxToRenderPerBatch={10}
+          removeClippedSubviews={true}
           contentContainerStyle={styles.list}
           onRefresh={refetch}
           refreshing={isRefetching}

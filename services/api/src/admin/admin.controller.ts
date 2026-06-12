@@ -10,6 +10,7 @@ import {
   UseGuards,
   Delete,
   ParseBoolPipe,
+  ParseIntPipe,
   Query,
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
@@ -17,6 +18,8 @@ import { SupabaseAuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
+import { UpdateAdminSalonDto } from './dto/update-admin-salon.dto';
+import { UpdatePlanDto } from './dto/update-plan.dto';
 
 @Controller('admin')
 @UseGuards(SupabaseAuthGuard, RolesGuard)
@@ -41,7 +44,7 @@ export class AdminController {
   @Patch('salons/:id/approve')
   approveSalon(
     @Param('id') id: string,
-    @Body('approved') approved: boolean,
+    @Body('approved', ParseBoolPipe) approved: boolean,
   ) {
     return this.adminService.approveSalon(id, approved);
   }
@@ -69,7 +72,7 @@ export class AdminController {
   @Patch('users/:id/ban')
   banUser(
     @Param('id') id: string,
-    @Body('isBanned') isBanned: boolean,
+    @Body('isBanned', ParseBoolPipe) isBanned: boolean,
   ) {
     return this.adminService.banUser(id, isBanned);
   }
@@ -138,7 +141,7 @@ export class AdminController {
   @Post('salons/:id/sponsor')
   sponsorSalon(
     @Param('id') id: string,
-    @Body('days') days: number,
+    @Body('days', ParseIntPipe) days: number,
   ) {
     return this.adminService.sponsorSalon(id, days ?? 30);
   }
@@ -159,7 +162,7 @@ export class AdminController {
   @Patch('salons/:id')
   updateSalon(
     @Param('id') id: string,
-    @Body() dto: Record<string, unknown>,
+    @Body() dto: UpdateAdminSalonDto,
   ) {
     return this.adminService.updateSalon(id, dto);
   }
@@ -195,13 +198,22 @@ export class AdminController {
   }
 
   /**
+   * DELETE /admin/reviews/:id
+   * Delete a review (Admin only).
+   */
+  @Delete('reviews/:id')
+  deleteReview(@Param('id') id: string) {
+    return this.adminService.deleteReview(id);
+  }
+
+  /**
    * PATCH /admin/plans/:id
    * Update a subscription plan's name, price, limits (Admin only).
    */
   @Patch('plans/:id')
   updatePlan(
     @Param('id') id: string,
-    @Body() dto: Record<string, unknown>,
+    @Body() dto: UpdatePlanDto,
   ) {
     return this.adminService.updatePlan(id, dto);
   }

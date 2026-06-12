@@ -1,3 +1,4 @@
+import Link from 'next/link';
 // apps/admin/app/payments/page.tsx
 'use client';
 
@@ -94,12 +95,12 @@ export default function PaymentsPage() {
           <span style={styles.adminBadge}>Admin</span>
         </div>
         <nav style={styles.nav}>
-          <a href="/dashboard" style={styles.navLink}>📊 Dashboard</a>
-          <a href="/salons" style={styles.navLink}>🏪 Approbations</a>
-          <a href="/users" style={styles.navLink}>👥 Utilisateurs</a>
-          <a href="/reservations" style={styles.navLink}>📅 Réservations</a>
-          <a href="/subscriptions" style={styles.navLink}>💳 Abonnements</a>
-          <a href="/payments" style={{ ...styles.navLink, ...styles.navLinkActive }}>💰 Paiements</a>
+          <Link href="/dashboard" style={styles.navLink}>📊 Dashboard</Link>
+          <Link href="/salons" style={styles.navLink}>🏪 Approbations</Link>
+          <Link href="/users" style={styles.navLink}>👥 Utilisateurs</Link>
+          <Link href="/reservations" style={styles.navLink}>📅 Réservations</Link>
+          <Link href="/subscriptions" style={styles.navLink}>💳 Abonnements</Link>
+          <Link href="/payments" style={{ ...styles.navLink, ...styles.navLinkActive }}>💰 Paiements</Link>
         </nav>
       </aside>
 

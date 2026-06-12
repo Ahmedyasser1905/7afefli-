@@ -1,3 +1,4 @@
+import Link from 'next/link';
 // apps/admin/app/dashboard/page.tsx
 'use client';
 
@@ -98,14 +99,14 @@ export default function DashboardPage() {
           <span style={styles.adminBadge}>Admin</span>
         </div>
         <nav style={styles.nav}>
-          <a href="/dashboard" style={{ ...styles.navLink, ...styles.navLinkActive }}>
+          <Link href="/dashboard" style={{ ...styles.navLink, ...styles.navLinkActive }}>
             📊 Dashboard
-          </a>
-          <a href="/salons" style={styles.navLink}>🏪 Approbations</a>
-          <a href="/users" style={styles.navLink}>👥 Utilisateurs</a>
-          <a href="/reservations" style={styles.navLink}>📅 Réservations</a>
-          <a href="/subscriptions" style={styles.navLink}>💳 Abonnements</a>
-          <a href="/payments" style={styles.navLink}>💰 Paiements</a>
+          </Link>
+          <Link href="/salons" style={styles.navLink}>🏪 Approbations</Link>
+          <Link href="/users" style={styles.navLink}>👥 Utilisateurs</Link>
+          <Link href="/reservations" style={styles.navLink}>📅 Réservations</Link>
+          <Link href="/subscriptions" style={styles.navLink}>💳 Abonnements</Link>
+          <Link href="/payments" style={styles.navLink}>💰 Paiements</Link>
         </nav>
       </aside>
 

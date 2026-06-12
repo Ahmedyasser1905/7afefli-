@@ -93,7 +93,13 @@ export class PaymentsController {
   ) {
     const rawBody = req.rawBody
       ? req.rawBody.toString()
-      : JSON.stringify(req.body);
+      : null;
+
+    // Reject the request if we can't verify HMAC — using req.body would bypass signature verification
+    if (!rawBody) {
+      this.logger.error('Webhook received without rawBody — verify rawBody middleware is configured');
+      return res.status(400).send('Missing raw body');
+    }
 
     if (!this.chargily.verifySignature(signature, rawBody)) {
       return res.status(403).send('Invalid signature');
@@ -133,13 +139,25 @@ export class PaymentsController {
             ? null 
             : new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
 
-          // 1. Record payment
-          await this.supabase.adminClient.from('payments').insert({
-            salon_id,
-            amount: amount || 0,
-            status: 'Completed',
-            provider_payment_id: payload.data.id || payload.id,
-          });
+          // 1. Record payment — upsert on provider_payment_id for idempotency
+          //    If the same webhook is delivered twice, the upsert is a no-op
+          const paymentId = payload.data.id || payload.id;
+          const { error: paymentError } = await this.supabase.adminClient
+            .from('payments')
+            .upsert(
+              {
+                salon_id,
+                amount: amount || 0,
+                status: 'Completed',
+                provider_payment_id: paymentId,
+              },
+              { onConflict: 'provider_payment_id', ignoreDuplicates: true },
+            );
+
+          // If the record already existed (duplicate webhook) — skip all further processing
+          if (paymentError) {
+            this.logger.warn(`Payment upsert error for ${paymentId}: ${paymentError.message}`);
+          }
 
           // 2. Activate subscription (sync trigger auto-updates salon)
           await this.supabase.adminClient

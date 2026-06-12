@@ -836,6 +836,10 @@ export function DashboardScreen() {
       <FlatList
         data={listData as any[]}
         keyExtractor={(item) => item.id}
+        initialNumToRender={8}
+        windowSize={5}
+        maxToRenderPerBatch={10}
+        removeClippedSubviews={true}
         renderItem={({ item }) => {
           if (item._type === 'blocked-header') {
             return (
