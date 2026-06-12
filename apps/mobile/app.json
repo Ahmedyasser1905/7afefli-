@@ -4,7 +4,7 @@
     "slug": "barberdz-monorepo",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/splash.png",
     "userInterfaceStyle": "dark",
     "scheme": "hafefli",
     "ios": {
@@ -29,7 +29,11 @@
         "xxhdpi": "./assets/splash.png",
         "xxxhdpi": "./assets/splash.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
     "plugins": [
       "expo-font",
@@ -52,8 +56,9 @@
     },
     "extra": {
       "eas": {
-        "projectId": "adcbeb95-3c15-48ec-bae6-6f4a44190cf6"
+        "projectId": "ab62f7fd-4869-4d66-9274-3a1bfe134de5"
       }
-    }
+    },
+    "owner": "ahmed19052004"
   }
 }

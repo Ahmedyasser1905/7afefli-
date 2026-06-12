@@ -4,7 +4,7 @@
     "slug": "barberdz-monorepo",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/splash.png",
     "userInterfaceStyle": "dark",
     "scheme": "hafefli",
     "ios": {
@@ -18,10 +18,10 @@
     "android": {
       "package": "com.ahmedyasser.hafefli",
       "adaptiveIcon": {
-        "backgroundColor": "#0D0D0F",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#1A1A1A",
+        "foregroundImage": "./assets/splash.png",
+        "backgroundImage": "./assets/splash.png",
+        "monochromeImage": "./assets/splash.png"
       },
       "splash": {
         "ldpi": "./assets/splash.png",

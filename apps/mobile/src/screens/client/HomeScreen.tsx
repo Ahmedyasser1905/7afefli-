@@ -311,6 +311,15 @@ export function HomeScreen() {
     return result;
   }, [salons, activeFilters, searchQuery, isPremiumClient, location]);
 
+  // Reset selected salon when the filtered list changes so the map popup
+  // never lingers for a salon that has been filtered out
+  useEffect(() => {
+    setSelectedSalonId(prev => {
+      if (prev && !filteredSalons.some(s => s.id === prev)) return null;
+      return prev;
+    });
+  }, [filteredSalons]);
+
   // Map shows the same filtered salons
   const mapSalons = filteredSalons;
 

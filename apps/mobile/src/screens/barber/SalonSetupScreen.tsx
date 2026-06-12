@@ -1,6 +1,6 @@
 import Toast from 'react-native-toast-message';
 // apps/mobile/src/screens/barber/SalonSetupScreen.tsx
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,20 +10,26 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Modal,
+  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import { useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../../lib/apiClient';
 import { useAuthStore } from '../../store/authStore';
 import { colors, typography, spacing, radius } from '../../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
 import { WebView } from 'react-native-webview';
+import { WILAYAS } from '@barberdz/shared/constants/wilayas';
 
 export function SalonSetupScreen({ onComplete, existingSalon }: { onComplete: () => void, existingSalon?: any }) {
   const user = useAuthStore((s) => s.user);
   const navigation = useNavigation();
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
+  const [wilayaPickerVisible, setWilayaPickerVisible] = useState(false);
 
   const [form, setForm] = useState({
     name: existingSalon?.name || '',
@@ -62,8 +68,14 @@ export function SalonSetupScreen({ onComplete, existingSalon }: { onComplete: ()
       return;
     }
 
-    if (!coordsChosen) {
-      Alert.alert('Emplacement requis', "Veuillez choisir l'emplacement du salon sur la carte.");
+    // Validate Algeria bounding box instead of requiring explicit map interaction
+    // This allows barbers whose salon IS at Algiers default coords to submit freely
+    const ALG_BOUNDS = { minLat: 18, maxLat: 38, minLng: -9, maxLng: 12 };
+    const coordsValid =
+      form.latitude >= ALG_BOUNDS.minLat && form.latitude <= ALG_BOUNDS.maxLat &&
+      form.longitude >= ALG_BOUNDS.minLng && form.longitude <= ALG_BOUNDS.maxLng;
+    if (!coordsValid) {
+      Alert.alert('Emplacement invalide', "Veuillez choisir un emplacement en Algérie sur la carte.");
       return;
     }
 
@@ -83,6 +95,11 @@ export function SalonSetupScreen({ onComplete, existingSalon }: { onComplete: ()
           longitude: form.longitude,
           working_days: form.working_days,
         });
+        // Invalidate client-facing caches so updated salon appears on map immediately
+        queryClient.invalidateQueries({ queryKey: ['home-salons-nearby'] });
+        queryClient.invalidateQueries({ queryKey: ['explore-explore-salons'] });
+        queryClient.invalidateQueries({ queryKey: ['nearby-salons'] });
+        queryClient.invalidateQueries({ queryKey: ['my-salon'] });
         Alert.alert('Succès', 'Votre salon a été mis à jour avec succès !', [
           { text: 'Continuer', onPress: onComplete }
         ]);
@@ -100,6 +117,11 @@ export function SalonSetupScreen({ onComplete, existingSalon }: { onComplete: ()
           longitude: form.longitude,
           working_days: form.working_days,
         });
+        // Invalidate client-facing caches so new salon appears on map immediately
+        queryClient.invalidateQueries({ queryKey: ['home-salons-nearby'] });
+        queryClient.invalidateQueries({ queryKey: ['explore-explore-salons'] });
+        queryClient.invalidateQueries({ queryKey: ['nearby-salons'] });
+        queryClient.invalidateQueries({ queryKey: ['my-salon'] });
         Alert.alert('Succès', 'Votre salon a été créé avec succès !', [
           { text: 'Continuer', onPress: onComplete }
         ]);
@@ -115,72 +137,122 @@ export function SalonSetupScreen({ onComplete, existingSalon }: { onComplete: ()
     }
   };
 
-  const mapHtml = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-      <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
-      <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-      <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
-      <style>
-        body { margin: 0; padding: 0; background: #1a1a2e; }
-        #map { width: 100vw; height: 100vh; }
-        .leaflet-tile-pane { filter: brightness(0.7) contrast(1.2) saturate(0.3) hue-rotate(180deg) invert(1); }
-        .leaflet-control-attribution, .leaflet-control-zoom { display: none !important; }
-        .marker {
-          width: 32px; height: 32px; background: #E8A020; border-radius: 50%;
-          border: 2.5px solid #0F0F0F; display: flex; align-items: center; justify-content: center;
-          box-shadow: 0 2px 10px rgba(232,160,32,0.6);
-        }
-        /* Custom Geocoder styles for dark theme */
-        .leaflet-control-geocoder { background: #1A1A1A !important; border: 1px solid rgba(255,255,255,0.1) !important; border-radius: 8px !important; margin-top: 20px !important; margin-right: 20px !important; }
-        .leaflet-control-geocoder-icon { background-color: transparent !important; filter: invert(1); }
-        .leaflet-control-geocoder-form input { background: transparent; color: #fff; }
-        .leaflet-control-geocoder-form input:focus { outline: none; }
-        .leaflet-control-geocoder-alternatives { background: #1A1A1A !important; color: #fff; border-top: 1px solid rgba(255,255,255,0.1); }
-        .leaflet-control-geocoder-alternatives li:hover { background: #333 !important; }
-      </style>
-    </head>
-    <body>
-      <div id="map"></div>
-      <script>
-        var map = L.map('map', { center: [${form.latitude}, ${form.longitude}], zoom: 12, zoomControl: false });
-        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-        
-        var icon = L.divIcon({
-          html: '<div class="marker"><svg viewBox="0 0 24 24" fill="#111" width="16" height="16"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg></div>',
-          className: '', iconSize: [32, 32], iconAnchor: [16, 32]
-        });
-        
-        var marker = L.marker([${form.latitude}, ${form.longitude}], { icon: icon, draggable: true }).addTo(map);
-        
-        // Add Geocoder (Search Box)
-        var geocoder = L.Control.geocoder({
-          defaultMarkGeocode: false,
-          placeholder: "Rechercher une adresse...",
-          position: "topright"
-        }).on('markgeocode', function(e) {
-          var latlng = e.geocode.center;
-          map.setView(latlng, 15);
-          marker.setLatLng(latlng);
-          window.ReactNativeWebView.postMessage(JSON.stringify({ lat: latlng.lat, lng: latlng.lng }));
-        }).addTo(map);
+  // Memoized map HTML — compiled exactly once from initial coordinates.
+  // Updates flow via postMessage/onMessage — NOT by re-rendering the HTML.
+  // Without useMemo([]), editing other form fields (name, phone, etc.) would
+  // cause the WebView to reload entirely, creating a jarring flicker.
+  const initialLat = form.latitude;
+  const initialLng = form.longitude;
 
-        marker.on('dragend', function(e) {
-          var pos = marker.getLatLng();
-          window.ReactNativeWebView.postMessage(JSON.stringify({ lat: pos.lat, lng: pos.lng }));
-        });
+  const mapHtml = useMemo(() => `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * { margin: 0; padding: 0; }
+    body { background: #0F0F0F; }
+    #map { width: 100%; height: 100vh; }
+    .leaflet-control-zoom { border: none !important; }
+    .leaflet-control-zoom a {
+      background: #1A1A1A !important;
+      color: #E8A020 !important;
+      border: 1px solid rgba(255,255,255,0.1) !important;
+      width: 36px !important;
+      height: 36px !important;
+      line-height: 36px !important;
+      font-size: 18px !important;
+    }
+    .search-box {
+      position: absolute; top: 12px; left: 12px; right: 12px; z-index: 1000;
+      display: flex; gap: 8px;
+    }
+    .search-box input {
+      flex: 1; padding: 10px 14px; border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.1); background: #1A1A1A;
+      color: #F5F5F5; font-size: 14px; outline: none;
+      font-family: -apple-system, sans-serif;
+    }
+    .search-box input::placeholder { color: #5A5A5A; }
+    .search-box button {
+      padding: 10px 16px; border-radius: 12px; border: none;
+      background: #E8A020; color: #0F0F0F; font-weight: 700;
+      font-size: 14px; cursor: pointer;
+    }
+    .hint-bar {
+      position: absolute; bottom: 12px; left: 12px; right: 12px; z-index: 1000;
+      background: rgba(26,26,26,0.9); border-radius: 12px; padding: 10px 14px;
+      border: 1px solid rgba(255,255,255,0.1); text-align: center;
+    }
+    .hint-bar span { color: #9A9A9A; font-size: 13px; font-family: -apple-system, sans-serif; }
+    .hint-bar b { color: #E8A020; }
+  </style>
+</head>
+<body>
+  <div class="search-box">
+    <input id="searchInput" type="text" placeholder="Rechercher une adresse..." />
+    <button onclick="searchAddress()">🔍</button>
+  </div>
+  <div id="map"></div>
+  <div class="hint-bar">
+    <span>Appuyez sur la carte ou <b>déplacez le marqueur</b> pour positionner votre salon</span>
+  </div>
+  <script>
+    var map = L.map('map', {
+      center: [${initialLat}, ${initialLng}],
+      zoom: 15,
+      zoomControl: true
+    });
 
-        map.on('click', function(e) {
-          marker.setLatLng(e.latlng);
-          window.ReactNativeWebView.postMessage(JSON.stringify({ lat: e.latlng.lat, lng: e.latlng.lng }));
-        });
-      </script>
-    </body>
-    </html>
-  `;
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© OSM'
+    }).addTo(map);
+
+    var markerIcon = L.divIcon({
+      className: '',
+      html: '<div style="width:36px;height:36px;background:#E8A020;border-radius:50%;border:3px solid #0F0F0F;box-shadow:0 4px 12px rgba(232,160,32,0.4);display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:10px;background:#0F0F0F;border-radius:50%;"></div></div>',
+      iconSize: [36, 36],
+      iconAnchor: [18, 18]
+    });
+
+    var marker = L.marker([${initialLat}, ${initialLng}], { icon: markerIcon, draggable: true }).addTo(map);
+
+    marker.on('dragend', function(e) {
+      var pos = e.target.getLatLng();
+      window.ReactNativeWebView.postMessage(JSON.stringify({ lat: pos.lat, lng: pos.lng }));
+    });
+
+    map.on('click', function(e) {
+      marker.setLatLng(e.latlng);
+      window.ReactNativeWebView.postMessage(JSON.stringify({ lat: e.latlng.lat, lng: e.latlng.lng }));
+    });
+
+    function searchAddress() {
+      var q = document.getElementById('searchInput').value;
+      if (!q) return;
+      fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(q + ', Algeria'))
+        .then(r => r.json())
+        .then(data => {
+          if (data.length > 0) {
+            var loc = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+            map.setView(loc, 16);
+            marker.setLatLng(loc);
+            window.ReactNativeWebView.postMessage(JSON.stringify({ lat: loc[0], lng: loc[1] }));
+          }
+        })
+        .catch(function() {});
+    }
+
+    document.getElementById('searchInput').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') searchAddress();
+    });
+  </script>
+</body>
+</html>
+  `, []); // empty deps — only uses initial coords, updates flow via postMessage
 
   return (
     <SafeAreaView style={styles.container}>
@@ -233,13 +305,45 @@ export function SalonSetupScreen({ onComplete, existingSalon }: { onComplete: ()
             numberOfLines={3}
           />
           <Text style={styles.label}>Wilaya</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Ex: Alger"
-            placeholderTextColor={colors.textMuted}
-            value={form.wilaya}
-            onChangeText={(t) => setForm({ ...form, wilaya: t })}
-          />
+          <TouchableOpacity
+            style={styles.pickerButton}
+            onPress={() => setWilayaPickerVisible(true)}
+            activeOpacity={0.7}
+          >
+            <Text style={form.wilaya ? styles.pickerValue : styles.pickerPlaceholder}>
+              {form.wilaya || 'Sélectionner une wilaya'}
+            </Text>
+            <Ionicons name="chevron-down" size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
+
+          <Modal visible={wilayaPickerVisible} animationType="slide" transparent>
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalSheet}>
+                <Text style={styles.modalTitle}>Sélectionner une wilaya</Text>
+                <FlatList
+                  data={WILAYAS as unknown as string[]}
+                  keyExtractor={(item) => item}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      style={[styles.wilayaItem, form.wilaya === item && styles.wilayaItemActive]}
+                      onPress={() => {
+                        setForm(prev => ({ ...prev, wilaya: item }));
+                        setWilayaPickerVisible(false);
+                      }}
+                    >
+                      <Text style={[styles.wilayaItemText, form.wilaya === item && styles.wilayaItemTextActive]}>
+                        {item}
+                      </Text>
+                      {form.wilaya === item && <Ionicons name="checkmark" size={18} color={colors.amber} />}
+                    </TouchableOpacity>
+                  )}
+                />
+                <TouchableOpacity style={styles.modalCancel} onPress={() => setWilayaPickerVisible(false)}>
+                  <Text style={styles.modalCancelText}>Annuler</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
 
           <Text style={styles.label}>Commune</Text>
           <TextInput
@@ -315,124 +419,17 @@ export function SalonSetupScreen({ onComplete, existingSalon }: { onComplete: ()
           <Text style={styles.mapHint}>Déplacez le marqueur ou cliquez sur la carte pour définir votre position exacte.</Text>
           <View style={styles.mapWrapper}>
             <WebView
-              source={{ html: `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <style>
-    * { margin: 0; padding: 0; }
-    body { background: #0F0F0F; }
-    #map { width: 100%; height: 100vh; }
-    .leaflet-control-zoom { border: none !important; }
-    .leaflet-control-zoom a { 
-      background: #1A1A1A !important; 
-      color: #E8A020 !important; 
-      border: 1px solid rgba(255,255,255,0.1) !important;
-      width: 36px !important;
-      height: 36px !important;
-      line-height: 36px !important;
-      font-size: 18px !important;
-    }
-    .search-box {
-      position: absolute; top: 12px; left: 12px; right: 12px; z-index: 1000;
-      display: flex; gap: 8px;
-    }
-    .search-box input {
-      flex: 1; padding: 10px 14px; border-radius: 12px;
-      border: 1px solid rgba(255,255,255,0.1); background: #1A1A1A;
-      color: #F5F5F5; font-size: 14px; outline: none;
-      font-family: -apple-system, sans-serif;
-    }
-    .search-box input::placeholder { color: #5A5A5A; }
-    .search-box button {
-      padding: 10px 16px; border-radius: 12px; border: none;
-      background: #E8A020; color: #0F0F0F; font-weight: 700;
-      font-size: 14px; cursor: pointer;
-    }
-    .hint-bar {
-      position: absolute; bottom: 12px; left: 12px; right: 12px; z-index: 1000;
-      background: rgba(26,26,26,0.9); border-radius: 12px; padding: 10px 14px;
-      border: 1px solid rgba(255,255,255,0.1); text-align: center;
-    }
-    .hint-bar span { color: #9A9A9A; font-size: 13px; font-family: -apple-system, sans-serif; }
-    .hint-bar b { color: #E8A020; }
-  </style>
-</head>
-<body>
-  <div class="search-box">
-    <input id="searchInput" type="text" placeholder="Rechercher une adresse..." />
-    <button onclick="searchAddress()">🔍</button>
-  </div>
-  <div id="map"></div>
-  <div class="hint-bar">
-    <span>Appuyez sur la carte ou <b>déplacez le marqueur</b> pour positionner votre salon</span>
-  </div>
-  <script>
-    var map = L.map('map', {
-      center: [${form.latitude}, ${form.longitude}],
-      zoom: 15,
-      zoomControl: true
-    });
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '© OSM'
-    }).addTo(map);
-
-    var markerIcon = L.divIcon({
-      className: '',
-      html: '<div style="width:36px;height:36px;background:#E8A020;border-radius:50%;border:3px solid #0F0F0F;box-shadow:0 4px 12px rgba(232,160,32,0.4);display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:10px;background:#0F0F0F;border-radius:50%;"></div></div>',
-      iconSize: [36, 36],
-      iconAnchor: [18, 18]
-    });
-
-    var marker = L.marker([${form.latitude}, ${form.longitude}], { icon: markerIcon, draggable: true }).addTo(map);
-
-    marker.on('dragend', function(e) {
-      var pos = e.target.getLatLng();
-      window.ReactNativeWebView.postMessage(JSON.stringify({ lat: pos.lat, lng: pos.lng }));
-    });
-
-    map.on('click', function(e) {
-      marker.setLatLng(e.latlng);
-      window.ReactNativeWebView.postMessage(JSON.stringify({ lat: e.latlng.lat, lng: e.latlng.lng }));
-    });
-
-    function searchAddress() {
-      var q = document.getElementById('searchInput').value;
-      if (!q) return;
-      fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(q + ', Algeria'))
-        .then(r => r.json())
-        .then(data => {
-          if (data.length > 0) {
-            var loc = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
-            map.setView(loc, 16);
-            marker.setLatLng(loc);
-            window.ReactNativeWebView.postMessage(JSON.stringify({ lat: loc[0], lng: loc[1] }));
-          }
-        })
-        .catch(function() {});
-    }
-
-    document.getElementById('searchInput').addEventListener('keypress', function(e) {
-      if (e.key === 'Enter') searchAddress();
-    });
-  </script>
-</body>
-</html>` }}
+              source={{ html: mapHtml }}
               style={styles.map}
               onMessage={(event) => {
                 try {
                   const data = JSON.parse(event.nativeEvent.data);
                   if (data.lat !== undefined && data.lng !== undefined) {
-                    setForm({
-                      ...form,
+                    setForm(prev => ({
+                      ...prev,
                       latitude: data.lat,
                       longitude: data.lng,
-                    });
+                    }));
                     setCoordsChosen(true);
                   }
                 } catch (err) {}
@@ -606,5 +603,79 @@ const styles = StyleSheet.create({
     fontFamily: 'Syne_700Bold',
     fontSize: 16,
     color: colors.amber,
+  },
+  pickerButton: {
+    backgroundColor: colors.carbon,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: radius.md,
+    height: 52,
+    paddingHorizontal: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  pickerValue: {
+    color: colors.textPrimary,
+    fontFamily: 'DMSans_400Regular',
+    fontSize: 15,
+  },
+  pickerPlaceholder: {
+    color: colors.textMuted,
+    fontFamily: 'DMSans_400Regular',
+    fontSize: 15,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: colors.carbon,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '75%',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  modalTitle: {
+    fontFamily: 'Syne_700Bold',
+    fontSize: 18,
+    color: colors.textPrimary,
+    padding: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  wilayaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.04)',
+  },
+  wilayaItemActive: {
+    backgroundColor: 'rgba(232,160,32,0.08)',
+  },
+  wilayaItemText: {
+    fontFamily: 'DMSans_400Regular',
+    fontSize: 15,
+    color: colors.textPrimary,
+  },
+  wilayaItemTextActive: {
+    color: colors.amber,
+    fontFamily: 'DMSans_700Bold',
+  },
+  modalCancel: {
+    padding: spacing.lg,
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.06)',
+  },
+  modalCancelText: {
+    fontFamily: 'DMSans_700Bold',
+    fontSize: 15,
+    color: colors.textSecondary,
   },
 });

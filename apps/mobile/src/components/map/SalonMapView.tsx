@@ -252,6 +252,8 @@ function initMapLibre(){
     };
 
     window.updateSalons = function(salonsData) {
+      // Close any open popup before rebuilding markers
+      if (currentPopup) { currentPopup.remove(); currentPopup = null; }
       DATA = salonsData || [];
       salonMarkers.forEach(function(m){m.remove()});
       salonMarkers = [];
@@ -346,6 +348,7 @@ function initLeaflet(){
       };
 
       window.updateSalons = function(salonsData) {
+        map.closePopup(); // close before rebuild
         DATA = salonsData || [];
         salonMarkers.forEach(function(m){map.removeLayer(m)});
         salonMarkers = [];

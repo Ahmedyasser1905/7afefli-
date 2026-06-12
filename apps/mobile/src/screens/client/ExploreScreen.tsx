@@ -51,6 +51,7 @@ export function ExploreScreen() {
   const [location, setLocation] = useState<Coords | null>(null);
   const [selectedSalonId, setSelectedSalonId] = useState<string | null>(null);
   const flatListRef = useRef<FlatList>(null);
+  const lastLocationRef = useRef<Coords | null>(null);
 
   // Debounce search input
   useEffect(() => {
@@ -69,7 +70,16 @@ export function ExploreScreen() {
           locationSubscription = await Location.watchPositionAsync(
             { accuracy: Location.Accuracy.Balanced, distanceInterval: 50, timeInterval: 30000 },
             (loc) => {
-              setLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+              const { latitude, longitude } = loc.coords;
+              const prev = lastLocationRef.current;
+              if (
+                prev &&
+                Math.abs(prev.latitude - latitude) < 0.00045 &&
+                Math.abs(prev.longitude - longitude) < 0.00045
+              ) return;
+              const newCoords = { latitude, longitude };
+              lastLocationRef.current = newCoords;
+              setLocation(newCoords);
             }
           );
         } else {
@@ -149,6 +159,15 @@ export function ExploreScreen() {
 
     return result;
   }, [allSalons, selectedWilaya, debouncedQuery, selectedSort, location]);
+
+  // Reset selected salon when the filtered list changes so the map popup
+  // never lingers for a salon that has been filtered out
+  useEffect(() => {
+    setSelectedSalonId(prev => {
+      if (prev && !filteredSalons.some(s => s.id === prev)) return null;
+      return prev;
+    });
+  }, [filteredSalons]);
 
   const handleSalonPress = useCallback(
     (salon: Salon) => {
