@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AdminService } from './admin.service';
 import { SupabaseService } from '../supabase/supabase.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 const mockQueryBuilder = {
   select: jest.fn().mockReturnThis(),
@@ -10,6 +11,7 @@ const mockQueryBuilder = {
   update: jest.fn().mockReturnThis(),
   delete: jest.fn().mockReturnThis(),
   range: jest.fn().mockReturnThis(),
+  limit: jest.fn().mockReturnThis(),
   then: jest.fn((resolve) => resolve({ data: [], error: null })),
 };
 
@@ -28,6 +30,12 @@ describe('AdminService', () => {
         {
           provide: SupabaseService,
           useValue: { adminClient: mockSupabaseAdminClient },
+        },
+        {
+          provide: NotificationsService,
+          useValue: {
+            createNotification: jest.fn().mockResolvedValue(true),
+          },
         },
       ],
     }).compile();
@@ -60,7 +68,7 @@ describe('AdminService', () => {
     it('should return all salons', async () => {
       mockQueryBuilder.then.mockImplementationOnce((resolve: any) => resolve({ data: [], error: null }));
       const res = await service.getAllSalons();
-      expect(res).toEqual([]);
+      expect(res).toEqual({ data: [], limit: 50, page: 1, total: undefined });
     });
   });
 
@@ -106,7 +114,7 @@ describe('AdminService', () => {
     it('should return all reservations', async () => {
       mockQueryBuilder.then.mockImplementationOnce((resolve: any) => resolve({ data: [{ id: 'res-1' }], error: null }));
       const res = await service.getAllReservations();
-      expect(res).toEqual([{ id: 'res-1' }]);
+      expect(res).toEqual({ data: [{ id: 'res-1' }], limit: 50, page: 1, total: undefined });
     });
   });
 

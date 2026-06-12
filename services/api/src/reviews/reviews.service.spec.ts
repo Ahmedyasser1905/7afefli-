@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ReviewsService } from './reviews.service';
 import { SupabaseService } from '../supabase/supabase.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 const mockQueryBuilder = {
   select: jest.fn().mockReturnThis(),
@@ -29,6 +30,12 @@ describe('ReviewsService', () => {
           provide: SupabaseService,
           useValue: { adminClient: mockSupabaseAdminClient },
         },
+        {
+          provide: NotificationsService,
+          useValue: {
+            createNotification: jest.fn().mockResolvedValue(true),
+          },
+        },
       ],
     }).compile();
 
@@ -45,6 +52,8 @@ describe('ReviewsService', () => {
       mockQueryBuilder.then.mockImplementationOnce((resolve: any) => resolve({ data: { id: 'r1', client_id: 'c1', status: 'Completed', salon_id: 's1' }, error: null }));
       // Mock existing review check
       mockQueryBuilder.then.mockImplementationOnce((resolve: any) => resolve({ data: null, error: null }));
+      // Mock salon owner fetch
+      mockQueryBuilder.then.mockImplementationOnce((resolve: any) => resolve({ data: { owner_id: 'owner1' }, error: null }));
       // Mock insert
       mockQueryBuilder.then.mockImplementationOnce((resolve: any) => resolve({ data: { id: 'rev1' }, error: null }));
       

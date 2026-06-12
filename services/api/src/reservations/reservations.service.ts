@@ -274,9 +274,15 @@ export class ReservationsService {
           '📅 Nouvelle réservation',
           `Un client a réservé ${serviceName} le ${dto.appointmentDate} à ${dto.startTime}.`,
           { reservationId: data.id, salonId: dto.salonId },
-        ).catch(() => {}); // fire-and-forget
+        ).catch((err) => {
+          this.logger.error(`Failed to send new_booking notification: ${err.message}`);
+        }); // fire-and-forget
+      } else if (!salonOwnerId) {
+        this.logger.warn(`Failed to send new_booking notification: salonOwnerId is missing for salon ${dto.salonId}`);
       }
-    } catch { /* ignore notification failures */ }
+    } catch (error) { 
+      this.logger.error(`Error initiating push notification for reservation ${data.id}: ${(error as Error).message}`);
+    }
 
     return result;
   }

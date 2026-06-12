@@ -4,6 +4,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ReservationsService } from './reservations.service';
 import { SupabaseService } from '../supabase/supabase.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import {
   BadRequestException,
@@ -133,6 +134,12 @@ describe('ReservationsService', () => {
           provide: CACHE_MANAGER,
           useValue: mockCacheManager,
         },
+        {
+          provide: NotificationsService,
+          useValue: {
+            createNotification: jest.fn().mockResolvedValue(true),
+          },
+        },
       ],
     }).compile();
 
@@ -260,7 +267,7 @@ describe('ReservationsService', () => {
       const data = { ...reservationData, client_id: clientUser.id, barber_id: null, salons: { owner_id: 'other' } };
       mockQuery.single.mockResolvedValueOnce({ data, error: null });
       // Staff check returns null
-      mockQuery.single.mockResolvedValueOnce({ data: null, error: null });
+      mockStaffQuery.maybeSingle.mockResolvedValueOnce({ data: null, error: null });
 
       await expect(service.findOne('res1', strangerUser)).rejects.toThrow(ForbiddenException);
     });
