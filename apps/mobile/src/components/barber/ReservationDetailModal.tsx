@@ -58,9 +58,28 @@ export function ReservationDetailModal({
   const client = reservation.profiles as Record<string, unknown> | undefined;
   const service = reservation.services as Record<string, unknown> | undefined;
   const salonStaff = reservation.salon_staff as Record<string, unknown> | undefined;
-  const status = reservation.status as string;
+  const rawStatus = reservation.status as string;
   const id = reservation.id as string;
   const notes = reservation.notes as string | null;
+
+  // ── Compute effectiveStatus — mirrors the exact logic in DashboardScreen.renderBookingItem ──
+  // An appointment that has passed its end time in Algeria (UTC+1) is treated as:
+  //   Confirmed + expired → Completed
+  //   Pending   + expired → Cancelled
+  // This keeps the Details view in sync with the list card status badge.
+  const nowAlg   = new Date(Date.now() + 60 * 60 * 1000); // UTC+1 Algeria
+  const nowStr   = `${String(nowAlg.getUTCHours()).padStart(2, '0')}:${String(nowAlg.getUTCMinutes()).padStart(2, '0')}`;
+  const todayAlg = `${nowAlg.getUTCFullYear()}-${String(nowAlg.getUTCMonth() + 1).padStart(2, '0')}-${String(nowAlg.getUTCDate()).padStart(2, '0')}`;
+  const endTime  = ((reservation.end_time as string) ?? '').slice(0, 5);
+  const apptDate = (reservation.appointment_date as string) ?? '';
+  const isExpired =
+    apptDate < todayAlg ||
+    (apptDate === todayAlg && !!endTime && endTime < nowStr);
+
+  const status: string =
+    isExpired && rawStatus === 'Confirmed' ? 'Completed'
+    : isExpired && rawStatus === 'Pending'   ? 'Cancelled'
+    : rawStatus;
 
   const isBlock = notes === 'CRÉNEAU BLOQUÉ';
   const isWalkIn = reservation.is_walk_in === true;
@@ -273,7 +292,7 @@ export function ReservationDetailModal({
                     </TouchableOpacity>
                   )}
 
-                  {status === 'Confirmed' && onComplete && (
+                  {status === 'Confirmed' && rawStatus === 'Confirmed' && onComplete && (
                     <TouchableOpacity
                       style={styles.completeButton}
                       onPress={() => { onComplete(id); onClose(); }}
