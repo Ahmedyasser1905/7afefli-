@@ -71,11 +71,15 @@ async function bootstrap() {
   // ── Sentry error monitoring ───────────────────────────────────────────────
   const sentryDsn = configService.get<string>('SENTRY_DSN');
   if (sentryDsn) {
+    const isProd = process.env.NODE_ENV === 'production';
     Sentry.init({
       dsn: sentryDsn,
       integrations: [nodeProfilingIntegration()],
-      tracesSampleRate: 1.0,
-      profilesSampleRate: 1.0,
+      // IMPORTANT: Never use 1.0 (100%) in production — it exhausts Sentry quota
+      // instantly under real traffic and sends full request bodies to a third party.
+      // 0.1 = capture 10% of transactions; 0.05 = capture 5% of CPU profiles.
+      tracesSampleRate: isProd ? 0.1 : 1.0,
+      profilesSampleRate: isProd ? 0.05 : 1.0,
     });
   }
 
