@@ -56,17 +56,20 @@ import { NotificationsModule } from './notifications/notifications.module';
     ThrottlerModule.forRootAsync({
       useFactory: () => {
         const url = process.env.REDIS_URL;
+        const throttlers = [
+          { name: 'global', ttl: 60 * 1000, limit: 100 },
+          // Tight limit on booking creation to prevent spam / advisory-lock exhaustion
+          { name: 'booking', ttl: 60 * 1000, limit: 5 },
+        ];
         if (url) {
           // eslint-disable-next-line @typescript-eslint/no-var-requires
           const { ThrottlerStorageRedisService } = require('nestjs-throttler-storage-redis');
           return {
-            throttlers: [{ ttl: 60 * 1000, limit: 100 }],
+            throttlers,
             storage: new ThrottlerStorageRedisService(url),
           };
         }
-        return {
-          throttlers: [{ ttl: 60 * 1000, limit: 100 }],
-        };
+        return { throttlers };
       },
     }),
 
