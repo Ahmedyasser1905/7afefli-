@@ -429,12 +429,26 @@ export function BookingScreen() {
           </View>
           {pendingSlot && clientPhone.trim().length >= 8 ? (
             <TouchableOpacity
-              style={styles.footerConfirmBtn}
-              onPress={() => handleSlotConfirm(pendingSlot)}
+              style={[
+                styles.footerConfirmBtn,
+                createReservation.isPending && styles.footerConfirmBtnDisabled,
+              ]}
+              onPress={() => {
+                // Guard against double-tap: if a request is already in flight, ignore
+                if (createReservation.isPending) return;
+                handleSlotConfirm(pendingSlot);
+              }}
               activeOpacity={0.8}
+              disabled={createReservation.isPending}
             >
-              <Text style={styles.footerConfirmBtnText}>Confirmer {pendingSlot.startTime}</Text>
-              <Ionicons name="arrow-forward" size={18} color={colors.ink} />
+              {createReservation.isPending ? (
+                <ActivityIndicator size="small" color={colors.ink} />
+              ) : (
+                <>
+                  <Text style={styles.footerConfirmBtnText}>Confirmer {pendingSlot.startTime}</Text>
+                  <Ionicons name="arrow-forward" size={18} color={colors.ink} />
+                </>
+              )}
             </TouchableOpacity>
           ) : (
             <View style={styles.footerDateCol}>
@@ -707,6 +721,10 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
+  },
+  footerConfirmBtnDisabled: {
+    opacity: 0.6,
+    elevation: 0,
   },
   footerConfirmBtnText: {
     fontFamily: 'Syne_700Bold',

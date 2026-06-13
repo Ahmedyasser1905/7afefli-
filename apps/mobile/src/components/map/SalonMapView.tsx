@@ -101,6 +101,7 @@ export function SalonMapView({
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'unsafe-inline' https://cdn.jsdelivr.net; img-src * data: blob:; connect-src https://router.project-osrm.org https://*.tile.openstreetmap.org; font-src 'none'">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{width:100%;height:100%;overflow:hidden;background:#1a1a2e}
@@ -476,7 +477,7 @@ function initLeaflet(){
         style={styles.webview}
         javaScriptEnabled={true}
         domStorageEnabled={true}
-        mixedContentMode="always"
+        mixedContentMode="never"
         cacheEnabled={true}
         cacheMode="LOAD_CACHE_ELSE_NETWORK"
         onMessage={handleMessage}

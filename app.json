@@ -10,6 +10,11 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.ahmedyasser.hafefli",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "7afefli utilise votre photothèque pour télécharger des photos de profil et de portfolio.",
+        "NSPhotoLibraryAddUsageDescription": "7afefli enregistre des photos dans votre photothèque.",
+        "NSCameraUsageDescription": "7afefli utilise votre appareil photo pour prendre des photos de profil et de portfolio."
+      },
       "splash": {
         "image": "./assets/splash.png",
         "tabletImage": "./assets/splash.png"
@@ -38,6 +43,13 @@
       "expo-secure-store",
       "expo-notifications",
       "expo-splash-screen",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "7afefli utilise votre photothèque pour télécharger des photos de profil et de portfolio.",
+          "cameraPermission": "7afefli utilise votre appareil photo pour prendre des photos de profil et de portfolio."
+        }
+      ],
       [
         "expo-location",
         {
