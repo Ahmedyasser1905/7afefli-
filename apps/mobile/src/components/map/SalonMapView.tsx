@@ -299,10 +299,9 @@ function initMapLibre(){
       if(!s) return;
       map.easeTo({center:[s.lng,s.lat],zoom:14,duration:600});
       
-      var dirBtn=HAS_USER?'<button class="p-btn p-dir" onclick="mglRoute('+s.lng+','+s.lat+')">Itin\u00e9raire</button>':'';
       currentPopup = new maplibregl.Popup({offset:18,closeButton:true,maxWidth:'240px'})
         .setLngLat([s.lng,s.lat])
-        .setHTML('<div class="p-name">'+s.name+'</div><div class="p-info">\u2B50 '+s.rating+' \u00B7 '+s.wilaya+'</div><div class="p-actions"><button class="p-btn p-view" onclick="safePostMessage(JSON.stringify({type:\\\'SALON_PRESS\\\', salonId:\\\''+s.id+'\\\'}))">Voir salon</button>'+dirBtn+'</div>')
+        .setHTML('<div class="p-name">'+s.name+'</div><div class="p-info">\u2B50 '+s.rating+' \u00B7 '+s.wilaya+'</div><div class="p-actions"><button class="p-btn p-view" onclick="safePostMessage(JSON.stringify({type:\\\'SALON_PRESS\\\', salonId:\\\''+s.id+'\\\'}))">Voir salon</button></div>')
         .addTo(map);
         
       currentPopup.on('close', function() {
@@ -394,8 +393,7 @@ function initLeaflet(){
         if(!s) return;
         map.setView([s.lat, s.lng], 14, {animate: true});
 
-        var dirBtn=HAS_USER?'<button class="p-btn p-dir" onclick="lfRoute('+s.lng+','+s.lat+')">Itin\u00e9raire</button>':'';
-        var popupHtml='<div class="p-name">'+s.name+'</div><div class="p-info">\u2B50 '+s.rating+' \u00B7 '+s.wilaya+'</div><div class="p-actions"><button class="p-btn p-view" onclick="safePostMessage(JSON.stringify({type:\\\'SALON_PRESS\\\', salonId:\\\''+s.id+'\\\'}))">Voir salon</button>'+dirBtn+'</div>';
+        var popupHtml='<div class="p-name">'+s.name+'</div><div class="p-info">\u2B50 '+s.rating+' \u00B7 '+s.wilaya+'</div><div class="p-actions"><button class="p-btn p-view" onclick="safePostMessage(JSON.stringify({type:\\\'SALON_PRESS\\\', salonId:\\\''+s.id+'\\\'}))">Voir salon</button></div>';
         
         L.popup({maxWidth:240, offset:[0,-18]})
           .setLatLng([s.lat, s.lng])
