@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "7afefli",
-    "slug": "barberdz-monorepo",
+    "slug": "7afefli",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/splash.png",
@@ -54,7 +54,7 @@
     },
     "extra": {
       "eas": {
-        "projectId": "adcbeb95-3c15-48ec-bae6-6f4a44190cf6"
+        "projectId": "fde4b773-171f-4e1e-b213-67e4681d54ad"
       }
     }
   }
