@@ -531,6 +531,22 @@ export class SalonsService {
    * Checks plan quota before issuing the URL so direct uploads still respect limits.
    */
   async getPortfolioUploadUrl(salonId: string, fileName: string, userId: string) {
+    // ── Security: whitelist allowed image extensions and MIME types ──────────
+    // Without this, a barber can request a signed URL for malware.html or
+    // exploit.svg, upload it to Supabase Storage, and share the CDN link.
+    // SVG files served from a Supabase domain execute JavaScript in browsers.
+    const ALLOWED_EXTENSIONS = /\.(jpg|jpeg|png|webp|heic)$/i;
+    const sanitizedName = fileName.trim().toLowerCase();
+    if (!ALLOWED_EXTENSIONS.test(sanitizedName)) {
+      throw new BadRequestException(
+        'Format de fichier non autorisé. Seuls les formats jpg, jpeg, png, webp et heic sont acceptés.',
+      );
+    }
+    // Also block suspiciously long filenames (path traversal, buffer overflows)
+    if (fileName.length > 200) {
+      throw new BadRequestException('Nom de fichier trop long (maximum 200 caractères).');
+    }
+
     // Verify ownership and check plan quota
     const { data: salon } = await this.supabase.adminClient
       .from('salons')
@@ -556,7 +572,10 @@ export class SalonsService {
     }
 
     // Generate a signed upload URL (valid 5 minutes)
-    const storagePath = `${salonId}/${Date.now()}_${fileName.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+    // Preserve only the extension from the original filename; the rest is replaced
+    // by a timestamp to avoid path traversal and name collisions.
+    const ext = sanitizedName.split('.').pop();
+    const storagePath = `${salonId}/${Date.now()}.${ext}`;
     const { data, error } = await this.supabase.adminClient.storage
       .from('portfolio')
       .createSignedUploadUrl(storagePath);

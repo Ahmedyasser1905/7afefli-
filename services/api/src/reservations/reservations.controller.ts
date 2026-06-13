@@ -10,7 +10,13 @@ import {
   Body,
   Query,
   UseGuards,
+  Headers,
+  UnauthorizedException,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { Throttle, SkipThrottle } from '@nestjs/throttler';
 import { ReservationsService } from './reservations.service';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 import { UpdateReservationStatusDto } from './dto/update-reservation-status.dto';
@@ -24,13 +30,19 @@ import { AuthenticatedUser } from '../auth/auth.guard';
 @Controller('reservations')
 @UseGuards(SupabaseAuthGuard)
 export class ReservationsController {
-  constructor(private readonly reservationsService: ReservationsService) {}
+  constructor(
+    private readonly reservationsService: ReservationsService,
+    private readonly configService: ConfigService,
+  ) {}
 
   /**
    * POST /reservations
    * Create a new reservation (Client only).
+   * Throttled to 5 requests/minute per IP to prevent double-submit spam and
+   * advisory-lock pool exhaustion.
    */
   @Post()
+  @Throttle({ booking: { ttl: 60000, limit: 5 } })
   @UseGuards(RolesGuard)
   @Roles('Client', 'Coiffeur')
   create(
@@ -162,6 +174,36 @@ export class ReservationsController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.reservationsService.updateStatus(id, dto, user.id);
+  }
+
+  /**
+   * GET /reservations/cron/reminders
+   * Vercel Cron Job endpoint — fires hourly to send booking reminders.
+   * NOT protected by SupabaseAuthGuard (cron has no user JWT).
+   * Protected by the CRON_SECRET header that Vercel sends automatically.
+   *
+   * On Vercel, @nestjs/schedule @Cron() decorators never fire because
+   * serverless functions terminate after each request. This HTTP endpoint
+   * is the production-safe replacement, triggered by Vercel's built-in
+   * cron scheduler (configured in vercel.json).
+   *
+   * Set CRON_SECRET in Vercel environment variables to secure this endpoint.
+   */
+  @Get('cron/reminders')
+  @HttpCode(HttpStatus.OK)
+  async cronSendReminders(
+    @Headers('authorization') authHeader?: string,
+  ) {
+    const cronSecret = this.configService.get<string>('CRON_SECRET');
+    // If CRON_SECRET is configured, validate the Bearer token
+    if (cronSecret) {
+      const token = authHeader?.replace('Bearer ', '');
+      if (token !== cronSecret) {
+        throw new UnauthorizedException('Invalid cron secret');
+      }
+    }
+    await this.reservationsService.sendBookingReminders();
+    return { ok: true, message: 'Booking reminders dispatched' };
   }
 
   /**

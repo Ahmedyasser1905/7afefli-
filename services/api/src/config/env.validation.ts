@@ -19,8 +19,9 @@ const ENV_CONFIG: EnvConfig = {
   ],
   productionOnly: [
     'CHARGILY_SECRET_KEY',
-    'APP_URL',  // fix L9: used in auth.controller for password-reset redirect link
+    'APP_URL',  // used in auth.controller for password-reset redirect link
     'CHARGILY_WEBHOOK_URL', // Required: Chargily Pay webhook callback URL (Railway deployed URL + /api/v1/payments/webhook)
+    'CRON_SECRET', // secures /cron/* endpoints called by Vercel Cron Jobs
     // 'SENTRY_DSN', // Optional monitoring
   ],
   // Optional vars (with sensible defaults):

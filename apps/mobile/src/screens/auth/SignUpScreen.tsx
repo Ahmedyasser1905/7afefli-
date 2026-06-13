@@ -12,6 +12,7 @@ import {
   ScrollView,
   Alert,
   Image,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
@@ -88,8 +89,12 @@ export default function SignUpScreen({ navigation }: { navigation: Record<string
         password: password,
         options: {
           data: {
+            // SECURITY: role is intentionally NOT passed here.
+            // raw_user_meta_data is user-controlled and must never be trusted
+            // for role assignment. Role is written server-side only, via the
+            // Supabase handle_new_user trigger (default: 'Client') and the
+            // admin-only PATCH /admin/users/:id/role endpoint.
             full_name: fullName.trim(),
-            role: role,
           },
         },
       });
@@ -97,19 +102,24 @@ export default function SignUpScreen({ navigation }: { navigation: Record<string
       if (error) throw error;
 
       if (data.session) {
-        // Save phone number to profile if provided
-        if (formattedPhone) {
-          try {
-            await supabase
-              .from('profiles')
-              .update({ phone_number: formattedPhone })
-              .eq('id', data.session.user.id);
-          } catch (phoneErr) {
-            console.warn('[SignUp] Failed to save phone:', phoneErr);
-          }
+        // Save phone number and requested role via the backend verify endpoint.
+        // The backend ignores any role in the body — role is set by the trigger.
+        // We call this so the profile row gets phone_number persisted correctly.
+        try {
+          const { apiClient } = await import('../../lib/apiClient');
+          await apiClient.post('/auth/verify', {
+            phoneNumber: formattedPhone || undefined,
+            fullName: fullName.trim(),
+          });
+        } catch (verifyErr) {
+          // Non-fatal — profile will be created on next authenticated request
+          console.warn('[SignUp] Profile verify failed (non-fatal):', verifyErr);
         }
 
-        // Auto-login on sign-up
+        // Store the locally-chosen role in app state for immediate UX.
+        // The authoritative role is always fetched from the profiles table on
+        // subsequent sessions — this value is only used for the current session's
+        // navigation routing before the first server response.
         useAuthStore.setState({
           session: data.session,
           user: data.session.user,
@@ -306,7 +316,19 @@ export default function SignUpScreen({ navigation }: { navigation: Record<string
           <View style={styles.footer}>
             <Text style={styles.footerText}>
               En continuant, vous acceptez nos {'\n'}
-              <Text style={styles.linkText}>Conditions d'utilisation</Text> et notre <Text style={styles.linkText}>Politique de confidentialité</Text>
+              <Text
+                style={styles.linkText}
+                onPress={() => Linking.openURL('https://7afefli.vercel.app/terms')}
+              >
+                Conditions d'utilisation
+              </Text>
+              {' '}et notre{' '}
+              <Text
+                style={styles.linkText}
+                onPress={() => Linking.openURL('https://7afefli.vercel.app/privacy')}
+              >
+                Politique de confidentialité
+              </Text>
             </Text>
 
             <View style={styles.loginLinkContainer}>

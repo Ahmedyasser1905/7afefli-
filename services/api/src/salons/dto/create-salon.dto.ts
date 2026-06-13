@@ -9,31 +9,38 @@ import {
   Min,
   Max,
   Matches,
+  MaxLength,
 } from 'class-validator';
 
 export class CreateSalonDto {
   @IsString()
   @IsNotEmpty()
+  @MaxLength(100, { message: 'Le nom ne peut pas dépasser 100 caractères.' })
   name!: string;
 
   @IsString()
   @IsOptional()
+  @MaxLength(1000, { message: 'La description ne peut pas dépasser 1000 caractères.' })
   description?: string;
 
   @IsString()
   @IsNotEmpty()
+  @MaxLength(100)
   wilaya!: string;
 
   @IsString()
   @IsNotEmpty()
+  @MaxLength(100)
   commune!: string;
 
   @IsString()
   @IsNotEmpty()
+  @MaxLength(300, { message: 'L\'adresse ne peut pas dépasser 300 caractères.' })
   address!: string;
 
   @IsString()
   @IsNotEmpty()
+  @MaxLength(20)
   @Matches(/^(\+213|0)[567][0-9]{8}$/, { message: 'Phone number must be a valid Algerian number' })
   phone!: string;
 

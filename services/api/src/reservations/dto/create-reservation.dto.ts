@@ -7,6 +7,7 @@ import {
   IsUUID,
   Matches,
   IsBoolean,
+  MaxLength,
 } from 'class-validator';
 
 export class CreateReservationDto {
@@ -37,6 +38,7 @@ export class CreateReservationDto {
 
   @IsString()
   @IsOptional()
+  @MaxLength(500, { message: 'Les notes ne peuvent pas dépasser 500 caractères.' })
   notes?: string;
 
   @IsString()
