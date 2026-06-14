@@ -4,8 +4,7 @@ import Link from 'next/link';
 
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { apiFetch } from '../../lib/api';
-import { Sidebar } from '../components/Sidebar';
+import { apiFetch } from '../../lib/api';  // fix C5
 
 interface RevenueStats {
   totalRevenue: number;
@@ -89,7 +88,21 @@ export default function PaymentsPage() {
   return (
     <div style={styles.page}>
       {/* Sidebar */}
-      <Sidebar activePath="/payments" />
+      <aside style={styles.sidebar}>
+        <div style={styles.logo}>
+          <span style={styles.logoIcon}>💈</span>
+          <h1 style={styles.logoText}>BarberDZ</h1>
+          <span style={styles.adminBadge}>Admin</span>
+        </div>
+        <nav style={styles.nav}>
+          <Link href="/dashboard" style={styles.navLink}>📊 Dashboard</Link>
+          <Link href="/salons" style={styles.navLink}>🏪 Approbations</Link>
+          <Link href="/users" style={styles.navLink}>👥 Utilisateurs</Link>
+          <Link href="/reservations" style={styles.navLink}>📅 Réservations</Link>
+          <Link href="/subscriptions" style={styles.navLink}>💳 Abonnements</Link>
+          <Link href="/payments" style={{ ...styles.navLink, ...styles.navLinkActive }}>💰 Paiements</Link>
+        </nav>
+      </aside>
 
       {/* Main Content */}
       <main style={styles.main}>

@@ -4,8 +4,7 @@ import Link from 'next/link';
 
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { apiFetch } from '../../lib/api';
-import { Sidebar } from '../components/Sidebar';
+import { apiFetch } from '../../lib/api';  // fix C5: centralised fetch adds /api/v1 prefix
 
 interface PlatformStats {
   totalSalons: number;
@@ -93,7 +92,24 @@ export default function DashboardPage() {
   return (
     <div style={styles.page}>
       {/* Sidebar */}
-      <Sidebar activePath="/dashboard" />
+      <aside style={styles.sidebar}>
+        <div style={styles.logo}>
+          <span style={styles.logoIcon}>💈</span>
+          <h1 style={styles.logoText}>BarberDZ</h1>
+          <span style={styles.adminBadge}>Admin</span>
+        </div>
+        <nav style={styles.nav}>
+          <Link href="/dashboard" style={{ ...styles.navLink, ...styles.navLinkActive }}>
+            📊 Dashboard
+          </Link>
+          <Link href="/salons" style={styles.navLink}>🏪 Approbations</Link>
+          <Link href="/users" style={styles.navLink}>👥 Utilisateurs</Link>
+          <Link href="/reservations" style={styles.navLink}>📅 Réservations</Link>
+          <Link href="/subscriptions" style={styles.navLink}>💳 Abonnements</Link>
+          <Link href="/payments" style={styles.navLink}>💰 Paiements</Link>
+          <Link href="/notifications" style={styles.navLink}>📢 Notifications</Link>
+        </nav>
+      </aside>
 
       {/* Main Content */}
       <main style={styles.main}>
@@ -185,32 +201,8 @@ export default function DashboardPage() {
                       </p>
                     </div>
                   </div>
-            </div>
-
-            {/* Quick Actions / Shortcuts */}
-            <h2 style={{ ...styles.pageTitle, marginTop: 40, marginBottom: 16 }}>Raccourcis Actions Rapides</h2>
-            <div style={styles.quickActionsGrid}>
-              <Link href="/notifications" style={styles.actionCard}>
-                <span style={styles.actionIcon}>📢</span>
-                <div>
-                  <h4 style={styles.actionTitle}>Diffuser une Notification</h4>
-                  <p style={styles.actionDesc}>Envoyer un message push et in-app à tous les utilisateurs.</p>
-                </div>
-              </Link>
-              <Link href="/salons" style={styles.actionCard}>
-                <span style={styles.actionIcon}>🏪</span>
-                <div>
-                  <h4 style={styles.actionTitle}>Approuver des Salons</h4>
-                  <p style={styles.actionDesc}>Vérifier et activer les nouveaux salons en attente.</p>
-                </div>
-              </Link>
-              <Link href="/users" style={styles.actionCard}>
-                <span style={styles.actionIcon}>👥</span>
-                <div>
-                  <h4 style={styles.actionTitle}>Gérer les Utilisateurs</h4>
-                  <p style={styles.actionDesc}>Bannir des comptes, modifier les rôles ou voir les profils.</p>
-                </div>
-              </Link>
+                </>
+              )}
             </div>
 
             {/* FIX-5: Top Salons section */}
@@ -498,44 +490,4 @@ const styles: Record<string, React.CSSProperties> = {
     animation: 'spin 1s linear infinite',
   },
   loadingText: { color: '#9A9A9A', fontSize: 14 },
-  quickActionsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-    gap: 20,
-    marginBottom: 32,
-  },
-  actionCard: {
-    backgroundColor: '#1A1A1A',
-    border: '1px solid #2C2C2C',
-    borderRadius: 12,
-    padding: 20,
-    display: 'flex',
-    alignItems: 'center',
-    gap: 16,
-    textDecoration: 'none',
-    color: '#F5F5F5',
-    transition: 'all 0.2s',
-    cursor: 'pointer',
-  },
-  actionIcon: {
-    fontSize: 24,
-    backgroundColor: '#2C2C2C',
-    borderRadius: 8,
-    width: 48,
-    height: 48,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionTitle: {
-    margin: 0,
-    fontSize: 16,
-    fontWeight: 600,
-    color: '#F5F5F5',
-  },
-  actionDesc: {
-    margin: '4px 0 0 0',
-    fontSize: 13,
-    color: '#9A9A9A',
-  },
 };
