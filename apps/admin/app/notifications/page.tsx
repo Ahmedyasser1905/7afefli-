@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { supabase } from '../../lib/supabase';
 import { apiFetch } from '../../lib/api';
+import { Sidebar } from '../components/Sidebar';
 
 interface BroadcastLog {
   id: string;
@@ -93,22 +93,7 @@ export default function NotificationsPage() {
   return (
     <div style={styles.page}>
       {/* Sidebar */}
-      <aside style={styles.sidebar}>
-        <div style={styles.logo}>
-          <span style={styles.logoIcon}>💈</span>
-          <h1 style={styles.logoText}>BarberDZ</h1>
-          <span style={styles.adminBadge}>Admin</span>
-        </div>
-        <nav style={styles.nav}>
-          <Link href="/dashboard" style={styles.navLink}>📊 Dashboard</Link>
-          <Link href="/salons" style={styles.navLink}>🏪 Approbations</Link>
-          <Link href="/users" style={styles.navLink}>👥 Utilisateurs</Link>
-          <Link href="/reservations" style={styles.navLink}>📅 Réservations</Link>
-          <Link href="/subscriptions" style={styles.navLink}>💳 Abonnements</Link>
-          <Link href="/payments" style={styles.navLink}>💰 Paiements</Link>
-          <Link href="/notifications" style={{ ...styles.navLink, ...styles.navLinkActive }}>📢 Notifications</Link>
-        </nav>
-      </aside>
+      <Sidebar activePath="/notifications" />
 
       {/* Main Content */}
       <main style={styles.main}>
