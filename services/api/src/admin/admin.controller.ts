@@ -20,6 +20,8 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 import { UpdateAdminSalonDto } from './dto/update-admin-salon.dto';
 import { UpdatePlanDto } from './dto/update-plan.dto';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { BroadcastNotificationDto } from './dto/broadcast-notification.dto';
 
 @Controller('admin')
 @UseGuards(SupabaseAuthGuard, RolesGuard)
@@ -216,5 +218,32 @@ export class AdminController {
     @Body() dto: UpdatePlanDto,
   ) {
     return this.adminService.updatePlan(id, dto);
+  }
+
+  /**
+   * POST /admin/notifications/broadcast
+   * Broadcast a notification to all users.
+   */
+  @Post('notifications/broadcast')
+  broadcastNotification(
+    @Body() dto: BroadcastNotificationDto,
+    @CurrentUser('id') adminId: string,
+  ) {
+    return this.adminService.broadcastNotification(dto, adminId);
+  }
+
+  /**
+   * GET /admin/notifications/broadcasts
+   * Get past broadcast notification logs.
+   */
+  @Get('notifications/broadcasts')
+  getBroadcasts(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.adminService.getBroadcasts(
+      page ? Number(page) : 1,
+      limit ? Number(limit) : 50,
+    );
   }
 }

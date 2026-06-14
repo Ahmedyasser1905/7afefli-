@@ -9,6 +9,7 @@ const mockQueryBuilder = {
   order: jest.fn().mockReturnThis(),
   single: jest.fn().mockReturnThis(),
   update: jest.fn().mockReturnThis(),
+  insert: jest.fn().mockReturnThis(),
   delete: jest.fn().mockReturnThis(),
   range: jest.fn().mockReturnThis(),
   limit: jest.fn().mockReturnThis(),
@@ -24,6 +25,7 @@ describe('AdminService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    mockQueryBuilder.then.mockImplementation((resolve) => resolve({ data: [], error: null }));
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AdminService,
@@ -123,6 +125,46 @@ describe('AdminService', () => {
       mockQueryBuilder.then.mockImplementationOnce((resolve: any) => resolve({ data: [{ id: 'sub-1' }], error: null }));
       const res = await service.getAllSubscriptions();
       expect(res).toEqual([{ id: 'sub-1' }]);
+    });
+  });
+
+  describe('broadcastNotification', () => {
+    it('should broadcast notification to all profiles', async () => {
+      mockQueryBuilder.then.mockImplementationOnce((resolve: any) => resolve({ data: [{ id: 'user-1' }, { id: 'user-2' }], error: null })); // profiles select
+      mockQueryBuilder.then.mockImplementationOnce((resolve: any) => resolve({ error: null })); // log insert
+      
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          AdminService,
+          {
+            provide: SupabaseService,
+            useValue: { adminClient: mockSupabaseAdminClient },
+          },
+          {
+            provide: NotificationsService,
+            useValue: {
+              createNotificationsBatch: jest.fn().mockResolvedValue(true),
+            },
+          },
+        ],
+      }).compile();
+      const customService = module.get<AdminService>(AdminService);
+
+      const res = await customService.broadcastNotification({ title: 'Test', body: 'Msg' }, 'admin-1');
+      expect(res).toEqual({ sent: 2 });
+    });
+  });
+
+  describe('getBroadcasts', () => {
+    it('should return paginated broadcasts', async () => {
+      mockQueryBuilder.then.mockImplementationOnce((resolve: any) => resolve({ data: [{ id: 'b-1', title: 'Test' }], count: 1, error: null }));
+      const res = await service.getBroadcasts(1, 10);
+      expect(res).toEqual({
+        data: [{ id: 'b-1', title: 'Test' }],
+        total: 1,
+        page: 1,
+        limit: 10,
+      });
     });
   });
 });

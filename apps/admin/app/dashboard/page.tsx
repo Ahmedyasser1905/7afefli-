@@ -107,6 +107,7 @@ export default function DashboardPage() {
           <Link href="/reservations" style={styles.navLink}>📅 Réservations</Link>
           <Link href="/subscriptions" style={styles.navLink}>💳 Abonnements</Link>
           <Link href="/payments" style={styles.navLink}>💰 Paiements</Link>
+          <Link href="/notifications" style={styles.navLink}>📢 Notifications</Link>
         </nav>
       </aside>
 

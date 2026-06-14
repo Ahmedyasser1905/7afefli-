@@ -45,6 +45,7 @@ export function NotificationsScreen() {
       case 'salon_approved':        return 'storefront-outline';
       case 'salon_rejected':        return 'close-circle-outline';
       case 'loyalty_points':        return 'gift-outline';
+      case 'broadcast':             return 'megaphone-outline';
       case 'system':                return 'information-circle-outline';
       default:                      return 'notifications-outline';
     }
@@ -63,6 +64,7 @@ export function NotificationsScreen() {
         return colors.error;
       case 'new_review':
       case 'loyalty_points':
+      case 'broadcast':
         return colors.amber;
       case 'subscription_expiring':
         return '#E67E22';
