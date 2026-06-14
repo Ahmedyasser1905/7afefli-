@@ -1,3 +1,4 @@
+import Link from 'next/link';
 // apps/admin/app/users/page.tsx
 'use client';
 
@@ -14,10 +15,12 @@ interface UserProfile {
   wilaya: string | null;
   created_at: string;
   updated_at: string;
+  is_banned?: boolean;
 }
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [totalUsers, setTotalUsers] = useState(0);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
@@ -31,8 +34,10 @@ export default function AdminUsersPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      const data = await apiFetch('/admin/users', session.access_token);
-      setUsers(data as typeof users);
+      // FIX-1: API returns { data: UserProfile[], total: number } — unwrap correctly
+      const response = await apiFetch<{ data: UserProfile[]; total: number }>('/admin/users', session.access_token);
+      setUsers(response.data ?? []);
+      setTotalUsers(response.total ?? 0);
     } catch (e) {
       console.error('Failed to fetch users:', e);
     } finally {
@@ -62,6 +67,46 @@ export default function AdminUsersPage() {
     }
   }
 
+  // FIX-4: Delete user with confirmation
+  async function deleteUser(userId: string) {
+    if (!confirm('Supprimer définitivement cet utilisateur ? Cette action est irréversible.')) return;
+    setActionLoading(userId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      await apiFetch(`/admin/users/${userId}`, session?.access_token ?? '', { method: 'DELETE' });
+      setUsers((prev) => prev.filter((u) => u.id !== userId));
+      setTotalUsers((prev) => prev - 1);
+    } catch (e) {
+      console.error('Failed to delete user:', e);
+      alert('Erreur lors de la suppression.');
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  // FIX-4: Ban / unban user toggle
+  async function banUser(userId: string, currentlyBanned: boolean) {
+    const action = currentlyBanned ? 'débannir' : 'bannir';
+    if (!confirm(`Voulez-vous ${action} cet utilisateur ?`)) return;
+    setActionLoading(userId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      await apiFetch(`/admin/users/${userId}/ban`, session?.access_token ?? '', {
+        method: 'PATCH',
+        body: JSON.stringify({ isBanned: !currentlyBanned }),
+      });
+      // Toggle a visual indicator — backend handles the actual ban in Supabase Auth
+      setUsers((prev) =>
+        prev.map((u) => u.id === userId ? { ...u, is_banned: !currentlyBanned } : u)
+      );
+    } catch (e) {
+      console.error('Failed to ban/unban user:', e);
+      alert('Erreur lors de l\'opération.');
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
   function formatDate(dateStr: string): string {
     return new Date(dateStr).toLocaleDateString('fr-FR', {
       day: 'numeric',
@@ -80,14 +125,15 @@ export default function AdminUsersPage() {
           <span style={styles.adminBadge}>Admin</span>
         </div>
         <nav style={styles.nav}>
-          <a href="/dashboard" style={styles.navLink}>📊 Dashboard</a>
-          <a href="/salons" style={styles.navLink}>🏪 Approbations</a>
-          <a href="/users" style={{ ...styles.navLink, ...styles.navLinkActive }}>
+          <Link href="/dashboard" style={styles.navLink}>📊 Dashboard</Link>
+          <Link href="/salons" style={styles.navLink}>🏪 Approbations</Link>
+          <Link href="/users" style={{ ...styles.navLink, ...styles.navLinkActive }}>
             👥 Utilisateurs
-          </a>
-          <a href="/reservations" style={styles.navLink}>📅 Réservations</a>
-          <a href="/subscriptions" style={styles.navLink}>💳 Abonnements</a>
-          <a href="/payments" style={styles.navLink}>💰 Paiements</a>
+          </Link>
+          <Link href="/reservations" style={styles.navLink}>📅 Réservations</Link>
+          <Link href="/subscriptions" style={styles.navLink}>💳 Abonnements</Link>
+          <Link href="/payments" style={styles.navLink}>💰 Paiements</Link>
+          <Link href="/notifications" style={styles.navLink}>📢 Notifications</Link>
         </nav>
       </aside>
 
@@ -97,7 +143,7 @@ export default function AdminUsersPage() {
           <div>
             <h2 style={styles.pageTitle}>Gestion des Utilisateurs</h2>
             <p style={styles.pageSubtitle}>
-              {users.length} utilisateur{users.length !== 1 ? 's' : ''} inscrits sur la plateforme
+              {totalUsers} utilisateur{totalUsers !== 1 ? 's' : ''} inscrits sur la plateforme
             </p>
           </div>
           <button onClick={fetchUsers} style={styles.refreshBtn}>
@@ -109,6 +155,12 @@ export default function AdminUsersPage() {
           <div style={styles.loadingContainer}>
             <div style={styles.spinner} />
             <p style={styles.loadingText}>Chargement des profils...</p>
+          </div>
+        ) : users.length === 0 ? (
+          <div style={styles.emptyState}>
+            <p style={styles.emptyIcon}>👥</p>
+            <p style={styles.emptyTitle}>Aucun utilisateur trouvé</p>
+            <p style={styles.emptySubtitle}>Il n'y a actuellement aucun utilisateur sur la plateforme.</p>
           </div>
         ) : (
           <div style={styles.tableContainer}>
@@ -191,6 +243,26 @@ export default function AdminUsersPage() {
                             style={styles.adminBtn}
                           >
                             🔑 Promouvoir Admin
+                          </button>
+                        )}
+                        {/* FIX-4: Ban / Unban button */}
+                        {profile.role !== 'Admin' && (
+                          <button
+                            onClick={() => banUser(profile.id, !!profile.is_banned)}
+                            disabled={actionLoading === profile.id}
+                            style={profile.is_banned ? styles.unbanBtn : styles.banBtn}
+                          >
+                            {profile.is_banned ? '✅ Débannir' : '🚫 Bannir'}
+                          </button>
+                        )}
+                        {/* FIX-4: Delete button */}
+                        {profile.role !== 'Admin' && (
+                          <button
+                            onClick={() => deleteUser(profile.id)}
+                            disabled={actionLoading === profile.id}
+                            style={styles.deleteBtn}
+                          >
+                            🗑️ Supprimer
                           </button>
                         )}
                         {profile.role === 'Admin' && (
@@ -420,6 +492,48 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 12,
     fontWeight: 600,
   },
+  // FIX-4: Ban / Delete styles
+  banBtn: {
+    padding: '6px 12px',
+    borderRadius: 6,
+    border: 'none',
+    backgroundColor: 'rgba(255, 100, 0, 0.15)',
+    color: '#FF6400',
+    cursor: 'pointer',
+    fontSize: 12,
+    fontWeight: 600,
+  },
+  unbanBtn: {
+    padding: '6px 12px',
+    borderRadius: 6,
+    border: 'none',
+    backgroundColor: 'rgba(46, 204, 113, 0.15)',
+    color: '#2ECC71',
+    cursor: 'pointer',
+    fontSize: 12,
+    fontWeight: 600,
+  },
+  deleteBtn: {
+    padding: '6px 12px',
+    borderRadius: 6,
+    border: 'none',
+    backgroundColor: 'rgba(231, 76, 60, 0.25)',
+    color: '#E74C3C',
+    cursor: 'pointer',
+    fontSize: 12,
+    fontWeight: 600,
+  },
+  emptyState: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 80,
+    gap: 8,
+  },
+  emptyIcon: { fontSize: 48 },
+  emptyTitle: { fontSize: 18, fontWeight: 600, color: '#F5F5F5' },
+  emptySubtitle: { fontSize: 14, color: '#9A9A9A' },
   loadingContainer: {
     display: 'flex',
     flexDirection: 'column',

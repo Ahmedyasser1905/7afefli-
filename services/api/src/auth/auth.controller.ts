@@ -19,6 +19,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { ThrottlerException } from '@nestjs/throttler';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { SupabaseService } from '../supabase/supabase.service';
 import { SupabaseAuthGuard, AuthenticatedUser } from './auth.guard';
@@ -30,6 +31,22 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 @Controller('auth')
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);
+
+  // Per-email rate limiter: max 5 attempts per email per hour (AUTH-1, AUTH-2 fix)
+  private readonly emailRateLimiter = new Map<string, { count: number; resetAt: number }>();
+
+  private checkEmailRateLimit(email: string, maxPerHour = 5): void {
+    const now = Date.now();
+    const entry = this.emailRateLimiter.get(email);
+    if (entry && now < entry.resetAt) {
+      if (entry.count >= maxPerHour) {
+        throw new ThrottlerException();
+      }
+      entry.count++;
+    } else {
+      this.emailRateLimiter.set(email, { count: 1, resetAt: now + 3600_000 });
+    }
+  }
 
   constructor(private readonly supabase: SupabaseService) {}
 
@@ -141,7 +158,7 @@ export class AuthController {
       id: r.id,
       date: r.appointment_date,
       reason: `Réservation complétée — ${(r.services as Record<string, unknown>)?.service_name ?? 'Service'}`,
-      points: 10, // 10 pts per completed reservation
+      points: parseInt(process.env.LOYALTY_POINTS_PER_RESERVATION ?? '10', 10),
     }));
 
     return {
@@ -252,6 +269,9 @@ export class AuthController {
       throw new BadRequestException('Email is required');
     }
 
+    // AUTH-2 fix: per-email rate limit (max 5 reset emails/hour)
+    this.checkEmailRateLimit(email);
+
     const { error } = await this.supabase.adminClient.auth.resetPasswordForEmail(
       email,
       {
@@ -309,6 +329,9 @@ export class AuthController {
     if (!email) {
       throw new BadRequestException('Email is required');
     }
+
+    // AUTH-1 fix: per-email rate limit (max 5 resend emails/hour)
+    this.checkEmailRateLimit(email);
 
     try {
       await this.supabase.adminClient.auth.resend({

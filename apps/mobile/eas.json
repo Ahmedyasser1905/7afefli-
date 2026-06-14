@@ -9,14 +9,7 @@
       "distribution": "internal"
     },
     "preview": {
-      "env": {
-        "EXPO_PUBLIC_API_URL": "https://7afefli-api.vercel.app",
-        "EXPO_PUBLIC_SUPABASE_URL": "https://phfwutugsyiutqgippqg.supabase.co"
-        // EXPO_PUBLIC_SUPABASE_ANON_KEY must NOT be hardcoded here.
-        // Set it via EAS Secrets:
-        //   eas secret:create --scope project --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value <your_anon_key>
-        // Or set it in the Expo dashboard under: Project → Secrets
-      },
+      "environment": "preview",
       "distribution": "internal",
       "android": {
         "buildType": "apk"

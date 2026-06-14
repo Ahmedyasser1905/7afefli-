@@ -1,3 +1,4 @@
+import Link from 'next/link';
 // apps/admin/app/reservations/page.tsx
 'use client';
 
@@ -28,19 +29,28 @@ interface Reservation {
 export default function AdminReservationsPage() {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const PAGE_LIMIT = 50;
 
   useEffect(() => {
-    fetchReservations();
-  }, []);
+    fetchReservations(currentPage);
+  }, [currentPage]);
 
-  async function fetchReservations() {
+  async function fetchReservations(page: number) {
     setLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      const data = await apiFetch('/admin/reservations', session.access_token);
-      setReservations(data as typeof reservations);
+      // FIX-1: API returns { data: Reservation[], total: number } — unwrap correctly
+      // FIX-PAGINATE: Pass page and limit so large tables don't OOM the server
+      const response = await apiFetch<{ data: Reservation[]; total: number }>(
+        `/admin/reservations?page=${page}&limit=${PAGE_LIMIT}`,
+        session.access_token,
+      );
+      setReservations(response.data ?? []);
+      setTotalCount(response.total ?? 0);
     } catch (e) {
       console.error('Failed to fetch reservations:', e);
     } finally {
@@ -70,14 +80,17 @@ export default function AdminReservationsPage() {
           <span style={styles.adminBadge}>Admin</span>
         </div>
         <nav style={styles.nav}>
-          <a href="/dashboard" style={styles.navLink}>📊 Dashboard</a>
-          <a href="/salons" style={styles.navLink}>🏪 Approbations</a>
-          <a href="/users" style={styles.navLink}>👥 Utilisateurs</a>
-          <a href="/reservations" style={{ ...styles.navLink, ...styles.navLinkActive }}>
+          <Link href="/dashboard" style={styles.navLink}>📊 Dashboard</Link>
+          <Link href="/salons" style={styles.navLink}>🏪 Approbations</Link>
+          <Link href="/users" style={styles.navLink}>👥 Utilisateurs</Link>
+          <Link href="/reservations" style={{ ...styles.navLink, ...styles.navLinkActive }}>
             📅 Réservations
-          </a>
-          <a href="/subscriptions" style={styles.navLink}>💳 Abonnements</a>
-          <a href="/payments" style={styles.navLink}>💰 Paiements</a>
+          </Link>
+          <Link href="/subscriptions" style={styles.navLink}>💳 Abonnements</Link>
+          <Link href="/payments" style={styles.navLink}>💰 Paiements</Link>
+          <Link href="/reviews" style={styles.navLink}>⭐ Avis</Link>
+          <Link href="/plans" style={styles.navLink}>📊 Plans</Link>
+          <Link href="/analytics" style={styles.navLink}>📈 Analytiques</Link>
         </nav>
       </aside>
 
@@ -87,10 +100,10 @@ export default function AdminReservationsPage() {
           <div>
             <h2 style={styles.pageTitle}>Gestion des Réservations</h2>
             <p style={styles.pageSubtitle}>
-              {reservations.length} réservation{reservations.length !== 1 ? 's' : ''} enregistrée{reservations.length !== 1 ? 's' : ''}
+              {totalCount} réservation{totalCount !== 1 ? 's' : ''} au total
             </p>
           </div>
-          <button onClick={fetchReservations} style={styles.refreshBtn}>
+          <button onClick={() => fetchReservations(currentPage)} style={styles.refreshBtn}>
             🔄 Actualiser
           </button>
         </div>
@@ -165,6 +178,44 @@ export default function AdminReservationsPage() {
                 )}
               </tbody>
             </table>
+          </div>
+        )}
+        {/* Pagination controls */}
+        {!loading && totalCount > PAGE_LIMIT && (
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 20, justifyContent: 'center' }}>
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              style={{
+                padding: '8px 20px',
+                backgroundColor: currentPage === 1 ? '#333' : '#F5A623',
+                color: currentPage === 1 ? '#666' : '#000',
+                border: 'none',
+                borderRadius: 8,
+                cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                fontWeight: 600,
+              }}
+            >
+              ← Précédent
+            </button>
+            <span style={{ color: '#9A9A9A', fontSize: 14 }}>
+              Page {currentPage} / {Math.ceil(totalCount / PAGE_LIMIT)}
+            </span>
+            <button
+              onClick={() => setCurrentPage((p) => p + 1)}
+              disabled={currentPage * PAGE_LIMIT >= totalCount}
+              style={{
+                padding: '8px 20px',
+                backgroundColor: currentPage * PAGE_LIMIT >= totalCount ? '#333' : '#F5A623',
+                color: currentPage * PAGE_LIMIT >= totalCount ? '#666' : '#000',
+                border: 'none',
+                borderRadius: 8,
+                cursor: currentPage * PAGE_LIMIT >= totalCount ? 'not-allowed' : 'pointer',
+                fontWeight: 600,
+              }}
+            >
+              Suivant →
+            </button>
           </div>
         )}
       </main>

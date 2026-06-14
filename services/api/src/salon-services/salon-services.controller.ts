@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { SalonServicesService } from './salon-services.service';
 import { CreateServiceDto } from './dto/create-service.dto';
+import { UpdateServiceDto } from './dto/update-service.dto';
 import { SupabaseAuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -56,7 +57,7 @@ export class SalonServicesController {
   update(
     @Param('salonId') salonId: string,
     @Param('id') id: string,
-    @Body() dto: Partial<CreateServiceDto>,
+    @Body() dto: UpdateServiceDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.salonServicesService.update(salonId, id, dto, user.id);

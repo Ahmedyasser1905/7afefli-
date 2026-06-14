@@ -26,6 +26,7 @@ import Ionicons from "@react-native-vector-icons/ionicons";
 import { EditProfileModal } from '../../components/profile/EditProfileModal';
 import * as SecureStore from 'expo-secure-store';
 import { useThemeStore } from '../../store/themeStore';
+import { WILAYAS } from '@barberdz/shared/constants/wilayas';
 
 const DEFAULT_AVATAR = 'https://phfwutugsyiutqgippqg.supabase.co/storage/v1/object/public/portfolio/defaults/default-avatar.png';
 
@@ -41,20 +42,8 @@ export function SettingsScreen() {
   const [isWilayaModalVisible, setIsWilayaModalVisible] = useState(false);
   const [wilayaSearch, setWilayaSearch] = useState('');
 
-  const ALL_WILAYAS = [
-    '01 - Adrar', '02 - Chlef', '03 - Laghouat', '04 - Oum El Bouaghi', '05 - Batna',
-    '06 - Béjaïa', '07 - Biskra', '08 - Béchar', '09 - Blida', '10 - Bouira',
-    '11 - Tamanrasset', '12 - Tébessa', '13 - Tlemcen', '14 - Tiaret', '15 - Tizi Ouzou',
-    '16 - Alger', '17 - Djelfa', '18 - Jijel', '19 - Sétif', '20 - Saïda',
-    '21 - Skikda', '22 - Sidi Bel Abbès', '23 - Annaba', '24 - Guelma', '25 - Constantine',
-    '26 - Médéa', '27 - Mostaganem', '28 - M\'Sila', '29 - Mascara', '30 - Ouargla',
-    '31 - Oran', '32 - El Bayadh', '33 - Illizi', '34 - Bordj Bou Arreridj', '35 - Boumerdès',
-    '36 - El Tarf', '37 - Tindouf', '38 - Tissemsilt', '39 - El Oued', '40 - Khenchela',
-    '41 - Souk Ahras', '42 - Tipaza', '43 - Mila', '44 - Aïn Defla', '45 - Naâma',
-    '46 - Aïn Témouchent', '47 - Ghardaïa', '48 - Relizane', '49 - El M\'Ghair', '50 - El Meniaa',
-    '51 - Ouled Djellal', '52 - Bordj Badji Mokhtar', '53 - Béni Abbès', '54 - Timimoun',
-    '55 - Touggourt', '56 - Djanet', '57 - In Salah', '58 - In Guezzam',
-  ];
+  // DRY-1 fix: replaced inline 58-item array with shared constant
+  const ALL_WILAYAS = WILAYAS;
 
   const filteredWilayas = ALL_WILAYAS.filter((w) =>
     w.toLowerCase().includes(wilayaSearch.toLowerCase())
@@ -209,17 +198,7 @@ export function SettingsScreen() {
                 </View>
                 <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.settingsRow}
-                onPress={() => navigation.navigate('ClientSubscription' as never)}
-                activeOpacity={0.8}
-              >
-                <View style={styles.rowLeftCol}>
-                  <Ionicons name="diamond-outline" size={20} color={colors.amber} />
-                  <Text style={styles.rowLabel}>Abonnement Premium</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-              </TouchableOpacity>
+
             </View>
           </>
         )}

@@ -1,10 +1,10 @@
 {
   "expo": {
     "name": "7afefli",
-    "slug": "barberdz-monorepo",
+    "slug": "7afefli",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/splash.png",
     "userInterfaceStyle": "dark",
     "scheme": "hafefli",
     "ios": {
@@ -23,10 +23,10 @@
     "android": {
       "package": "com.ahmedyasser.hafefli",
       "adaptiveIcon": {
-        "backgroundColor": "#0D0D0F",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#1A1A1A",
+        "foregroundImage": "./assets/splash.png",
+        "backgroundImage": "./assets/splash.png",
+        "monochromeImage": "./assets/splash.png"
       },
       "splash": {
         "ldpi": "./assets/splash.png",
@@ -66,7 +66,7 @@
     },
     "extra": {
       "eas": {
-        "projectId": "adcbeb95-3c15-48ec-bae6-6f4a44190cf6"
+        "projectId": "fde4b773-171f-4e1e-b213-67e4681d54ad"
       }
     }
   }

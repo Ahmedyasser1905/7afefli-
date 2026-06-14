@@ -16,6 +16,7 @@ import {
   Modal,
   Dimensions,
   StatusBar,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -24,6 +25,7 @@ import { apiClient } from '../../lib/apiClient';
 import { colors, spacing, radius, shadows } from '../../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
 import type { Salon, Service, Review, PortfolioPhoto } from '@barberdz/shared/types';
+import { SalonMapView } from '../../components/map/SalonMapView';
 
 const DEFAULT_COVER = 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=600&q=80';
 const DEFAULT_AVATAR = 'https://phfwutugsyiutqgippqg.supabase.co/storage/v1/object/public/portfolio/defaults/default-avatar.png';
@@ -345,6 +347,34 @@ export function SalonDetailScreen() {
             })}
           </View>
         </View>
+
+        {/* Localisation mini-map */}
+        {(salon as any).latitude && (salon as any).longitude && (
+          <View style={styles.mapSection}>
+            <Text style={styles.sectionTitle}>Localisation</Text>
+            <View style={styles.mapWrapper}>
+              <SalonMapView
+                salons={[salon]}
+                userLocation={null}
+                onSalonPress={() => {}}
+                height={160}
+              />
+            </View>
+            <TouchableOpacity
+              style={styles.directionsButton}
+              activeOpacity={0.8}
+              onPress={() => {
+                const url = `https://www.google.com/maps/dir/?api=1&destination=${(salon as any).latitude},${(salon as any).longitude}`;
+                Linking.openURL(url).catch(() => {
+                  Linking.openURL(`maps://maps.apple.com/?daddr=${(salon as any).latitude},${(salon as any).longitude}`);
+                });
+              }}
+            >
+              <Ionicons name="navigate" size={16} color={colors.ink} />
+              <Text style={styles.directionsText}>Obtenir l'itinéraire</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Team Members */}
         {staff.length > 0 && (
@@ -861,5 +891,29 @@ const styles = StyleSheet.create({
   viewerImage: {
     width: Dimensions.get('window').width,
     height: Dimensions.get('window').height * 0.8,
+  },
+  mapSection: {
+    paddingHorizontal: spacing.lg,
+    marginTop: spacing.xl,
+    marginBottom: spacing.sm,
+  },
+  mapWrapper: {
+    borderRadius: radius.md,
+    overflow: 'hidden',
+    marginBottom: spacing.sm,
+  },
+  directionsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.amber,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+  },
+  directionsText: {
+    fontFamily: 'DMSans_700Bold',
+    fontSize: 14,
+    color: colors.ink,
   },
 });

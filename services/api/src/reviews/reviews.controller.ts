@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { ReviewsService } from './reviews.service';
 import { CreateReviewDto } from './dto/create-review.dto';
+import { RespondReviewDto } from './dto/respond-review.dto';
 import { SupabaseAuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -43,9 +44,9 @@ export class ReviewsController {
   @Roles('Coiffeur')
   addResponse(
     @Param('id') id: string,
-    @Body('response') response: string,
+    @Body() dto: RespondReviewDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.reviewsService.addResponse(id, user.id, response);
+    return this.reviewsService.addResponse(id, user.id, dto.response);
   }
 }

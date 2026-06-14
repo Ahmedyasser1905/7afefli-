@@ -15,6 +15,8 @@ const mockService = {
   getRevenueStats: jest.fn().mockResolvedValue({}),
   getAllReservations: jest.fn().mockResolvedValue([]),
   getAllSubscriptions: jest.fn().mockResolvedValue([]),
+  broadcastNotification: jest.fn().mockResolvedValue({ sent: 1 }),
+  getBroadcasts: jest.fn().mockResolvedValue([]),
 };
 
 describe('AdminController', () => {
@@ -85,5 +87,13 @@ describe('AdminController', () => {
 
   it('should call getAllSubscriptions', async () => {
     expect(await controller.getAllSubscriptions()).toEqual([]);
+  });
+
+  it('should call broadcastNotification', async () => {
+    expect(await controller.broadcastNotification({ title: 'T', body: 'B' }, 'admin-1')).toEqual({ sent: 1 });
+  });
+
+  it('should call getBroadcasts', async () => {
+    expect(await controller.getBroadcasts()).toEqual([]);
   });
 });

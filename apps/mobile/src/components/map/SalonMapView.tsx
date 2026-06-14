@@ -101,7 +101,7 @@ export function SalonMapView({
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'unsafe-inline' https://cdn.jsdelivr.net; img-src * data: blob:; connect-src https://router.project-osrm.org https://*.tile.openstreetmap.org; font-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'unsafe-inline' https://cdn.jsdelivr.net; img-src * data: blob:; connect-src *; font-src 'none'">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{width:100%;height:100%;overflow:hidden;background:#1a1a2e}
@@ -174,11 +174,26 @@ var currentPopup=null;
 
 var scissorsSvg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23111"><path d="M9.64 7.64c.23-.5.36-1.05.36-1.64 0-2.21-1.79-4-4-4S2 3.79 2 6s1.79 4 4 4c.59 0 1.14-.13 1.64-.36L10 12l-2.36 2.36C7.14 14.13 6.59 14 6 14c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4c0-.59-.13-1.14-.36-1.64L12 14l7 7h3v-1L9.64 7.64zM6 8c-1.1 0-2-.89-2-2s.9-2 2-2 2 .89 2 2-.9 2-2 2zm0 12c-1.1 0-2-.89-2-2s.9-2 2-2 2 .89 2 2-.9 2-2 2zm6-7.5c-.28 0-.5-.22-.5-.5s.22-.5.5-.5.5.22.5.5-.22.5-.5.5zM19 3l-6 6 2 2 7-7V3h-3z"/></svg>';
 
-function drawRouteOSRM(lng,lat){
-  var url='https://router.project-osrm.org/route/v1/driving/'+ULNG+','+ULAT+';'+lng+','+lat+'?overview=full&geometries=geojson';
-  return fetch(url).then(function(r){return r.json()}).then(function(d){
-    return d.routes&&d.routes[0]?d.routes[0].geometry.coordinates:[[ULNG,ULAT],[lng,lat]];
-  }).catch(function(){return[[ULNG,ULAT],[lng,lat]]});
+// FIX-12: Replaced router.project-osrm.org (public demo — prohibited in production).
+// Routing cascade:
+//   1. Self-hosted OSRM instance (set via OSRM_BASE injected below at build time).
+//   2. Straight-line fallback when no routing server is available.
+// To enable real routing: deploy OSRM (https://github.com/Project-OSRM/osrm-backend)
+// and set EXPO_PUBLIC_OSRM_URL in the mobile .env file.
+var OSRM_BASE = '${process.env.EXPO_PUBLIC_OSRM_URL || ''}';
+
+function drawRouteOSRM(lng, lat) {
+  // If no self-hosted OSRM is configured, return a straight-line immediately
+  if (!OSRM_BASE) {
+    return Promise.resolve([[ULNG, ULAT], [lng, lat]]);
+  }
+  var url = OSRM_BASE + '/route/v1/driving/' + ULNG + ',' + ULAT + ';' + lng + ',' + lat + '?overview=full&geometries=geojson';
+  return fetch(url)
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      return d.routes && d.routes[0] ? d.routes[0].geometry.coordinates : [[ULNG, ULAT], [lng, lat]];
+    })
+    .catch(function() { return [[ULNG, ULAT], [lng, lat]]; });
 }
 
 function loadScript(url,cb,fb){
@@ -253,6 +268,8 @@ function initMapLibre(){
     };
 
     window.updateSalons = function(salonsData) {
+      // Close any open popup before rebuilding markers
+      if (currentPopup) { currentPopup.remove(); currentPopup = null; }
       DATA = salonsData || [];
       salonMarkers.forEach(function(m){m.remove()});
       salonMarkers = [];
@@ -282,10 +299,9 @@ function initMapLibre(){
       if(!s) return;
       map.easeTo({center:[s.lng,s.lat],zoom:14,duration:600});
       
-      var dirBtn=HAS_USER?'<button class="p-btn p-dir" onclick="mglRoute('+s.lng+','+s.lat+')">Itin\u00e9raire</button>':'';
       currentPopup = new maplibregl.Popup({offset:18,closeButton:true,maxWidth:'240px'})
         .setLngLat([s.lng,s.lat])
-        .setHTML('<div class="p-name">'+s.name+'</div><div class="p-info">\u2B50 '+s.rating+' \u00B7 '+s.wilaya+'</div><div class="p-actions"><button class="p-btn p-view" onclick="safePostMessage(JSON.stringify({type:\\\'SALON_PRESS\\\', salonId:\\\''+s.id+'\\\'}))">Voir salon</button>'+dirBtn+'</div>')
+        .setHTML('<div class="p-name">'+s.name+'</div><div class="p-info">\u2B50 '+s.rating+' \u00B7 '+s.wilaya+'</div><div class="p-actions"><button class="p-btn p-view" onclick="safePostMessage(JSON.stringify({type:\\\'SALON_PRESS\\\', salonId:\\\''+s.id+'\\\'}))">Voir salon</button></div>')
         .addTo(map);
         
       currentPopup.on('close', function() {
@@ -347,6 +363,7 @@ function initLeaflet(){
       };
 
       window.updateSalons = function(salonsData) {
+        map.closePopup(); // close before rebuild
         DATA = salonsData || [];
         salonMarkers.forEach(function(m){map.removeLayer(m)});
         salonMarkers = [];
@@ -376,8 +393,7 @@ function initLeaflet(){
         if(!s) return;
         map.setView([s.lat, s.lng], 14, {animate: true});
 
-        var dirBtn=HAS_USER?'<button class="p-btn p-dir" onclick="lfRoute('+s.lng+','+s.lat+')">Itin\u00e9raire</button>':'';
-        var popupHtml='<div class="p-name">'+s.name+'</div><div class="p-info">\u2B50 '+s.rating+' \u00B7 '+s.wilaya+'</div><div class="p-actions"><button class="p-btn p-view" onclick="safePostMessage(JSON.stringify({type:\\\'SALON_PRESS\\\', salonId:\\\''+s.id+'\\\'}))">Voir salon</button>'+dirBtn+'</div>';
+        var popupHtml='<div class="p-name">'+s.name+'</div><div class="p-info">\u2B50 '+s.rating+' \u00B7 '+s.wilaya+'</div><div class="p-actions"><button class="p-btn p-view" onclick="safePostMessage(JSON.stringify({type:\\\'SALON_PRESS\\\', salonId:\\\''+s.id+'\\\'}))">Voir salon</button></div>';
         
         L.popup({maxWidth:240, offset:[0,-18]})
           .setLatLng([s.lat, s.lng])

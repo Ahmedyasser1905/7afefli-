@@ -4,6 +4,9 @@ import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { invalidateRoleCache } from '../auth/auth.guard';
 import { NotificationsService } from '../notifications/notifications.service';
+import { UpdatePlanDto } from './dto/update-plan.dto';
+import { UpdateAdminSalonDto } from './dto/update-admin-salon.dto';
+import { BroadcastNotificationDto } from './dto/broadcast-notification.dto';
 
 @Injectable()
 export class AdminService {
@@ -307,7 +310,8 @@ export class AdminService {
   async getAllSubscriptions() {
     const { data, error } = await this.supabase.adminClient
       .from('user_subscriptions')
-      .select('*, salons(name)')
+      // FIX-2: Join plans to get name/price instead of displaying raw UUIDs
+      .select('*, plans(name, price), salons(name)')
       .order('starts_at', { ascending: false });
     if (error) throw new Error(error.message);
     return data;
@@ -364,5 +368,156 @@ export class AdminService {
       subscriptionsByPlan,
       topSalons: topSalonsResult.data ?? [],
     };
+  }
+
+  /**
+   * GET /admin/payments — paginated payment records with joined salon data.
+   */
+  async getPayments(page: number = 1, limit: number = 50) {
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+    const { data, count, error } = await this.supabase.adminClient
+      .from('payments')
+      .select('id, amount, status, created_at, salon_id, salons(name)', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(from, to);
+    if (error) throw new Error(error.message);
+    return { data, total: count, page, limit };
+  }
+
+  /**
+   * GET /admin/reviews — all reviews for moderation.
+   */
+  async getAllReviews(page: number = 1, limit: number = 50) {
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+    const { data, count, error } = await this.supabase.adminClient
+      .from('reviews')
+      .select(
+        'id, rating, body, created_at, salons(name), profiles!reviews_client_id_fkey(full_name)',
+        { count: 'exact' },
+      )
+      .order('created_at', { ascending: false })
+      .range(from, to);
+    if (error) throw new Error(error.message);
+    return { data, total: count, page, limit };
+  }
+
+  /**
+   * DELETE /admin/reviews/:id
+   */
+  async deleteReview(reviewId: string) {
+    const { error } = await this.supabase.adminClient
+      .from('reviews')
+      .delete()
+      .eq('id', reviewId);
+    if (error) throw new Error(error.message);
+    return { success: true };
+  }
+
+  /**
+   * PATCH /admin/plans/:id — update a subscription plan.
+   */
+  async updatePlan(planId: string, updates: UpdatePlanDto) {
+    const allowedFields = ['name', 'price', 'max_barbers', 'max_portfolio_photos', 'max_reservations', 'duration_days', 'is_active'];
+    const update: Record<string, unknown> = {};
+    for (const key of allowedFields) {
+      const val = (updates as any)[key];
+      if (val !== undefined) update[key] = val;
+    }
+    const { data, error } = await this.supabase.adminClient
+      .from('plans')
+      .update(update)
+      .eq('id', planId)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
+  }
+
+  /**
+   * PATCH /admin/salons/:id — update salon fields (e.g. is_sponsored toggle).
+   */
+  async updateSalon(salonId: string, dto: UpdateAdminSalonDto) {
+    const allowedFields = ['name', 'description', 'address', 'wilaya', 'commune', 'phone', 'open_time', 'close_time', 'working_days', 'is_approved', 'is_sponsored', 'is_manually_closed', 'latitude', 'longitude'];
+    const update: Record<string, unknown> = {};
+    for (const key of allowedFields) {
+      const val = (dto as any)[key];
+      if (val !== undefined) update[key] = val;
+    }
+    const { data, error } = await this.supabase.adminClient
+      .from('salons')
+      .update(update)
+      .eq('id', salonId)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
+  }
+
+  /**
+   * Broadcast a notification to all registered app users.
+   */
+  async broadcastNotification(dto: BroadcastNotificationDto, adminId: string) {
+    // 1. Fetch all user IDs from profiles table
+    const { data: profiles, error } = await this.supabase.adminClient
+      .from('profiles')
+      .select('id');
+
+    if (error) {
+      throw new Error(`Failed to fetch profiles for broadcast: ${error.message}`);
+    }
+
+    if (!profiles || profiles.length === 0) {
+      return { sent: 0 };
+    }
+
+    // 2. Map profiles to notifications
+    const notifications = profiles.map((p) => ({
+      userId: p.id,
+      type: 'broadcast',
+      title: dto.title,
+      body: dto.body,
+      data: dto.data,
+    }));
+
+    // 3. Batch insert in-app and dispatch push notifications via NotificationsService
+    await this.notificationsService.createNotificationsBatch(notifications);
+
+    // 4. Log the broadcast for audit history
+    const { error: logError } = await this.supabase.adminClient
+      .from('broadcast_notifications')
+      .insert({
+        title: dto.title,
+        body: dto.body,
+        data: dto.data ?? null,
+        sent_by: adminId,
+      });
+
+    if (logError) {
+      this.logger.error(`Failed to log broadcast notification: ${logError.message}`);
+    }
+
+    return { sent: profiles.length };
+  }
+
+  /**
+   * Get paginated broadcast audit history.
+   */
+  async getBroadcasts(page: number = 1, limit: number = 50) {
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    const { data, count, error } = await this.supabase.adminClient
+      .from('broadcast_notifications')
+      .select('*, profiles:sent_by(full_name)', { count: 'exact' })
+      .order('sent_at', { ascending: false })
+      .range(from, to);
+
+    if (error) {
+      throw new Error(`Failed to fetch broadcast history: ${error.message}`);
+    }
+
+    return { data, total: count, page, limit };
   }
 }

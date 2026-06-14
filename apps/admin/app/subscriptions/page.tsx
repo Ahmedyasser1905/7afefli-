@@ -1,3 +1,4 @@
+import Link from 'next/link';
 // apps/admin/app/subscriptions/page.tsx
 'use client';
 
@@ -13,6 +14,8 @@ interface Subscription {
   starts_at: string;
   ends_at: string | null;
   trial_ends_at: string | null;
+  // FIX-2: Plans join added in admin.service.ts getAllSubscriptions()
+  plans: { name: string; price: number } | null;
   salons: {
     name: string;
   } | null;
@@ -32,8 +35,9 @@ export default function AdminSubscriptionsPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      const data = await apiFetch('/admin/subscriptions', session.access_token);
-      setSubscriptions(data as typeof subscriptions);
+      // FIX-2: getAllSubscriptions now joins plans(name, price)
+      const data = await apiFetch<Subscription[]>('/admin/subscriptions', session.access_token);
+      setSubscriptions(data ?? []);
     } catch (e) {
       console.error('Failed to fetch subscriptions:', e);
     } finally {
@@ -60,14 +64,14 @@ export default function AdminSubscriptionsPage() {
           <span style={styles.adminBadge}>Admin</span>
         </div>
         <nav style={styles.nav}>
-          <a href="/dashboard" style={styles.navLink}>📊 Dashboard</a>
-          <a href="/salons" style={styles.navLink}>🏪 Approbations</a>
-          <a href="/users" style={styles.navLink}>👥 Utilisateurs</a>
-          <a href="/reservations" style={styles.navLink}>📅 Réservations</a>
-          <a href="/subscriptions" style={{ ...styles.navLink, ...styles.navLinkActive }}>
+          <Link href="/dashboard" style={styles.navLink}>📊 Dashboard</Link>
+          <Link href="/salons" style={styles.navLink}>🏪 Approbations</Link>
+          <Link href="/users" style={styles.navLink}>👥 Utilisateurs</Link>
+          <Link href="/reservations" style={styles.navLink}>📅 Réservations</Link>
+          <Link href="/subscriptions" style={{ ...styles.navLink, ...styles.navLinkActive }}>
             💳 Abonnements
-          </a>
-          <a href="/payments" style={styles.navLink}>💰 Paiements</a>
+          </Link>
+          <Link href="/payments" style={styles.navLink}>💰 Paiements</Link>
         </nav>
       </aside>
 
@@ -118,7 +122,8 @@ export default function AdminSubscriptionsPage() {
                         <div style={styles.salonId}>{sub.salon_id}</div>
                       </td>
                       <td style={styles.td}>
-                        <span style={styles.planText}>✨ Plan {sub.plan}</span>
+                        {/* FIX-2: Show plan name from joined plans table, fall back to raw plan UUID */}
+                        <span style={styles.planText}>✨ {sub.plans?.name ?? sub.plan ?? 'Inconnu'}</span>
                       </td>
                       <td style={styles.td}>
                         <span

@@ -92,6 +92,8 @@ export function BarberTabNavigator() {
     );
   }
 
+  // FIX-7: portfolio_photos is NOT required by the backend's ReservationsService.create().
+  // Removed that condition to eliminate false 'incomplete' warnings for barbers.
   const isComplete = !!(
     salon &&
     salon.name &&
@@ -106,7 +108,7 @@ export function BarberTabNavigator() {
     salon.close_time &&
     salon.image_url &&
     salon.services && salon.services.length > 0 &&
-    salon.portfolio_photos && salon.portfolio_photos.length > 0
+    salon.salon_staff && salon.salon_staff.length > 0
   );
 
   if (!salon) {

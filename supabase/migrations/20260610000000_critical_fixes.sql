@@ -1,6 +1,8 @@
 -- =============================================================================
 -- MIGRATION: Critical & High fixes from audit (2026-06-10)
 -- Branch: fix/audit-critical-high
+-- NOTE: find_nearby_salons defined here is superseded by 20260613010000.
+-- Do not re-apply this definition independently.
 -- =============================================================================
 
 -- ─────────────────────────────────────────────────────────────────────────────

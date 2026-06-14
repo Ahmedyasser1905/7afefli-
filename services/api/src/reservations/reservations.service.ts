@@ -274,9 +274,15 @@ export class ReservationsService {
           '📅 Nouvelle réservation',
           `Un client a réservé ${serviceName} le ${dto.appointmentDate} à ${dto.startTime}.`,
           { reservationId: data.id, salonId: dto.salonId },
-        ).catch(() => {}); // fire-and-forget
+        ).catch((err) => {
+          this.logger.error(`Failed to send new_booking notification: ${err.message}`);
+        }); // fire-and-forget
+      } else if (!salonOwnerId) {
+        this.logger.warn(`Failed to send new_booking notification: salonOwnerId is missing for salon ${dto.salonId}`);
       }
-    } catch { /* ignore notification failures */ }
+    } catch (error) { 
+      this.logger.error(`Error initiating push notification for reservation ${data.id}: ${(error as Error).message}`);
+    }
 
     return result;
   }
@@ -649,15 +655,14 @@ export class ReservationsService {
 
     // Send notifications for auto-cancelled reservations triggered by the database
     if (pendingToCancel.length > 0) {
-      for (const res of pendingToCancel) {
-         this.notificationsService.createNotification(
-            reservation.client_id,
-            'booking_cancelled',
-            '❌ Réservation annulée',
-            `Votre demande pour le ${res.appointment_date} à ${res.start_time} a été annulée automatiquement car une autre de vos réservations a été confirmée.`,
-            { reservationId: res.id }
-         ).catch(() => {});
-      }
+      const cancelNotifs = pendingToCancel.map(res => ({
+        userId: reservation.client_id,
+        type: 'booking_cancelled',
+        title: '❌ Réservation annulée',
+        body: `Votre demande pour le ${res.appointment_date} à ${res.start_time} a été annulée automatiquement car une autre de vos réservations a été confirmée.`,
+        data: { reservationId: res.id }
+      }));
+      this.notificationsService.createNotificationsBatch(cancelNotifs).catch(() => {});
     }
 
     // Invalidate slot cache since reservation status changed (e.g. cancelled)
@@ -712,6 +717,18 @@ export class ReservationsService {
         }
       }
     } catch { /* ignore notification failures */ }
+
+    // NOTIF-1 fix: Send loyalty points notification when reservation is Completed
+    if (dto.status === 'Completed' && reservation.client_id) {
+      const loyaltyPoints = parseInt(process.env.LOYALTY_POINTS_PER_RESERVATION ?? '10', 10);
+      this.notificationsService.createNotification(
+        reservation.client_id,
+        'loyalty_points',
+        '🏆 Points de fidélité gagnés !',
+        `Vous avez gagné ${loyaltyPoints} points pour votre visite. Continuez comme ça !`,
+        { reservationId: reservationId },
+      ).catch(() => {}); // fire-and-forget
+    }
 
     return data;
   }
@@ -1044,19 +1061,22 @@ export class ReservationsService {
 
       this.logger.log(`Sending ${reservations.length} booking reminder(s) for ${todayAlg} window ${winStartStr}-${winEndStr}`);
 
+      const notificationsToCreate = [];
       for (const res of reservations) {
         if (!res.client_id) continue;
         const salonName = (res.salons as any)?.name ?? 'votre salon';
         const timeStr = (res.start_time as string).slice(0, 5);
-        await this.notificationsService.createNotification(
-          res.client_id,
-          'booking_reminder',
-          '⏰ Rappel RDV',
-          `Votre rendez-vous chez ${salonName} est dans environ 1 heure (${timeStr}).`,
-          { reservationId: res.id, salonName, time: timeStr },
-        ).catch((err: Error) =>
-          this.logger.warn(`Reminder notification failed for ${res.client_id}: ${err.message}`)
-        );
+        notificationsToCreate.push({
+          userId: res.client_id,
+          type: 'booking_reminder',
+          title: '⏰ Rappel RDV',
+          body: `Votre rendez-vous chez ${salonName} est dans environ 1 heure (${timeStr}).`,
+          data: { reservationId: res.id, salonName, time: timeStr },
+        });
+      }
+
+      if (notificationsToCreate.length > 0) {
+        await this.notificationsService.createNotificationsBatch(notificationsToCreate);
       }
     } catch (err) {
       this.logger.error(`sendBookingReminders cron failed: ${(err as Error).message}`);

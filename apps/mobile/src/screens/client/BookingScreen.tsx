@@ -11,6 +11,7 @@ import { colors, spacing, radius, shadows } from '../../theme';
 import { DateStrip } from '../../components/booking/DateStrip';
 import { SlotPicker } from '../../components/booking/SlotPicker';
 import { useBookingStore } from '../../store/bookingStore';
+import { useAuthStore } from '../../store/authStore';
 import { useCreateReservation } from '../../hooks/booking/useCreateReservation';
 import { scheduleAppointmentReminder } from '../../lib/notifications';
 import Ionicons from "@react-native-vector-icons/ionicons";
@@ -38,7 +39,9 @@ export function BookingScreen() {
 
   const createReservation = useCreateReservation();
   const [pendingSlot, setPendingSlot] = useState<{ startTime: string; endTime: string } | null>(null);
-  const [clientPhone, setClientPhone] = useState('');
+  
+  const { user } = useAuthStore();
+  const [clientPhone, setClientPhone] = useState(user?.phone || user?.user_metadata?.phone || '');
 
   // Fetch salon details
   const { data: salon, isLoading: isSalonLoading } = useQuery<Record<string, unknown> | null>({
@@ -57,6 +60,23 @@ export function BookingScreen() {
       return data;
     },
   });
+
+  // Fetch client profile to pre-fill phone number
+  const { data: profile } = useQuery<Record<string, unknown> | null>({
+    queryKey: ['profile', user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      return await apiClient.get<Record<string, unknown>>('/auth/profiles/me');
+    },
+    enabled: !!user,
+  });
+
+  // Pre-fill phone when profile loads
+  useEffect(() => {
+    if (profile?.phone_number && !clientPhone) {
+      setClientPhone(profile.phone_number as string);
+    }
+  }, [profile?.phone_number]);
 
   // Fetch staff via API only — no Supabase fallback
   const { data: staff = [] } = useQuery<Record<string, unknown>[]>({

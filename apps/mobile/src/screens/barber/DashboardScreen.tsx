@@ -74,6 +74,7 @@ export function DashboardScreen() {
     return !!(staff && staff.length > 0);
   }, [salon]);
 
+  // FIX-7: portfolio_photos is NOT required by the backend — removed false 'incomplete' warning trigger.
   const isComplete = useMemo(() => {
     return !!(
       salon &&
@@ -89,8 +90,7 @@ export function DashboardScreen() {
       salon.close_time &&
       salon.image_url &&
       hasServices &&
-      hasBarbers &&
-      (salon?.portfolio_photos as unknown[] | undefined) && (salon.portfolio_photos as unknown[]).length > 0
+      hasBarbers
     );
   }, [salon, hasServices, hasBarbers]);
 
@@ -836,6 +836,10 @@ export function DashboardScreen() {
       <FlatList
         data={listData as any[]}
         keyExtractor={(item) => item.id}
+        initialNumToRender={8}
+        windowSize={5}
+        maxToRenderPerBatch={10}
+        removeClippedSubviews={true}
         renderItem={({ item }) => {
           if (item._type === 'blocked-header') {
             return (

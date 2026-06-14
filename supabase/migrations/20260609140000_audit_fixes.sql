@@ -1,3 +1,9 @@
+-- ⚠️  SUPERSEDED: This migration's check_reservation_overlap trigger used
+-- the wrong column name (`date` instead of `appointment_date`) and wrong
+-- status values (`'cancelled','rejected'` instead of `'Cancelled','Completed'`).
+-- The correct trigger is defined in 20260610000000_critical_fixes.sql.
+-- This file is kept for migration history ONLY. Do not re-run independently.
+
 -- Fix 1: Add Double Booking Prevention Trigger
 
 CREATE OR REPLACE FUNCTION check_reservation_overlap()

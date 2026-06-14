@@ -165,7 +165,8 @@ export function CalendarScreen() {
 
   // ── Fetch salon ───────────────────────────────────────────────────────────
   const { data: salon } = useQuery({
-    queryKey: ['barber-salon', user?.id],
+    // FIX-6: Use canonical ['my-salon', user?.id] key to share cache with DashboardScreen
+    queryKey: ['my-salon', user?.id],
     queryFn: async () => {
       if (!user) return null;
       try { return await apiClient.get<Record<string, unknown>>('/salons/my-salon'); }

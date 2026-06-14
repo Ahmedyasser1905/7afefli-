@@ -87,6 +87,90 @@ export class NotificationsService {
   }
 
   /**
+   * Create and send multiple notifications in a batch to avoid N+1 database queries.
+   */
+  async createNotificationsBatch(
+    notifications: {
+      userId: string;
+      type: string;
+      title: string;
+      body: string;
+      data?: Record<string, unknown>;
+    }[]
+  ) {
+    if (notifications.length === 0) return;
+
+    // 1. Batch insert into in-app notifications
+    const inserts = notifications.map(n => ({
+      user_id: n.userId,
+      type: n.type,
+      title: n.title,
+      body: n.body,
+      data: n.data ?? null,
+    }));
+
+    const { error } = await this.supabase.adminClient
+      .from('notifications')
+      .insert(inserts);
+
+    if (error) this.logger.error(`Failed to batch create notifications: ${error.message}`);
+
+    // 2. Batch fetch profiles for push tokens
+    const userIds = [...new Set(notifications.map(n => n.userId))];
+    const { data: profiles } = await this.supabase.adminClient
+      .from('profiles')
+      .select('id, push_token')
+      .in('id', userIds);
+
+    const tokenMap = new Map(profiles?.map(p => [p.id, p.push_token]) ?? []);
+    
+    const { Expo } = await import('expo-server-sdk');
+    const messages: ExpoPushMessage[] = [];
+
+    for (const n of notifications) {
+      const token = tokenMap.get(n.userId) as string | null;
+      if (token && Expo.isExpoPushToken(token)) {
+        messages.push({
+          to: token,
+          sound: 'default',
+          title: n.title,
+          body: n.body,
+          data: n.data ?? {},
+        });
+      }
+    }
+
+    if (messages.length > 0) {
+      const expoClient = await this.getExpoClient();
+      try {
+        const chunks = expoClient.chunkPushNotifications(messages);
+        for (const chunk of chunks) {
+          const tickets: ExpoPushTicket[] = await expoClient.sendPushNotificationsAsync(chunk);
+          
+          const invalidTokens: string[] = [];
+          for (let i = 0; i < tickets.length; i++) {
+            const ticket = tickets[i];
+            if (ticket.status === 'error' && (ticket.details?.error === 'DeviceNotRegistered' || ticket.details?.error === 'InvalidCredentials')) {
+              if (typeof chunk[i].to === 'string') {
+                invalidTokens.push(chunk[i].to as string);
+              }
+            }
+          }
+
+          if (invalidTokens.length > 0) {
+            await this.supabase.adminClient
+              .from('profiles')
+              .update({ push_token: null })
+              .in('push_token', invalidTokens);
+          }
+        }
+      } catch (err) {
+        this.logger.error(`Failed to send batch push: ${(err as Error).message}`);
+      }
+    }
+  }
+
+  /**
    * Save or update the Expo push token for a user.
    * Called from POST /auth/push-token.
    */

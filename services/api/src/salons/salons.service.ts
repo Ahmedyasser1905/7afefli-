@@ -85,6 +85,7 @@ export class SalonsService {
       .eq('is_approved', true)
       // Subscription enforcement: expired salons are hidden from public search
       .neq('subscription_status', 'Expired')
+      .order('is_sponsored', { ascending: false })   // sponsored salons always first
       .order('plan_price', { ascending: false })
       .order('average_rating', { ascending: false });
 
@@ -144,6 +145,7 @@ export class SalonsService {
         .select('*, services(*)')
         .eq('is_approved', true)
         .neq('subscription_status', 'Expired')
+        .order('is_sponsored', { ascending: false })   // sponsored salons always first
         .order('average_rating', { ascending: false })
         .limit(Math.min(Number(limit), 200));
 

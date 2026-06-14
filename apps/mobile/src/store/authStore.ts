@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Session, User } from '@supabase/supabase-js';
 import type { UserRole } from '@barberdz/shared/types';
 
@@ -20,14 +20,6 @@ interface AuthState {
   setNeedsPasswordReset: (needsPasswordReset: boolean) => void;
   clearAuth: () => void;
 }
-
-// SecureStore adapter for zustand/persist
-const secureStorage = {
-  getItem: async (name: string) => await SecureStore.getItemAsync(name),
-  setItem: async (name: string, value: string) =>
-    await SecureStore.setItemAsync(name, value),
-  removeItem: async (name: string) => await SecureStore.deleteItemAsync(name),
-};
 
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -53,7 +45,7 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'hafefli-auth',
-      storage: createJSONStorage(() => secureStorage),
+      storage: createJSONStorage(() => AsyncStorage),
       // Only persist what's needed — don't persist isLoading
       partialize: (state) => ({
         session: state.session,

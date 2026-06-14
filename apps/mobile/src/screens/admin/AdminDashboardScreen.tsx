@@ -100,7 +100,7 @@ export function AdminDashboardScreen() {
   const toggleSponsoring = useMutation({
     mutationFn: async ({ salonId, sponsor }: { salonId: string; sponsor: boolean }) => {
       if (sponsor) {
-        await apiClient.post(`/admin/salons/${salonId}/sponsor`, {});
+        await apiClient.post(`/admin/salons/${salonId}/sponsor`, { days: 30 });
       } else {
         await apiClient.delete(`/admin/salons/${salonId}/sponsor`);
       }

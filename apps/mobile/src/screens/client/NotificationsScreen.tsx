@@ -8,9 +8,12 @@ import { colors, spacing, radius } from '../../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
 import { formatRelativeTime } from '@barberdz/shared/utils/formatters';
 
+import { useAuthStore } from '../../store/authStore';
+
 export function NotificationsScreen() {
   const navigation = useNavigation();
   const queryClient = useQueryClient();
+  const role = useAuthStore((s) => s.role);
 
   // Mark all as read when opening screen
   useEffect(() => {
@@ -42,6 +45,7 @@ export function NotificationsScreen() {
       case 'salon_approved':        return 'storefront-outline';
       case 'salon_rejected':        return 'close-circle-outline';
       case 'loyalty_points':        return 'gift-outline';
+      case 'broadcast':             return 'megaphone-outline';
       case 'system':                return 'information-circle-outline';
       default:                      return 'notifications-outline';
     }
@@ -60,6 +64,7 @@ export function NotificationsScreen() {
         return colors.error;
       case 'new_review':
       case 'loyalty_points':
+      case 'broadcast':
         return colors.amber;
       case 'subscription_expiring':
         return '#E67E22';
@@ -92,6 +97,10 @@ export function NotificationsScreen() {
         <FlatList
           data={notifications}
           keyExtractor={(item: any) => item.id}
+          initialNumToRender={10}
+          windowSize={5}
+          maxToRenderPerBatch={10}
+          removeClippedSubviews={true}
           contentContainerStyle={styles.list}
           renderItem={({ item }: { item: any }) => (
             <TouchableOpacity 
@@ -105,7 +114,16 @@ export function NotificationsScreen() {
                   }).catch(() => {});
                 }
                 if (item.data?.reservationId) {
-                  navigation.navigate('Appointments' as never);
+                  if (role === 'Coiffeur') {
+                    (navigation.navigate as any)('BarberApp', { screen: 'Calendar' });
+                  } else if (role === 'Client') {
+                    // NotificationsScreen is a root modal — navigate to ClientApp
+                    // and specify the nested Appointments tab screen
+                    if (navigation.canGoBack()) {
+                      navigation.goBack();
+                    }
+                    (navigation.navigate as any)('ClientApp', { screen: 'Appointments' });
+                  }
                 }
               }}
             >

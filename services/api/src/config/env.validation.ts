@@ -20,9 +20,13 @@ const ENV_CONFIG: EnvConfig = {
   productionOnly: [
     'CHARGILY_SECRET_KEY',
     'APP_URL',  // used in auth.controller for password-reset redirect link
+    'CHARGILY_WEBHOOK_URL', // Required: Chargily Pay webhook callback URL (Railway deployed URL + /api/v1/payments/webhook)
     'CRON_SECRET', // secures /cron/* endpoints called by Vercel Cron Jobs
     // 'SENTRY_DSN', // Optional monitoring
   ],
+  // Optional vars (with sensible defaults):
+  // LOYALTY_POINTS_PER_RESERVATION=10  — points awarded per completed reservation
+  // REDIS_URL                          — if absent, falls back to in-memory cache
 };
 
 export function validateEnvironment(): void {
