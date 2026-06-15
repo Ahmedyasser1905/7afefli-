@@ -321,6 +321,8 @@ export class SalonsService {
       this.supabase.adminClient.from('reservations').delete().eq('salon_id', id),
       this.supabase.adminClient.from('reviews').delete().eq('salon_id', id),
       this.supabase.adminClient.from('services').delete().eq('salon_id', id),
+      this.supabase.adminClient.from('salon_favorites').delete().eq('salon_id', id),
+      this.supabase.adminClient.from('payments').delete().eq('salon_id', id),
     ]);
 
     const { error } = await this.supabase.adminClient

@@ -5,6 +5,7 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { AdminDashboardScreen } from '../screens/admin/AdminDashboardScreen';
 import { SettingsScreen } from '../screens/client/SettingsScreen';
+import { NotificationsScreen } from '../screens/client/NotificationsScreen';
 import { colors } from '../theme';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { NotificationBell } from '../components/shared/NotificationBell';
@@ -68,6 +69,11 @@ export function AdminTabNavigator() {
         name="Settings"
         component={SettingsScreen}
         options={{ tabBarLabel: 'Paramètres', headerShown: false }}
+      />
+      <Tab.Screen
+        name="Notifications"
+        component={NotificationsScreen}
+        options={{ tabBarButton: () => null, headerShown: false }}
       />
     </Tab.Navigator>
   );
