@@ -91,8 +91,15 @@ export class AdminService {
     return { data, total: count, page, limit };
   }
 
-  async deleteSalon(salonId: string) {
-    // Manual cascade delete to prevent orphaned records
+  async deleteSalon(salonId: string, skipOwnerDeletion: boolean = false) {
+    // 1. Find owner BEFORE deleting the salon so we can clean up their account too
+    const { data: salon } = await this.supabase.adminClient
+      .from('salons')
+      .select('owner_id')
+      .eq('id', salonId)
+      .single();
+
+    // 2. Manual cascade delete to prevent orphaned records
     await Promise.all([
       this.supabase.adminClient.from('salon_staff').delete().eq('salon_id', salonId),
       this.supabase.adminClient.from('portfolio_photos').delete().eq('salon_id', salonId),
@@ -100,26 +107,37 @@ export class AdminService {
       this.supabase.adminClient.from('reservations').delete().eq('salon_id', salonId),
       this.supabase.adminClient.from('reviews').delete().eq('salon_id', salonId),
       this.supabase.adminClient.from('services').delete().eq('salon_id', salonId),
+      this.supabase.adminClient.from('salon_favorites').delete().eq('salon_id', salonId),
+      this.supabase.adminClient.from('payments').delete().eq('salon_id', salonId),
     ]);
 
+    // 3. Delete the salon
     const { error } = await this.supabase.adminClient
       .from('salons')
       .delete()
       .eq('id', salonId);
     if (error) throw new Error(error.message);
+
+    // 4. Delete the owner's account and profile to prevent orphans
+    if (!skipOwnerDeletion && salon?.owner_id) {
+      await this.deleteUser(salon.owner_id, true);
+    }
+
     return { success: true };
   }
 
-  async deleteUser(userId: string) {
+  async deleteUser(userId: string, skipSalonDeletion: boolean = false) {
     // 1. Find and delete all owned salons (which will cascade clean up)
-    const { data: salons } = await this.supabase.adminClient
-      .from('salons')
-      .select('id')
-      .eq('owner_id', userId);
-    
-    if (salons) {
-      for (const salon of salons) {
-        await this.deleteSalon(salon.id);
+    if (!skipSalonDeletion) {
+      const { data: salons } = await this.supabase.adminClient
+        .from('salons')
+        .select('id')
+        .eq('owner_id', userId);
+      
+      if (salons && salons.length > 0) {
+        for (const salon of salons) {
+          await this.deleteSalon(salon.id, true);
+        }
       }
     }
 
@@ -128,6 +146,8 @@ export class AdminService {
       this.supabase.adminClient.from('reservations').delete().eq('client_id', userId),
       this.supabase.adminClient.from('reviews').delete().eq('client_id', userId),
       this.supabase.adminClient.from('salon_staff').delete().eq('profile_id', userId),
+      this.supabase.adminClient.from('salon_favorites').delete().eq('user_id', userId),
+      this.supabase.adminClient.from('notifications').delete().eq('user_id', userId),
     ]);
 
     // 3. Delete profile
@@ -135,7 +155,10 @@ export class AdminService {
 
     // 4. Delete Auth User
     const { error: authError } = await this.supabase.adminClient.auth.admin.deleteUser(userId);
-    if (authError) throw new Error(`Failed to delete user auth: ${authError.message}`);
+    // Ignore error if user is already deleted
+    if (authError && !authError.message.includes('User not found')) {
+      throw new Error(`Failed to delete user auth: ${authError.message}`);
+    }
 
     return { success: true };
   }

@@ -6,6 +6,22 @@
     "packages/*",
     "services/*"
   ],
+  "scripts": {
+    "start": "npm run start -w mobile",
+    "android": "npm run android -w mobile",
+    "ios": "npm run ios -w mobile",
+    "web": "npm run web -w mobile",
+    "mobile:start": "npm run start -w mobile",
+    "mobile:android": "npm run android -w mobile",
+    "mobile:ios": "npm run ios -w mobile",
+    "mobile:web": "npm run web -w mobile",
+    "admin:dev": "npm run dev -w admin",
+    "admin:build": "npm run build -w admin",
+    "admin:start": "npm run start -w admin",
+    "api:build": "npm run build -w barberdz-api",
+    "api:start": "npm run start -w barberdz-api",
+    "api:dev": "npm run start:dev -w barberdz-api"
+  },
   "devDependencies": {
     "expo": "~56.0.8"
   },
