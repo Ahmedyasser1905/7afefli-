@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ActivityIndicator, View, StyleSheet, Text, ScrollView, LogBox } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -8,7 +8,7 @@ import { Syne_700Bold, Syne_600SemiBold } from '@expo-google-fonts/syne';
 import { DMSans_400Regular, DMSans_500Medium, DMSans_700Bold } from '@expo-google-fonts/dm-sans';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { queryClient } from './src/lib/queryClient';
-import { SplashScreen } from './src/screens/SplashScreen';
+import { SplashScreenComponent } from './src/screens/SplashScreen';
 import { colors } from './src/theme';
 import * as ExpoSplashScreen from 'expo-splash-screen';
 import Toast from 'react-native-toast-message';
@@ -55,12 +55,18 @@ export default function App() {
   // Payment deep links are handled exclusively in useNotificationSetup (inside AppNavigator)
   // to avoid double-firing toasts and double query invalidations.
 
+  useEffect(() => {
+    if (fontsLoaded) {
+      ExpoSplashScreen.hideAsync().catch(() => {});
+    }
+  }, [fontsLoaded]);
+
   if (!fontsLoaded) {
     return null;
   }
 
   if (showSplash) {
-    return <SplashScreen onFinish={() => setShowSplash(false)} onReady={() => ExpoSplashScreen.hideAsync().catch(() => {})} />;
+    return <SplashScreenComponent onAnimationComplete={() => setShowSplash(false)} />;
   }
 
   return (
