@@ -7,44 +7,46 @@
     "icon": "./assets/splash.png",
     "userInterfaceStyle": "dark",
     "scheme": "hafefli",
+
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.ahmedyasser.hafefli",
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "7afefli utilise votre photothèque pour télécharger des photos de profil et de portfolio.",
         "NSPhotoLibraryAddUsageDescription": "7afefli enregistre des photos dans votre photothèque.",
-        "NSCameraUsageDescription": "7afefli utilise votre appareil photo pour prendre des photos de profil et de portfolio."
-      },
-      "splash": {
-        "image": "./assets/splash.png",
-        "tabletImage": "./assets/splash.png"
+        "NSCameraUsageDescription": "7afefli utilise votre appareil photo pour prendre des photos de profil et de portfolio.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
+
     "android": {
       "package": "com.ahmedyasser.hafefli",
       "adaptiveIcon": {
-        "backgroundColor": "#1A1A1A",
-        "foregroundImage": "./assets/splash.png"
-      },
-      "splash": {
-        "ldpi": "./assets/splash.png",
-        "mdpi": "./assets/splash.png",
-        "hdpi": "./assets/splash.png",
-        "xhdpi": "./assets/splash.png",
-        "xxhdpi": "./assets/splash.png",
-        "xxxhdpi": "./assets/splash.png"
+        "foregroundImage": "./assets/splash.png",
+        "backgroundColor": "#1A1A1A"
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION"
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.RECORD_AUDIO"
       ]
     },
+
     "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "backgroundColor": "#1A1A1A",
+          "imageWidth": 220
+        }
+      ],
+
       "expo-font",
       "expo-secure-store",
       "expo-notifications",
-      "expo-splash-screen",
+
       [
         "expo-image-picker",
         {
@@ -52,6 +54,7 @@
           "cameraPermission": "7afefli utilise votre appareil photo pour prendre des photos de profil et de portfolio."
         }
       ],
+
       [
         "expo-location",
         {
@@ -61,16 +64,13 @@
         }
       ]
     ],
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "cover",
-      "backgroundColor": "#1A1A1A"
-    },
+
     "extra": {
       "eas": {
         "projectId": "fde4b773-171f-4e1e-b213-67e4681d54ad"
       }
     },
+
     "owner": "ahmed19052004"
   }
 }
