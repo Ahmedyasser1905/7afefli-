@@ -30,6 +30,12 @@
       ],
       "@barberdz/shared/*": [
         "../../packages/shared/*"
+      ],
+      "react": [
+        "../../node_modules/@types/react"
+      ],
+      "react-dom": [
+        "../../node_modules/@types/react-dom"
       ]
     }
   },
@@ -41,6 +47,6 @@
   ],
   "exclude": [
     "node_modules"
-  ],
-  "extends": "expo/tsconfig.base"
+  ]
 }
+

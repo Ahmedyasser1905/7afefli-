@@ -1,10 +1,10 @@
-import Link from 'next/link';
+'use client';
+export const dynamic = 'force-dynamic';
 // apps/admin/app/salons/page.tsx
 // Super Admin — Salon Approvals Data Table
 
-'use client';
-
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { supabase } from '../../lib/supabase';
 import { apiFetch } from '../../lib/api';  // fix C5
 

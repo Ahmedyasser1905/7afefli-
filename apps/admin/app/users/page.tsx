@@ -1,8 +1,9 @@
-import Link from 'next/link';
-// apps/admin/app/users/page.tsx
 'use client';
+export const dynamic = 'force-dynamic';
+// apps/admin/app/users/page.tsx
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { supabase } from '../../lib/supabase';
 import { apiFetch } from '../../lib/api';  // fix C5
 

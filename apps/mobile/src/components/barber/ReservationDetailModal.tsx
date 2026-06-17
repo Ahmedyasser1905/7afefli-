@@ -331,8 +331,8 @@ const styles = StyleSheet.create({
   },
   content: {
     backgroundColor: colors.ink,
-    borderTopLeftRadius: radius.xxl ?? 28,
-    borderTopRightRadius: radius.xxl ?? 28,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     maxHeight: '88%',
     paddingBottom: spacing.xxl,
   },

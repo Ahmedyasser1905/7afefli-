@@ -1,10 +1,10 @@
-import Link from 'next/link';
+'use client';
+export const dynamic = 'force-dynamic';
 // apps/admin/app/analytics/page.tsx
 // Super Admin — Platform analytics dashboard
 
-'use client';
-
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { supabase } from '../../lib/supabase';
 import { apiFetch } from '../../lib/api';
 

@@ -18,10 +18,12 @@ import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { colors, typography, spacing, radius, shadows } from '../../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
+import { useTranslations } from '../../hooks/useTranslations';
 
 const INTERIOR_IMAGE = require('../../../assets/splash.png');
 
-export default function PhoneInputScreen({ navigation }: { navigation: Record<string, unknown> }) {
+export default function PhoneInputScreen({ navigation }: { navigation: any }) {
+  const { t, isRTL } = useTranslations();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -30,11 +32,11 @@ export default function PhoneInputScreen({ navigation }: { navigation: Record<st
 
   const handleEmailSubmit = async () => {
     if (!email || !password) {
-      const msg = 'Veuillez remplir tous les champs';
+      const msg = t('auth.fill_all_fields');
       setErrorMsg(msg);
       Toast.show({
         type: 'error',
-        text1: 'Erreur',
+        text1: t('common.error'),
         text2: msg
       });
       return;
@@ -58,11 +60,11 @@ export default function PhoneInputScreen({ navigation }: { navigation: Record<st
 
     } catch (err: unknown) {
       console.error(err);
-      const msg = err.message || 'Identifiants invalides';
+      const msg = (err as Error).message || t('auth.invalid_credentials');
       setErrorMsg(msg);
       Toast.show({
         type: 'error',
-        text1: 'Erreur de connexion',
+        text1: t('auth.login_error'),
         text2: msg
       });
     } finally {
@@ -92,9 +94,9 @@ export default function PhoneInputScreen({ navigation }: { navigation: Record<st
           </View>
 
           <View style={styles.headlineContainer}>
-            <Text style={styles.headlineTitle}>Connexion</Text>
-            <Text style={styles.headlineSubtitle}>
-              Connectez-vous à l'aide de votre adresse e-mail.
+            <Text style={[styles.headlineTitle, { textAlign: isRTL ? 'right' : 'left' }]}>{t('auth.login_title')}</Text>
+            <Text style={[styles.headlineSubtitle, { textAlign: isRTL ? 'right' : 'left' }]}>
+              {t('auth.login_subtitle')}
             </Text>
           </View>
 
@@ -109,8 +111,8 @@ export default function PhoneInputScreen({ navigation }: { navigation: Record<st
             <View style={styles.inputFieldContainer}>
               <Ionicons name="mail-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
               <TextInput
-                style={styles.input}
-                placeholder="nom@example.com"
+                style={[styles.input, { textAlign: isRTL ? 'right' : 'left' }]}
+                placeholder={t('auth.email_placeholder')}
                 placeholderTextColor={colors.textSecondary}
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -123,8 +125,8 @@ export default function PhoneInputScreen({ navigation }: { navigation: Record<st
             <View style={[styles.inputFieldContainer, { marginTop: spacing.md }]}>
               <Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
               <TextInput
-                style={styles.input}
-                placeholder="Mot de passe"
+                style={[styles.input, { textAlign: isRTL ? 'right' : 'left' }]}
+                placeholder={t('auth.password_placeholder')}
                 placeholderTextColor={colors.textSecondary}
                 secureTextEntry={!showPassword}
                 value={password}
@@ -139,8 +141,8 @@ export default function PhoneInputScreen({ navigation }: { navigation: Record<st
                 />
               </TouchableOpacity>
             </View>
-            <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')} style={{ alignSelf: 'flex-end', marginTop: spacing.sm }}>
-              <Text style={{ fontFamily: 'DMSans_500Medium', fontSize: 13, color: colors.amber }}>Mot de passe oublié ?</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')} style={{ alignSelf: isRTL ? 'flex-start' : 'flex-end', marginTop: spacing.sm }}>
+              <Text style={{ fontFamily: 'DMSans_500Medium', fontSize: 13, color: colors.amber }}>{t('auth.forgot_password')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.submitButton, isLoading && styles.disabledButton, { marginTop: spacing.xl }]}
@@ -151,7 +153,7 @@ export default function PhoneInputScreen({ navigation }: { navigation: Record<st
                 <ActivityIndicator color={colors.ink} />
               ) : (
                 <>
-                  <Text style={styles.submitButtonText}>Se connecter</Text>
+                  <Text style={styles.submitButtonText}>{t('auth.login_button')}</Text>
                   <Ionicons name="log-in-outline" size={20} color={colors.ink} style={{ marginLeft: spacing.sm }} />
                 </>
               )}
@@ -159,15 +161,15 @@ export default function PhoneInputScreen({ navigation }: { navigation: Record<st
           </View>
 
           <View style={styles.footer}>
-            <Text style={styles.footerText}>
-              En continuant, vous acceptez nos {'\n'}
-              <Text style={styles.linkText}>Conditions d'utilisation</Text> et notre <Text style={styles.linkText}>Politique de confidentialité</Text>
+            <Text style={[styles.footerText, { textAlign: 'center' }]}>
+              {t('auth.terms_accept')}{'\n'}
+              <Text style={styles.linkText}>{t('settings.terms')}</Text> {t('auth.terms_accept').includes('et') ? '' : ''}<Text style={styles.linkText}>{t('settings.privacy')}</Text>
             </Text>
             
             <View style={styles.signUpLinkContainer}>
-              <Text style={styles.footerText}>Pas encore de compte ? </Text>
+              <Text style={styles.footerText}>{t('auth.no_account')} </Text>
               <TouchableOpacity onPress={() => navigation.navigate('SignUp')} disabled={isLoading}>
-                <Text style={styles.signUpLink}>S'inscrire</Text>
+                <Text style={styles.signUpLink}>{t('auth.register')}</Text>
               </TouchableOpacity>
             </View>
           </View>

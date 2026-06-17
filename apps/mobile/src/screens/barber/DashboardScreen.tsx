@@ -26,11 +26,13 @@ import { AddWalkInModal } from '../../components/barber/AddWalkInModal';
 import { ReservationDetailModal } from '../../components/barber/ReservationDetailModal';
 import { BlockTimeModal } from '../../components/barber/BlockTimeModal';
 import { NotificationBell } from '../../components/shared/NotificationBell';
+import { useTranslations } from '../../hooks/useTranslations';
 const DEFAULT_AVATAR = 'https://phfwutugsyiutqgippqg.supabase.co/storage/v1/object/public/portfolio/defaults/default-avatar.png';
 
 export function DashboardScreen() {
   const user = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
+  const { t } = useTranslations();
 
   // HIGH-2: Use a single canonical query key ['my-salon', user?.id] so this screen
   // shares the same React Query cache entry as MySalonScreen and SalonSetupScreen.
@@ -190,17 +192,17 @@ export function DashboardScreen() {
     if (viewMode === 'day') {
       const [y, m, d] = viewDate.split('-').map(Number);
       const dt = new Date(y, m - 1, d);
-      if (viewDate === today()) return "Aujourd'hui";
+      if (viewDate === today()) return t('barber.today');
       return dt.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
     }
     if (viewMode === 'month') {
       const [y, m] = viewMonth.split('-').map(Number);
       return new Date(y, m - 1, 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
     }
-    return 'Tout le temps';
-  }, [viewMode, viewDate, viewMonth]);
+    return t('barber.period_all');
+  }, [viewMode, viewDate, viewMonth, t]);
 
-  const revenuePeriodLabel = viewMode === 'day' ? 'Jour' : viewMode === 'month' ? 'Mois' : 'Total';
+  const revenuePeriodLabel = viewMode === 'day' ? t('barber.period_day') : viewMode === 'month' ? t('barber.period_month') : t('barber.period_total');
 
   const bookingItems = useMemo(() => {
     const nowAlgBk = new Date(Date.now() + 60 * 60 * 1000); // UTC+1 Algeria
@@ -282,8 +284,8 @@ export function DashboardScreen() {
     onError: (error: any) => {
       Toast.show({
         type: 'error',
-        text1: 'Erreur',
-        text2: error.message || 'Impossible d\'annuler la réservation'
+        text1: t('common.error'),
+        text2: error.message || t('barber.cancel_reservation_failed')
       });
     }
   });
@@ -298,15 +300,15 @@ export function DashboardScreen() {
       queryClient.invalidateQueries({ queryKey: ['slots'] });
       Toast.show({
         type: 'success',
-        text1: 'Succès',
-        text2: 'Le créneau a été débloqué ✅'
+        text1: t('common.success'),
+        text2: t('barber.slot_unblocked')
       });
     },
     onError: (error: any) => {
       Toast.show({
         type: 'error',
-        text1: 'Erreur',
-        text2: error.message || 'Impossible de débloquer ce créneau'
+        text1: t('common.error'),
+        text2: error.message || t('barber.unblock_failed')
       });
     },
   });
@@ -340,41 +342,41 @@ export function DashboardScreen() {
   }, [allItems, salonId]);
 
   const handleConfirm = useCallback((id: string) => {
-    Alert.alert('Confirmer ?', 'Voulez-vous accepter ce rendez-vous ?', [
-      { text: 'Non', style: 'cancel' },
+    Alert.alert(t('barber.confirm_title'), t('barber.confirm_question'), [
+      { text: t('common.no'), style: 'cancel' },
       {
-        text: 'Oui, confirmer',
+        text: t('barber.confirm_yes'),
         onPress: () => {
           updateStatus.mutate({ id, status: 'Confirmed' });
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         },
       },
     ]);
-  }, [updateStatus]);
+  }, [updateStatus, t]);
 
   const handleCancel = useCallback((id: string) => {
-    Alert.alert('Annuler la réservation ?', 'Cette action notifiera le client.', [
-      { text: 'Non', style: 'cancel' },
+    Alert.alert(t('barber.confirm_title'), t('barber.confirm_question'), [
+      { text: t('common.no'), style: 'cancel' },
       {
-        text: 'Oui, annuler',
+        text: t('common.cancel'),
         style: 'destructive',
         onPress: () => updateStatus.mutate({ id, status: 'Cancelled' }),
       },
     ]);
-  }, [updateStatus]);
+  }, [updateStatus, t]);
 
   const handleComplete = useCallback((id: string) => {
-    Alert.alert('Marquer terminé ?', 'Ce rendez-vous sera marqué comme terminé.', [
-      { text: 'Non', style: 'cancel' },
+    Alert.alert(t('barber.confirm_title'), t('barber.confirm_question'), [
+      { text: t('common.no'), style: 'cancel' },
       {
-        text: 'Oui, terminé',
+        text: t('common.yes'),
         onPress: () => {
           updateStatus.mutate({ id, status: 'Completed' });
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         },
       },
     ]);
-  }, [updateStatus]);
+  }, [updateStatus, t]);
 
   const toggleSalonStatus = useMutation({
     mutationFn: async (isClosed: boolean) => {
@@ -387,8 +389,8 @@ export function DashboardScreen() {
     onError: (error: any) => {
       Toast.show({
         type: 'error',
-        text1: 'Erreur',
-        text2: error.message || 'Erreur lors du changement de statut'
+        text1: t('common.error'),
+        text2: error.message || t('common.error')
       });
     }
   });
@@ -522,7 +524,7 @@ export function DashboardScreen() {
             <View style={styles.bentoItem}>
               <Ionicons name="calendar" size={24} color={colors.amber} style={styles.bentoIcon} />
               <View>
-                <Text style={styles.bentoLabel}>Réservations</Text>
+                <Text style={styles.bentoLabel}>{t('barber.stats_appointments')}</Text>
                 <Text style={styles.bentoValue}>{stats.total}</Text>
               </View>
             </View>
@@ -531,7 +533,7 @@ export function DashboardScreen() {
             <View style={styles.bentoItem}>
               <Ionicons name="hourglass" size={24} color={colors.warning} style={styles.bentoIcon} />
               <View>
-                <Text style={styles.bentoLabel}>En attente</Text>
+                <Text style={styles.bentoLabel}>{t('barber.filter_pending')}</Text>
                 <Text style={[styles.bentoValue, { color: colors.warning }]}>{stats.pending}</Text>
               </View>
             </View>
@@ -541,7 +543,7 @@ export function DashboardScreen() {
           <View style={styles.bentoWideItem}>
             <Ionicons name="wallet" size={26} color={colors.success} style={styles.bentoIconWide} />
             <View>
-              <Text style={styles.bentoLabel}>Revenus estimés ({revenuePeriodLabel})</Text>
+              <Text style={styles.bentoLabel}>{t('barber.stats_revenue')} ({revenuePeriodLabel})</Text>
               <Text style={[styles.bentoValue, { color: colors.success }]}>
                 {formatDZD(stats.revenue)}
               </Text>
@@ -575,7 +577,7 @@ export function DashboardScreen() {
         {/* Period mode selector */}
         <View style={styles.periodModeRow}>
           {(['day', 'month', 'all'] as const).map((mode) => {
-            const label = mode === 'day' ? 'Jour' : mode === 'month' ? 'Mois' : 'Tout';
+            const label = mode === 'day' ? t('barber.period_day') : mode === 'month' ? t('barber.period_month') : t('barber.period_all');
             return (
               <TouchableOpacity
                 key={mode}
@@ -634,11 +636,11 @@ export function DashboardScreen() {
         <View style={styles.filterRow}>
           {(
             [
-              { key: 'all',       label: 'Tous' },
-              { key: 'Confirmed', label: 'Confirmé' },
-              { key: 'Pending',   label: 'En attente' },
-              { key: 'Completed', label: 'Terminé' },
-              { key: 'Cancelled', label: 'Annulé' },
+              { key: 'all',       label: t('barber.filter_all') },
+              { key: 'Confirmed', label: t('barber.filter_confirmed') },
+              { key: 'Pending',   label: t('barber.filter_pending') },
+              { key: 'Completed', label: t('barber.filter_completed') },
+              { key: 'Cancelled', label: t('status.cancelled') },
             ] as const
           ).map(({ key, label }) => (
             <TouchableOpacity
@@ -659,18 +661,18 @@ export function DashboardScreen() {
 
   const handleUnblock = useCallback((id: string) => {
     Alert.alert(
-      '🔓 Débloquer ce créneau ?',
-      'Le créneau redeviendra disponible pour les clients.',
+      t('barber.confirm_title'),
+      t('barber.confirm_question'),
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Débloquer',
+          text: t('common.confirm'),
           style: 'destructive',
           onPress: () => unblockTime.mutate(id),
         },
       ]
     );
-  }, [unblockTime]);
+  }, [unblockTime, t]);
 
   // Render a CRÉNEAU BLOQUÉ item as a distinct locked card
   const renderBlockedItem = ({ item }: { item: Record<string, unknown> }) => (
@@ -803,7 +805,7 @@ export function DashboardScreen() {
                   isCancelled && styles.textCancelled,
                   isCompleted && styles.textCompleted,
                 ]}>
-                  {isConfirmed ? 'Confirmé' : isCancelled ? 'Annulé' : isCompleted ? 'Terminé' : item.status as string}
+                  {isConfirmed ? t('status.confirmed') : isCancelled ? t('status.cancelled') : isCompleted ? t('status.completed') : item.status as string}
                 </Text>
               </View>
               {isConfirmed && (
@@ -860,9 +862,9 @@ export function DashboardScreen() {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Ionicons name="calendar-outline" size={48} color={colors.textMuted} />
-            <Text style={styles.emptyTitle}>Aucune réservation aujourd'hui</Text>
+            <Text style={styles.emptyTitle}>{t('barber.no_reservations')}</Text>
             <Text style={styles.emptySubtitle}>
-              Les nouveaux rendez-vous clients apparaîtront ici en temps réel.
+              {t('barber.reservations_title')}
             </Text>
           </View>
         }
@@ -894,8 +896,8 @@ export function DashboardScreen() {
           refetch();
           Toast.show({
         type: 'success',
-        text1: 'Succès',
-        text2: 'Le créneau a été bloqué'
+        text1: t('common.success'),
+        text2: t('barber.slot_unblocked')
       });
         }}
       />

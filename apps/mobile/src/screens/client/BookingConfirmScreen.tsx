@@ -17,11 +17,13 @@ import { apiClient } from '../../lib/apiClient';
 import { colors, spacing, radius } from '../../theme';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { formatDate, formatTime, formatDZD } from '@barberdz/shared/utils/formatters';
+import { useTranslations } from '../../hooks/useTranslations';
 
 export function BookingConfirmScreen() {
-  const route = useRoute<Record<string, unknown>>();
-  const navigation = useNavigation<Record<string, unknown>>();
+  const route = useRoute<any>();
+  const navigation = useNavigation<any>();
   const { reservationId } = route.params;
+  const { t } = useTranslations();
 
   // Animation refs
   const scaleAnim = useRef(new Animated.Value(0)).current;
@@ -64,8 +66,8 @@ export function BookingConfirmScreen() {
     enabled: !!reservationId,
   });
 
-  const salon   = (reservation as Record<string, unknown>)?.salons ?? (reservation as Record<string, unknown>)?.salon;
-  const service = (reservation as Record<string, unknown>)?.services ?? (reservation as Record<string, unknown>)?.service;
+  const salon   = (reservation as any)?.salons ?? (reservation as any)?.salon;
+  const service = (reservation as any)?.services ?? (reservation as any)?.service;
 
   const handleGoHome = () => {
     // Reset current stack (Home or Explore) to its first screen
@@ -113,14 +115,14 @@ export function BookingConfirmScreen() {
             },
           ]}
         >
-          <Text style={styles.title}>Rendez-vous confirmé !</Text>
+          <Text style={styles.title}>{t('booking_confirm.title')}</Text>
           <Text style={styles.subtitle}>
-            Votre réservation a été enregistrée avec succès
+            {t('booking_confirm.subtitle')}
           </Text>
         </Animated.View>
 
         {/* Booking details card */}
-        {reservation && (
+        {!!reservation && (
           <Animated.View
             style={[
               styles.detailsCard,
@@ -136,7 +138,7 @@ export function BookingConfirmScreen() {
                 <Ionicons name="business" size={18} color={colors.amber} />
               </View>
               <View style={styles.detailText}>
-                <Text style={styles.detailLabel}>Salon</Text>
+                <Text style={styles.detailLabel}>{t('booking_confirm.salon_label')}</Text>
                 <Text style={styles.detailValue}>
                   {salon?.name || 'Salon'}
                 </Text>
@@ -151,14 +153,14 @@ export function BookingConfirmScreen() {
                 <Ionicons name="cut" size={18} color={colors.amber} />
               </View>
               <View style={styles.detailText}>
-                <Text style={styles.detailLabel}>Service</Text>
+                <Text style={styles.detailLabel}>{t('booking_confirm.service_label')}</Text>
                 <Text style={styles.detailValue}>
                   {service?.service_name || 'Service'}
                 </Text>
               </View>
-              {service?.price && (
+              {!!(service?.price) && (
                 <Text style={styles.priceTag}>
-                  {formatDZD(service.price)}
+                  {formatDZD(service.price as number)}
                 </Text>
               )}
             </View>
@@ -171,14 +173,14 @@ export function BookingConfirmScreen() {
                 <Ionicons name="calendar" size={18} color={colors.amber} />
               </View>
               <View style={styles.detailText}>
-                <Text style={styles.detailLabel}>Date & Heure</Text>
+                <Text style={styles.detailLabel}>{t('booking_confirm.datetime_label')}</Text>
                 <Text style={styles.detailValue}>
                   {reservation.appointment_date
-                    ? formatDate(reservation.appointment_date)
+                    ? formatDate(reservation.appointment_date as string)
                     : ''}
                 </Text>
                 <Text style={styles.detailTime}>
-                  {formatTime(reservation.start_time)} – {formatTime(reservation.end_time)}
+                  {formatTime(reservation.start_time as string)} – {formatTime(reservation.end_time as string)}
                 </Text>
               </View>
             </View>
@@ -191,24 +193,24 @@ export function BookingConfirmScreen() {
                 <Ionicons name="hourglass" size={18} color={colors.amber} />
               </View>
               <View style={styles.detailText}>
-                <Text style={styles.detailLabel}>Statut</Text>
+                <Text style={styles.detailLabel}>{t('booking_confirm.status_label')}</Text>
                 <View style={styles.statusBadge}>
                   <View style={styles.statusDot} />
                   <Text style={styles.statusText}>
                     {({
-                        Confirmed: 'Confirmé',
-                        Pending:   'En attente de confirmation',
-                        Cancelled: 'Annulé',
-                        Completed: 'Terminé',
+                        Confirmed: t('status.confirmed'),
+                        Pending:   t('status.pending'),
+                        Cancelled: t('status.cancelled'),
+                        Completed: t('status.completed'),
                       } as Record<string, string>)[reservation.status as string]
-                      ?? 'En attente de confirmation'}
+                      ?? t('status.pending')}
                   </Text>
                 </View>
               </View>
             </View>
 
             {/* Notes / Phone */}
-            {reservation.notes && (
+            {!!reservation.notes && (
               <>
                 <View style={styles.divider} />
                 <View style={styles.detailRow}>
@@ -216,9 +218,9 @@ export function BookingConfirmScreen() {
                     <Ionicons name="call" size={18} color={colors.amber} />
                   </View>
                   <View style={styles.detailText}>
-                    <Text style={styles.detailLabel}>Téléphone / Notes</Text>
+                    <Text style={styles.detailLabel}>{t('booking_confirm.notes_label')}</Text>
                     <Text style={styles.detailValue}>
-                      {reservation.notes}
+                      {reservation.notes as string}
                     </Text>
                   </View>
                 </View>
@@ -243,7 +245,7 @@ export function BookingConfirmScreen() {
             activeOpacity={0.8}
           >
             <Ionicons name="calendar-outline" size={20} color={colors.ink} />
-            <Text style={styles.primaryButtonText}>Voir mes rendez-vous</Text>
+            <Text style={styles.primaryButtonText}>{t('booking_confirm.view_appointments')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -252,7 +254,7 @@ export function BookingConfirmScreen() {
             activeOpacity={0.7}
           >
             <Ionicons name="home-outline" size={18} color={colors.amber} />
-            <Text style={styles.secondaryButtonText}>Retour à l'accueil</Text>
+            <Text style={styles.secondaryButtonText}>{t('booking_confirm.go_home')}</Text>
           </TouchableOpacity>
         </Animated.View>
       </View>

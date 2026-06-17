@@ -15,7 +15,6 @@ import {
   Modal,
   FlatList,
   TextInput,
-  I18nManager,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -133,7 +132,7 @@ export function SettingsScreen() {
               Toast.show({
                 type: 'error',
                 text1: t('common.error'),
-                text2: (error as Error).message || 'Impossible de supprimer le compte.'
+                text2: (error as Error).message || t('auth.delete_failed')
               });
             }
           },
@@ -164,8 +163,8 @@ export function SettingsScreen() {
     setIsLanguageModalVisible(false);
   };
 
-  const displayName = profileData?.full_name || user?.user_metadata?.full_name || 'Utilisateur';
-  const displayPhone = profileData?.phone_number || user?.phone || user?.email || 'Non renseigné';
+  const displayName = profileData?.full_name || user?.user_metadata?.full_name || t('settings.default_user');
+  const displayPhone = profileData?.phone_number || user?.phone || user?.email || t('settings.not_set');
   const points = profileData?.loyalty_points ?? 0;
 
   const currentLanguageOption = LANGUAGE_OPTIONS.find((opt) => opt.locale === locale);
@@ -374,8 +373,8 @@ export function SettingsScreen() {
 
         {/* Branding Footer */}
         <View style={styles.brandingFooter}>
-          <Text style={styles.brandingText}>Crafted in Algeria with Precision</Text>
-          <Text style={styles.brandingSub}>© 2026 7afefli</Text>
+          <Text style={styles.brandingText}>{t('settings.footer_tagline')}</Text>
+          <Text style={styles.brandingSub}>{t('settings.footer_copyright')}</Text>
         </View>
       </ScrollView>
 
@@ -400,14 +399,14 @@ export function SettingsScreen() {
               <TouchableOpacity onPress={() => setIsWilayaModalVisible(false)} activeOpacity={0.7}>
                 <Ionicons name="close" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
-              <Text style={styles.modalTitle}>Choisir la Wilaya</Text>
+              <Text style={styles.modalTitle}>{t('settings.wilaya_modal_title')}</Text>
               <View style={{ width: 24 }} />
             </View>
             <View style={[styles.searchContainer, isRTL && styles.rowReverse]}>
               <Ionicons name="search" size={18} color={colors.textSecondary} />
               <TextInput
                 style={[styles.searchInput, isRTL && styles.textRight]}
-                placeholder="Rechercher une wilaya..."
+                placeholder={t('settings.search_wilaya')}
                 placeholderTextColor={colors.textMuted}
                 value={wilayaSearch}
                 onChangeText={setWilayaSearch}

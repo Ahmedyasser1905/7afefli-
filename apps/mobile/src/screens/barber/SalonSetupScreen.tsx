@@ -22,11 +22,13 @@ import { colors, typography, spacing, radius } from '../../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
 import { WebView } from 'react-native-webview';
 import { WILAYAS } from '@barberdz/shared/constants/wilayas';
+import { useTranslations } from '../../hooks/useTranslations';
 
 export function SalonSetupScreen({ onComplete, existingSalon }: { onComplete: () => void, existingSalon?: any }) {
   const user = useAuthStore((s) => s.user);
   const navigation = useNavigation();
   const queryClient = useQueryClient();
+  const { t } = useTranslations();
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
   const [wilayaPickerVisible, setWilayaPickerVisible] = useState(false);
@@ -62,7 +64,7 @@ export function SalonSetupScreen({ onComplete, existingSalon }: { onComplete: ()
     if (!form.name || !form.address || !form.wilaya || !form.commune || !form.phone) {
       Toast.show({
         type: 'error',
-        text1: 'Erreur',
+        text1: t('common.error'),
         text2: 'Veuillez remplir tous les champs obligatoires'
       });
       return;
@@ -118,7 +120,7 @@ export function SalonSetupScreen({ onComplete, existingSalon }: { onComplete: ()
         queryClient.invalidateQueries({ queryKey: ['explore-explore-salons'] });
         queryClient.invalidateQueries({ queryKey: ['nearby-salons'] });
         queryClient.invalidateQueries({ queryKey: ['my-salon'] });
-        Alert.alert('Succès', 'Votre salon a été mis à jour avec succès !', [
+        Alert.alert(t('common.success'), 'Votre salon a été mis à jour avec succès !', [
           { text: 'Continuer', onPress: onComplete }
         ]);
       } else {
@@ -140,14 +142,14 @@ export function SalonSetupScreen({ onComplete, existingSalon }: { onComplete: ()
         queryClient.invalidateQueries({ queryKey: ['explore-explore-salons'] });
         queryClient.invalidateQueries({ queryKey: ['nearby-salons'] });
         queryClient.invalidateQueries({ queryKey: ['my-salon'] });
-        Alert.alert('Succès', 'Votre salon a été créé avec succès !', [
+        Alert.alert(t('common.success'), 'Votre salon a été créé avec succès !', [
           { text: 'Continuer', onPress: onComplete }
         ]);
       }
     } catch (err: unknown) {
       Toast.show({
         type: 'error',
-        text1: 'Erreur',
+        text1: t('common.error'),
         text2: (err as Error)?.message ?? 'Une erreur est survenue'
       });
     } finally {
@@ -357,7 +359,7 @@ export function SalonSetupScreen({ onComplete, existingSalon }: { onComplete: ()
                   )}
                 />
                 <TouchableOpacity style={styles.modalCancel} onPress={() => setWilayaPickerVisible(false)}>
-                  <Text style={styles.modalCancelText}>Annuler</Text>
+                  <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
                 </TouchableOpacity>
               </View>
             </View>

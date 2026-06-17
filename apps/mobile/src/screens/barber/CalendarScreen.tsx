@@ -18,6 +18,7 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import type { Reservation } from '@barberdz/shared/types';
 import { AddWalkInModal } from '../../components/barber/AddWalkInModal';
 import { ReservationDetailModal } from '../../components/barber/ReservationDetailModal';
+import { useTranslations } from '../../hooks/useTranslations';
 
 const HOUR_HEIGHT = 88;
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -111,6 +112,7 @@ const DEFAULT_AVATAR = 'https://phfwutugsyiutqgippqg.supabase.co/storage/v1/obje
 export function CalendarScreen() {
   const user = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
+  const { t } = useTranslations();
   // selectedDate can be any valid YYYY-MM-DD, not limited to the next 14 days
   const [selectedDate, setSelectedDate] = useState(algToday());
   const [isWalkInModalVisible, setIsWalkInModalVisible] = useState(false);
@@ -138,30 +140,30 @@ export function CalendarScreen() {
       queryClient.invalidateQueries({ queryKey: ['barber-pending'] });
     },
     onError: (error: unknown) => {
-      Toast.show({ type: 'error', text1: 'Erreur', text2: (error as Error).message || 'Impossible de modifier la réservation' });
+      Toast.show({ type: 'error', text1: t('common.error'), text2: (error as Error).message || t('barber.cancel_reservation_failed') });
     },
   });
 
   const handleConfirm = useCallback((id: string) => {
-    Alert.alert('Confirmer ?', 'Voulez-vous accepter ce rendez-vous ?', [
-      { text: 'Non', style: 'cancel' },
-      { text: 'Oui, confirmer', onPress: () => updateStatus.mutate({ id, status: 'Confirmed' }) },
+    Alert.alert(t('barber.confirm_title'), t('barber.confirm_question'), [
+      { text: t('common.no'), style: 'cancel' },
+      { text: t('barber.confirm_yes'), onPress: () => updateStatus.mutate({ id, status: 'Confirmed' }) },
     ]);
-  }, [updateStatus]);
+  }, [updateStatus, t]);
 
   const handleCancel = useCallback((id: string) => {
-    Alert.alert('Annuler la réservation ?', 'Cette action notifiera le client.', [
-      { text: 'Non', style: 'cancel' },
-      { text: 'Oui, annuler', style: 'destructive', onPress: () => updateStatus.mutate({ id, status: 'Cancelled' }) },
+    Alert.alert(t('barber.confirm_title'), t('barber.confirm_question'), [
+      { text: t('common.no'), style: 'cancel' },
+      { text: t('common.cancel'), style: 'destructive', onPress: () => updateStatus.mutate({ id, status: 'Cancelled' }) },
     ]);
-  }, [updateStatus]);
+  }, [updateStatus, t]);
 
   const handleComplete = useCallback((id: string) => {
-    Alert.alert('Marquer terminé ?', 'Ce rendez-vous sera marqué comme terminé.', [
-      { text: 'Non', style: 'cancel' },
-      { text: 'Oui', onPress: () => updateStatus.mutate({ id, status: 'Completed' }) },
+    Alert.alert(t('barber.confirm_title'), t('barber.confirm_question'), [
+      { text: t('common.no'), style: 'cancel' },
+      { text: t('common.yes'), onPress: () => updateStatus.mutate({ id, status: 'Completed' }) },
     ]);
-  }, [updateStatus]);
+  }, [updateStatus, t]);
 
   // ── Fetch salon ───────────────────────────────────────────────────────────
   const { data: salon } = useQuery({
@@ -342,7 +344,7 @@ export function CalendarScreen() {
         {resLoading ? (
           <View style={styles.loadingTimeline}>
             <ActivityIndicator color={colors.amber} />
-            <Text style={styles.loadingText}>Chargement des réservations...</Text>
+            <Text style={styles.loadingText}>{t('common.loading')}</Text>
           </View>
         ) : (
           <View style={[styles.timelineContent, { height: TOTAL_HOURS * HOUR_HEIGHT + HOUR_HEIGHT }]}>
@@ -443,7 +445,7 @@ export function CalendarScreen() {
             {reservations.length === 0 && (
               <View style={styles.emptyTimelineCard}>
                 <Ionicons name="calendar-outline" size={28} color={colors.textMuted} />
-                <Text style={styles.emptyTimelineText}>Aucun rendez-vous ce jour</Text>
+                <Text style={styles.emptyTimelineText}>{t('barber.no_reservations')}</Text>
               </View>
             )}
           </View>
@@ -454,7 +456,7 @@ export function CalendarScreen() {
           <View style={styles.pendingSection}>
             <View style={styles.pendingSectionHeader}>
               <Ionicons name="hourglass-outline" size={18} color={colors.pending} />
-              <Text style={styles.pendingSectionTitle}>En attente de confirmation</Text>
+              <Text style={styles.pendingSectionTitle}>{t('barber.filter_pending')}</Text>
               {pendingOtherDays.length > 0 && (
                 <View style={styles.pendingCount}>
                   <Text style={styles.pendingCountText}>{pendingOtherDays.length}</Text>

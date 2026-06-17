@@ -85,11 +85,11 @@ export function useRealtimeBookings({
           let clientName = 'Un client';
           let serviceName = '';
           try {
-            const resData = await apiClient.get<Record<string, unknown>>(`/reservations/${reservation.id}`);
-            if (resData.profiles?.full_name) clientName = resData.profiles.full_name;
-            else if (resData.client_phone) clientName = resData.client_phone;
+            const resData = await apiClient.get<any>(`/reservations/${reservation.id}`);
+            if ((resData as any).profiles?.full_name) clientName = (resData as any).profiles.full_name;
+            else if ((resData as any).client_phone) clientName = (resData as any).client_phone as string;
             
-            if (resData.services?.service_name) serviceName = ` — ${resData.services.service_name}`;
+            if ((resData as any).services?.service_name) serviceName = ` — ${(resData as any).services.service_name}`;
           } catch (err) {
             // Fallback: use generic name
           }

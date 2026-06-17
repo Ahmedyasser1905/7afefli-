@@ -15,8 +15,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, spacing, radius, shadows } from '../../theme';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { supabase } from '../../lib/supabase';
+import { useTranslations } from '../../hooks/useTranslations';
 
 export default function VerifyCodeScreen({ route, navigation }: any) {
+  const { t, isRTL } = useTranslations();
   const { email } = route.params || {};
   const [otpCode, setOtpCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -25,8 +27,8 @@ export default function VerifyCodeScreen({ route, navigation }: any) {
     if (otpCode.trim().length !== 6) {
       Toast.show({
         type: 'error',
-        text1: 'Erreur',
-        text2: 'Le code OTP doit contenir 6 chiffres'
+        text1: t('common.error'),
+        text2: t('auth.otp_must_be_6')
       });
       return;
     }
@@ -45,16 +47,16 @@ export default function VerifyCodeScreen({ route, navigation }: any) {
       
       Toast.show({
         type: 'success',
-        text1: 'Succès',
-        text2: 'Code validé. Veuillez définir un nouveau mot de passe.'
+        text1: t('common.success'),
+        text2: t('auth.code_valid')
       });
       
       // La navigation est gérée automatiquement par AppNavigator (needsPasswordReset)
     } catch (err: unknown) {
       Toast.show({
         type: 'error',
-        text1: 'Erreur de vérification',
-        text2: (err as any)?.message || 'Code incorrect ou expiré.'
+        text1: t('auth.verify_error'),
+        text2: (err as any)?.message || t('auth.code_expired')
       });
     } finally {
       setIsLoading(false);
@@ -83,9 +85,9 @@ export default function VerifyCodeScreen({ route, navigation }: any) {
           </View>
 
           <View style={styles.headlineContainer}>
-            <Text style={styles.headlineTitle}>Vérification OTP</Text>
+            <Text style={styles.headlineTitle}>{t('auth.otp_title')}</Text>
             <Text style={styles.headlineSubtitle}>
-              Entrez le code à 6 chiffres envoyé à l'adresse e-mail {email}.
+              {t('auth.otp_sub')} {email}.
             </Text>
           </View>
 
@@ -93,8 +95,8 @@ export default function VerifyCodeScreen({ route, navigation }: any) {
             <View style={styles.inputFieldContainer}>
               <Ionicons name="keypad-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
               <TextInput
-                style={styles.input}
-                placeholder="Code à 6 chiffres"
+                style={[styles.input, { textAlign: isRTL ? 'right' : 'left' }]}
+                placeholder={t('auth.otp_placeholder')}
                 placeholderTextColor={colors.textSecondary}
                 keyboardType="number-pad"
                 maxLength={6}
@@ -113,7 +115,7 @@ export default function VerifyCodeScreen({ route, navigation }: any) {
                 <ActivityIndicator color={colors.ink} />
               ) : (
                 <>
-                  <Text style={styles.submitButtonText}>Vérifier le code</Text>
+                  <Text style={styles.submitButtonText}>{t('auth.verify_code')}</Text>
                   <Ionicons name="checkmark-outline" size={18} color={colors.ink} style={{ marginLeft: spacing.sm }} />
                 </>
               )}
@@ -124,7 +126,7 @@ export default function VerifyCodeScreen({ route, navigation }: any) {
               onPress={() => { if (navigation.canGoBack()) { navigation.goBack(); } }}
               disabled={isLoading}
             >
-              <Text style={styles.resendButtonText}>Changer d'adresse e-mail</Text>
+              <Text style={styles.resendButtonText}>{t('auth.change_email')}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>

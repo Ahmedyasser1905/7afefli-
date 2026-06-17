@@ -16,8 +16,10 @@ import { colors, spacing, radius, shadows } from '../../theme';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
+import { useTranslations } from '../../hooks/useTranslations';
 
 export default function ResetPasswordScreen({ navigation }: any) {
+  const { t, isRTL } = useTranslations();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -28,8 +30,8 @@ export default function ResetPasswordScreen({ navigation }: any) {
     if (!password || !confirmPassword) {
       Toast.show({
         type: 'error',
-        text1: 'Erreur',
-        text2: 'Veuillez remplir les deux champs'
+        text1: t('common.error'),
+        text2: t('auth.fill_both_fields')
       });
       return;
     }
@@ -37,8 +39,8 @@ export default function ResetPasswordScreen({ navigation }: any) {
     if (password.length < 6) {
       Toast.show({
         type: 'error',
-        text1: 'Erreur',
-        text2: 'Le mot de passe doit contenir au moins 6 caractères'
+        text1: t('common.error'),
+        text2: t('auth.password_too_short')
       });
       return;
     }
@@ -46,8 +48,8 @@ export default function ResetPasswordScreen({ navigation }: any) {
     if (password !== confirmPassword) {
       Toast.show({
         type: 'error',
-        text1: 'Erreur',
-        text2: 'Les mots de passe ne correspondent pas'
+        text1: t('common.error'),
+        text2: t('auth.passwords_mismatch')
       });
       return;
     }
@@ -64,8 +66,8 @@ export default function ResetPasswordScreen({ navigation }: any) {
       
       Toast.show({
         type: 'success',
-        text1: 'Succès',
-        text2: 'Votre mot de passe a été réinitialisé avec succès.'
+        text1: t('common.success'),
+        text2: t('auth.password_reset_ok')
       });
       
       // Débloque l'AppNavigator pour laisser passer l'utilisateur vers ClientApp/BarberApp/AdminApp
@@ -74,8 +76,8 @@ export default function ResetPasswordScreen({ navigation }: any) {
     } catch (err: unknown) {
       Toast.show({
         type: 'error',
-        text1: 'Erreur',
-        text2: (err as any)?.message || 'Une erreur est survenue'
+        text1: t('common.error'),
+        text2: (err as any)?.message || t('auth.generic_error')
       });
     } finally {
       setIsLoading(false);
@@ -104,9 +106,9 @@ export default function ResetPasswordScreen({ navigation }: any) {
           </View>
 
           <View style={styles.headlineContainer}>
-            <Text style={styles.headlineTitle}>Nouveau mot de passe</Text>
+            <Text style={styles.headlineTitle}>{t('auth.new_password_title')}</Text>
             <Text style={styles.headlineSubtitle}>
-              Veuillez définir un nouveau mot de passe pour sécuriser votre compte.
+              {t('auth.new_password_sub')}
             </Text>
           </View>
 
@@ -115,8 +117,8 @@ export default function ResetPasswordScreen({ navigation }: any) {
             <View style={styles.inputFieldContainer}>
               <Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
               <TextInput
-                style={styles.input}
-                placeholder="Nouveau mot de passe"
+                style={[styles.input, { textAlign: isRTL ? 'right' : 'left' }]}
+                placeholder={t('auth.new_password_placeholder')}
                 placeholderTextColor={colors.textSecondary}
                 secureTextEntry={!showPassword}
                 value={password}
@@ -136,8 +138,8 @@ export default function ResetPasswordScreen({ navigation }: any) {
             <View style={styles.inputFieldContainer}>
               <Ionicons name="lock-closed" size={20} color={colors.textSecondary} style={styles.inputIcon} />
               <TextInput
-                style={styles.input}
-                placeholder="Confirmer le mot de passe"
+                style={[styles.input, { textAlign: isRTL ? 'right' : 'left' }]}
+                placeholder={t('auth.confirm_password_placeholder')}
                 placeholderTextColor={colors.textSecondary}
                 secureTextEntry={!showPassword}
                 value={confirmPassword}
@@ -155,7 +157,7 @@ export default function ResetPasswordScreen({ navigation }: any) {
                 <ActivityIndicator color={colors.ink} />
               ) : (
                 <>
-                  <Text style={styles.submitButtonText}>Enregistrer</Text>
+                  <Text style={styles.submitButtonText}>{t('common.save')}</Text>
                   <Ionicons name="checkmark" size={20} color={colors.ink} style={{ marginLeft: spacing.sm }} />
                 </>
               )}

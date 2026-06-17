@@ -23,6 +23,7 @@ import { useAuthStore } from '../../store/authStore';
 import { colors, spacing, radius, shadows, typography } from '../../theme';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { formatDZD } from '@barberdz/shared/utils/formatters';
+import { useTranslations } from '../../hooks/useTranslations';
 
 interface ClientItem {
   id: string; // client_id or parsed phone
@@ -45,6 +46,7 @@ interface ClientItem {
 
 export function ClientsScreen() {
   const user = useAuthStore((s) => s.user);
+  const { t } = useTranslations();
   const [search, setSearch] = useState('');
   const [selectedClient, setSelectedClient] = useState<ClientItem | null>(null);
   const [activeFilter, setActiveFilter] = useState<'total' | 'registered' | 'walkIns'>('total');
@@ -229,8 +231,8 @@ export function ClientsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.headerBar}>
-        <Text style={styles.headerTitle}>Gestion Clients</Text>
-        <Text style={styles.headerSubtitle}>{salon?.name}</Text>
+        <Text style={styles.headerTitle}>{t('barber.clients')}</Text>
+        <Text style={styles.headerSubtitle}>{salon?.name as string}</Text>
       </View>
 
       {/* Stats Summary Panel */}
@@ -300,7 +302,7 @@ export function ClientsScreen() {
       ) : (
         <View style={styles.emptyContainer}>
           <Ionicons name="people-outline" size={64} color={colors.textMuted} />
-          <Text style={styles.emptyText}>Aucun client trouvé</Text>
+          <Text style={styles.emptyText}>{t('barber.no_reservations')}</Text>
           <Text style={styles.emptySubtext}>
             {search ? 'Essayez une autre recherche' : 'Les clients s\'afficheront ici après leur premier rendez-vous'}
           </Text>
@@ -389,7 +391,7 @@ export function ClientsScreen() {
                             appt.status === 'Confirmed' && styles.statusConfirmedText,
                             appt.status === 'Cancelled' && styles.statusCancelledText,
                           ]}>
-                            {appt.status}
+                            {appt.status === 'Completed' ? t('status.completed') : appt.status === 'Confirmed' ? t('status.confirmed') : appt.status === 'Cancelled' ? t('status.cancelled') : appt.status === 'Pending' ? t('status.pending') : appt.status}
                           </Text>
                         </View>
                       </View>

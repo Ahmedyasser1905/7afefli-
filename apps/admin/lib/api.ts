@@ -4,11 +4,7 @@
 // which resolves to a 404 because the NestJS app is prefixed with /api/v1.
 
 const BASE = (): string => {
-  const raw = process.env.NEXT_PUBLIC_API_URL ?? '';
-  // Support two env var styles:
-  //   NEXT_PUBLIC_API_URL=https://api.7afefli.com        (no prefix — we add it)
-  //   NEXT_PUBLIC_API_URL=https://api.7afefli.com/api/v1 (already has prefix — no-op)
-  return raw.endsWith('/api/v1') ? raw : `${raw}/api/v1`;
+  return '/api';
 };
 
 /**

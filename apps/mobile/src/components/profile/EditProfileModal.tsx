@@ -42,9 +42,10 @@ export function EditProfileModal({ visible, onClose, profileData, onSaved }: Edi
 
   useEffect(() => {
     if (profileData) {
-      setFullName(profileData.full_name || '');
-      setPhone(profileData.phone_number || '');
-      setAvatarUrl(profileData.avatar_url || null);
+      const p = profileData as any;
+      setFullName(p.full_name || '');
+      setPhone(p.phone_number || '');
+      setAvatarUrl(p.avatar_url || null);
     }
   }, [profileData, visible]);
 
@@ -163,7 +164,7 @@ export function EditProfileModal({ visible, onClose, profileData, onSaved }: Edi
                   <ActivityIndicator color={colors.amber} />
                 </View>
               ) : displayAvatar ? (
-                <Image source={{ uri: displayAvatar }} style={styles.avatar} />
+                <Image source={{ uri: displayAvatar as string }} style={styles.avatar} />
               ) : (
                 <View style={styles.avatarPlaceholder}>
                   <Ionicons name="person" size={40} color={colors.amber} />

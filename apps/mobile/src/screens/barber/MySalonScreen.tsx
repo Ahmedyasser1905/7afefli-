@@ -28,11 +28,13 @@ import { formatDZD } from '@barberdz/shared/utils/formatters';
 import { decode } from 'base64-arraybuffer';
 import { apiClient } from '../../lib/apiClient';
 import { supabase } from '../../lib/supabase';
+import { useTranslations } from '../../hooks/useTranslations';
 
 export function MySalonScreen() {
   const user = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
   const navigation = useNavigation<NativeStackNavigationProp<Record<string, object | undefined>>>();
+  const { t } = useTranslations();
   const [activeTab, setActiveTab] = useState<'services' | 'portfolio' | 'reviews' | 'staff'>('services');
   const [isServiceModalVisible, setIsServiceModalVisible] = useState(false);
   const [isStaffModalVisible, setIsStaffModalVisible] = useState(false);
@@ -102,7 +104,7 @@ export function MySalonScreen() {
           } catch (err: unknown) {
             Toast.show({
         type: 'error',
-        text1: 'Erreur',
+        text1: t('common.error'),
         text2: (err as Error).message || 'Impossible de retirer ce barbier'
       });
           }
@@ -160,7 +162,7 @@ export function MySalonScreen() {
 
       Toast.show({
         type: 'success',
-        text1: 'Succès',
+        text1: t('common.success'),
         text2: 'Photo ajoutée au portfolio'
       });
       refetchPortfolio();
@@ -174,7 +176,7 @@ export function MySalonScreen() {
       } else {
         Toast.show({
           type: 'error',
-          text1: 'Erreur',
+          text1: t('common.error'),
           text2: msg
         });
       }
@@ -198,7 +200,7 @@ export function MySalonScreen() {
           } catch (err: unknown) {
             Toast.show({
         type: 'error',
-        text1: 'Erreur',
+        text1: t('common.error'),
         text2: (err as Error).message || 'Impossible de supprimer'
       });
           }
@@ -256,7 +258,7 @@ export function MySalonScreen() {
     } catch (err: unknown) {
       Toast.show({
         type: 'error',
-        text1: 'Erreur',
+        text1: t('common.error'),
         text2: (err as Error).message || 'Erreur upload avatar'
       });
     } finally {
@@ -277,7 +279,7 @@ export function MySalonScreen() {
           } catch (err: unknown) {
             Toast.show({
         type: 'error',
-        text1: 'Erreur',
+        text1: t('common.error'),
         text2: (err as Error).message || 'Impossible de supprimer'
       });
           }
@@ -507,7 +509,7 @@ export function MySalonScreen() {
                             } catch (err: unknown) {
                               Toast.show({
         type: 'error',
-        text1: 'Erreur',
+        text1: t('common.error'),
         text2: (err as Error).message || 'Erreur lors de l\'envoi'
       });
                             }
