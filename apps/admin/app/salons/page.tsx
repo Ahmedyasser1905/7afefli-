@@ -1,4 +1,5 @@
 'use client';
+export const dynamic = 'force-dynamic';
 // apps/admin/app/salons/page.tsx
 // Super Admin — Salon Approvals Data Table
 

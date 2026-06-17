@@ -1,4 +1,5 @@
 'use client';
+export const dynamic = 'force-dynamic';
 // apps/admin/app/analytics/page.tsx
 // Super Admin — Platform analytics dashboard
 

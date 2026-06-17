@@ -1,4 +1,5 @@
 'use client';
+export const dynamic = 'force-dynamic';
 // apps/admin/app/reviews/page.tsx
 // Super Admin — Reviews moderation page
 

@@ -1,4 +1,5 @@
 'use client';
+export const dynamic = 'force-dynamic';
 // apps/admin/app/plans/page.tsx
 // Super Admin — Subscription Plans management
 
