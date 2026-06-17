@@ -1,10 +1,9 @@
-import Link from 'next/link';
+'use client';
 // apps/admin/app/plans/page.tsx
 // Super Admin — Subscription Plans management
 
-'use client';
-
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { supabase } from '../../lib/supabase';
 import { apiFetch } from '../../lib/api';
 

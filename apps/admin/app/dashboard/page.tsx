@@ -1,8 +1,8 @@
-import Link from 'next/link';
-// apps/admin/app/dashboard/page.tsx
 'use client';
+// apps/admin/app/dashboard/page.tsx
 
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { supabase } from '../../lib/supabase';
 import { apiFetch } from '../../lib/api';  // fix C5: centralised fetch adds /api/v1 prefix
 
