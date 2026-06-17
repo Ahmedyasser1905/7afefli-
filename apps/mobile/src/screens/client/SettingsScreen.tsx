@@ -1,6 +1,6 @@
 import Toast from 'react-native-toast-message';
 // apps/mobile/src/screens/client/SettingsScreen.tsx
-// Premium Settings & Profile management screen
+// Settings & Profile management — now with dynamic FR/AR language switching
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -15,6 +15,7 @@ import {
   Modal,
   FlatList,
   TextInput,
+  I18nManager,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -26,20 +27,31 @@ import Ionicons from "@react-native-vector-icons/ionicons";
 import { EditProfileModal } from '../../components/profile/EditProfileModal';
 import * as SecureStore from 'expo-secure-store';
 import { useThemeStore } from '../../store/themeStore';
+import { useLanguageStore, type AppLocale } from '../../store/languageStore';
+import { useTranslations } from '../../hooks/useTranslations';
 import { WILAYAS } from '@barberdz/shared/constants/wilayas';
 
 const DEFAULT_AVATAR = 'https://phfwutugsyiutqgippqg.supabase.co/storage/v1/object/public/portfolio/defaults/default-avatar.png';
+
+const LANGUAGE_OPTIONS: { locale: AppLocale; label: string; nativeLabel: string; flag: string }[] = [
+  { locale: 'fr', label: 'Français', nativeLabel: 'Français', flag: '🇫🇷' },
+  { locale: 'ar', label: 'Arabic', nativeLabel: 'العربية', flag: '🇩🇿' },
+];
 
 export function SettingsScreen() {
   const { user, role, clearAuth } = useAuthStore();
   const navigation = (useNavigation as () => { navigate: (s: string) => void })();
   const { isDark, toggleTheme } = useThemeStore();
+  const { locale, setLocale } = useLanguageStore();
+  const { t, isRTL } = useTranslations();
+
   const [pushEnabled, setPushEnabled] = useState(true);
   const [selectedWilaya, setSelectedWilaya] = useState('Alger');
   const [profileData, setProfileData] = useState<Record<string, unknown> | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isEditProfileVisible, setIsEditProfileVisible] = useState(false);
   const [isWilayaModalVisible, setIsWilayaModalVisible] = useState(false);
+  const [isLanguageModalVisible, setIsLanguageModalVisible] = useState(false);
   const [wilayaSearch, setWilayaSearch] = useState('');
 
   // DRY-1 fix: replaced inline 58-item array with shared constant
@@ -83,12 +95,12 @@ export function SettingsScreen() {
 
   const handleLogout = () => {
     Alert.alert(
-      'Déconnexion',
-      'Êtes-vous sûr de vouloir vous déconnecter de votre compte ?',
+      t('auth.logout_title'),
+      t('auth.logout_message'),
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: t('auth.cancel'), style: 'cancel' },
         {
-          text: 'Déconnexion',
+          text: t('auth.logout_confirm'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -106,12 +118,12 @@ export function SettingsScreen() {
 
   const handleDeleteAccount = () => {
     Alert.alert(
-      'Supprimer le compte',
-      'Cette action est irréversible. Toutes vos données, rendez-vous et historiques seront supprimés définitivement. Voulez-vous continuer ?',
+      t('auth.delete_title'),
+      t('auth.delete_message'),
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: t('auth.cancel'), style: 'cancel' },
         {
-          text: 'Supprimer définitivement',
+          text: t('auth.delete_confirm'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -120,7 +132,7 @@ export function SettingsScreen() {
             } catch (error: unknown) {
               Toast.show({
                 type: 'error',
-                text1: 'Erreur',
+                text1: t('common.error'),
                 text2: (error as Error).message || 'Impossible de supprimer le compte.'
               });
             }
@@ -138,7 +150,6 @@ export function SettingsScreen() {
     if (user) {
       setIsUpdating(true);
       try {
-        // Update wilaya via API — not direct Supabase write
         await apiClient.patch('/auth/profiles/me', { wilaya: wilayaName });
       } catch {
         // Non-critical — setting will update on next profile load
@@ -148,29 +159,40 @@ export function SettingsScreen() {
     }
   };
 
+  const handleLanguageSelect = (newLocale: AppLocale) => {
+    setLocale(newLocale);
+    setIsLanguageModalVisible(false);
+  };
+
   const displayName = profileData?.full_name || user?.user_metadata?.full_name || 'Utilisateur';
   const displayPhone = profileData?.phone_number || user?.phone || user?.email || 'Non renseigné';
-  const points = profileData?.loyalty_points ?? 0; // Show actual points from database
+  const points = profileData?.loyalty_points ?? 0;
+
+  const currentLanguageOption = LANGUAGE_OPTIONS.find((opt) => opt.locale === locale);
 
   return (
     <SafeAreaView style={styles.container}>
       {/* Top Header */}
-      <View style={styles.headerBar}>
+      <View style={[styles.headerBar, isRTL && styles.rowReverse]}>
         <Text style={styles.headerLogo}>7afefli</Text>
-        <Text style={styles.headerTitle}>Paramètres</Text>
+        <Text style={styles.headerTitle}>{t('settings.title')}</Text>
         <View style={{ width: 32 }} />
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* User Card — Tappable to edit */}
-        <TouchableOpacity style={styles.profileCard} onPress={() => setIsEditProfileVisible(true)} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={[styles.profileCard, isRTL && styles.rowReverse]}
+          onPress={() => setIsEditProfileVisible(true)}
+          activeOpacity={0.8}
+        >
           <Image source={{ uri: (profileData?.avatar_url as string) || DEFAULT_AVATAR }} style={styles.avatar} />
           <View style={styles.profileMeta}>
-            <Text style={styles.userName}>{displayName as string}</Text>
-            <Text style={styles.userPhone}>{displayPhone as string}</Text>
+            <Text style={[styles.userName, isRTL && styles.textRight]}>{displayName as string}</Text>
+            <Text style={[styles.userPhone, isRTL && styles.textRight]}>{displayPhone as string}</Text>
             <View style={styles.roleBadge}>
               <Text style={styles.roleBadgeText}>
-                {role === 'Coiffeur' ? 'Coiffeur Professionnel' : 'Client Premium'}
+                {role === 'Coiffeur' ? t('settings.role_barber') : t('settings.role_client')}
               </Text>
             </View>
           </View>
@@ -180,25 +202,24 @@ export function SettingsScreen() {
         {/* Loyalty Points Row — client only */}
         {role === 'Client' && (
           <>
-            <Text style={styles.sectionHeaderTitle}>Programme Fidélité</Text>
+            <Text style={[styles.sectionHeaderTitle, isRTL && styles.textRight]}>{t('settings.loyalty_section')}</Text>
             <View style={styles.settingsGroup}>
               <TouchableOpacity
-                style={styles.settingsRow}
+                style={[styles.settingsRow, isRTL && styles.rowReverse]}
                 onPress={() => navigation.navigate('LoyaltyPoints' as never)}
                 activeOpacity={0.8}
               >
-                <View style={styles.rowLeftCol}>
+                <View style={[styles.rowLeftCol, isRTL && styles.rowReverse]}>
                   <Ionicons name="trophy-outline" size={20} color={colors.amber} />
                   <View>
-                    <Text style={styles.rowLabel}>Points fidélité</Text>
+                    <Text style={[styles.rowLabel, isRTL && styles.textRight]}>{t('settings.loyalty_points')}</Text>
                     <Text style={{ fontFamily: 'DMSans_700Bold', fontSize: 18, color: colors.amber }}>
                       🏆 {points as number} pts
                     </Text>
                   </View>
                 </View>
-                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={16} color={colors.textMuted} />
               </TouchableOpacity>
-
             </View>
           </>
         )}
@@ -206,30 +227,51 @@ export function SettingsScreen() {
         {/* Wilaya Picker — Client only */}
         {role === 'Client' && (
           <>
-            <Text style={styles.sectionHeaderTitle}>Préférences de recherche</Text>
+            <Text style={[styles.sectionHeaderTitle, isRTL && styles.textRight]}>{t('settings.search_prefs')}</Text>
             <View style={styles.settingsGroup}>
-              <TouchableOpacity style={styles.settingsRow} onPress={() => setIsWilayaModalVisible(true)} disabled={isUpdating}>
-                <View style={styles.rowLeftCol}>
+              <TouchableOpacity
+                style={[styles.settingsRow, isRTL && styles.rowReverse]}
+                onPress={() => setIsWilayaModalVisible(true)}
+                disabled={isUpdating}
+              >
+                <View style={[styles.rowLeftCol, isRTL && styles.rowReverse]}>
                   <Ionicons name="location-outline" size={20} color={colors.amber} />
-                  <Text style={styles.rowLabel}>Wilaya de recherche</Text>
+                  <Text style={[styles.rowLabel, isRTL && styles.textRight]}>{t('settings.wilaya')}</Text>
                 </View>
-                <View style={styles.rowRightCol}>
+                <View style={[styles.rowRightCol, isRTL && styles.rowReverse]}>
                   <Text style={styles.rowValue}>{selectedWilaya}</Text>
-                  <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                  <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={16} color={colors.textMuted} />
                 </View>
               </TouchableOpacity>
             </View>
           </>
         )}
 
-        {/* Settings Group 2: App switches */}
-        <Text style={styles.sectionHeaderTitle}>Réglages Système</Text>
+        {/* Settings Group: App switches */}
+        <Text style={[styles.sectionHeaderTitle, isRTL && styles.textRight]}>{t('settings.system')}</Text>
         <View style={styles.settingsGroup}>
+          {/* Language Picker */}
+          <TouchableOpacity
+            style={[styles.settingsRow, isRTL && styles.rowReverse]}
+            onPress={() => setIsLanguageModalVisible(true)}
+          >
+            <View style={[styles.rowLeftCol, isRTL && styles.rowReverse]}>
+              <Ionicons name="language-outline" size={20} color={colors.amber} />
+              <Text style={[styles.rowLabel, isRTL && styles.textRight]}>{t('settings.language')}</Text>
+            </View>
+            <View style={[styles.rowRightCol, isRTL && styles.rowReverse]}>
+              <Text style={styles.rowValue}>
+                {currentLanguageOption?.flag} {currentLanguageOption?.nativeLabel}
+              </Text>
+              <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={16} color={colors.textMuted} />
+            </View>
+          </TouchableOpacity>
+
           {/* Push notification */}
-          <View style={styles.settingsRow}>
-            <View style={styles.rowLeftCol}>
+          <View style={[styles.settingsRow, isRTL && styles.rowReverse]}>
+            <View style={[styles.rowLeftCol, isRTL && styles.rowReverse]}>
               <Ionicons name="notifications-outline" size={20} color={colors.amber} />
-              <Text style={styles.rowLabel}>Notifications de rappel</Text>
+              <Text style={[styles.rowLabel, isRTL && styles.textRight]}>{t('settings.notifications')}</Text>
             </View>
             <Switch
               value={pushEnabled}
@@ -238,10 +280,8 @@ export function SettingsScreen() {
                 try {
                   await SecureStore.setItemAsync('push_enabled', value.toString());
                   if (!value) {
-                    // Clear push token from backend so notifications stop being sent
                     await apiClient.delete('/notifications/push-token');
                   } else {
-                    // Re-register push notifications
                     if (user?.id) {
                       const { registerForPushNotifications } = await import('../../lib/notifications');
                       await registerForPushNotifications(user.id);
@@ -257,13 +297,13 @@ export function SettingsScreen() {
           </View>
 
           {/* Dark Mode */}
-          <View style={styles.settingsRow}>
-            <View style={styles.rowLeftCol}>
+          <View style={[styles.settingsRow, isRTL && styles.rowReverse]}>
+            <View style={[styles.rowLeftCol, isRTL && styles.rowReverse]}>
               <Ionicons name="moon-outline" size={20} color={colors.amber} />
               <View>
-                <Text style={styles.rowLabel}>Thème sombre industriel</Text>
-                <Text style={{ fontFamily: 'DMSans_400Regular', fontSize: 11, color: colors.textMuted }}>
-                  {isDark ? 'Mode sombre actif' : 'Mode clair actif'}
+                <Text style={[styles.rowLabel, isRTL && styles.textRight]}>{t('settings.dark_mode')}</Text>
+                <Text style={{ fontFamily: 'DMSans_400Regular', fontSize: 11, color: colors.textMuted, textAlign: isRTL ? 'right' : 'left' }}>
+                  {isDark ? t('settings.dark_active') : t('settings.light_active')}
                 </Text>
               </View>
             </View>
@@ -276,29 +316,41 @@ export function SettingsScreen() {
           </View>
         </View>
 
-        {/* Settings Group 3: Help / About */}
-        <Text style={styles.sectionHeaderTitle}>À propos</Text>
+        {/* Settings Group: Help / About */}
+        <Text style={[styles.sectionHeaderTitle, isRTL && styles.textRight]}>{t('settings.about')}</Text>
         <View style={styles.settingsGroup}>
-          <TouchableOpacity style={styles.settingsRow} onPress={() => Alert.alert('Politique de confidentialité', '7afefli respecte votre vie privée. Vos données personnelles sont stockées de manière sécurisée sur des serveurs européens (Supabase) et ne sont jamais partagées avec des tiers sans votre consentement.\n\nDonnées collectées :\n• Nom, téléphone, e-mail\n• Localisation (pour trouver des salons proches)\n• Historique de réservations\n\nVous pouvez demander la suppression de vos données à tout moment depuis les paramètres.\n\nContact : contact@7afefli.com')}>
-            <View style={styles.rowLeftCol}>
+          <TouchableOpacity
+            style={[styles.settingsRow, isRTL && styles.rowReverse]}
+            onPress={() => Alert.alert(
+              t('settings.privacy'),
+              '7afefli respecte votre vie privée. Vos données personnelles sont stockées de manière sécurisée sur des serveurs européens (Supabase) et ne sont jamais partagées avec des tiers sans votre consentement.\n\nDonnées collectées :\n• Nom, téléphone, e-mail\n• Localisation (pour trouver des salons proches)\n• Historique de réservations\n\nVous pouvez demander la suppression de vos données à tout moment depuis les paramètres.\n\nContact : contact@7afefli.com'
+            )}
+          >
+            <View style={[styles.rowLeftCol, isRTL && styles.rowReverse]}>
               <Ionicons name="shield-checkmark-outline" size={20} color={colors.textSecondary} />
-              <Text style={styles.rowLabel}>Politique de confidentialité</Text>
+              <Text style={[styles.rowLabel, isRTL && styles.textRight]}>{t('settings.privacy')}</Text>
             </View>
-            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+            <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={16} color={colors.textMuted} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.settingsRow} onPress={() => Alert.alert('Conditions d\'utilisation', 'En utilisant 7afefli, vous acceptez les conditions suivantes :\n\n1. L\'application est destinée à la réservation de services de coiffure en Algérie.\n2. Les utilisateurs doivent fournir des informations exactes.\n3. Les annulations doivent être effectuées au moins 2 heures avant le rendez-vous.\n4. 7afefli n\'est pas responsable des litiges entre clients et salons.\n5. Tout comportement abusif pourra entraîner la suspension du compte.\n\nContact : contact@7afefli.com')}>
-            <View style={styles.rowLeftCol}>
+          <TouchableOpacity
+            style={[styles.settingsRow, isRTL && styles.rowReverse]}
+            onPress={() => Alert.alert(
+              t('settings.terms'),
+              "En utilisant 7afefli, vous acceptez les conditions suivantes :\n\n1. L'application est destinée à la réservation de services de coiffure en Algérie.\n2. Les utilisateurs doivent fournir des informations exactes.\n3. Les annulations doivent être effectuées au moins 2 heures avant le rendez-vous.\n4. 7afefli n'est pas responsable des litiges entre clients et salons.\n5. Tout comportement abusif pourra entraîner la suspension du compte.\n\nContact : contact@7afefli.com"
+            )}
+          >
+            <View style={[styles.rowLeftCol, isRTL && styles.rowReverse]}>
               <Ionicons name="document-text-outline" size={20} color={colors.textSecondary} />
-              <Text style={styles.rowLabel}>Conditions d'utilisation</Text>
+              <Text style={[styles.rowLabel, isRTL && styles.textRight]}>{t('settings.terms')}</Text>
             </View>
-            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+            <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={16} color={colors.textMuted} />
           </TouchableOpacity>
 
-          <View style={styles.settingsRow}>
-            <View style={styles.rowLeftCol}>
+          <View style={[styles.settingsRow, isRTL && styles.rowReverse]}>
+            <View style={[styles.rowLeftCol, isRTL && styles.rowReverse]}>
               <Ionicons name="information-circle-outline" size={20} color={colors.textSecondary} />
-              <Text style={styles.rowLabel}>Version de l'application</Text>
+              <Text style={[styles.rowLabel, isRTL && styles.textRight]}>{t('settings.version')}</Text>
             </View>
             <Text style={styles.versionText}>v1.0.2</Text>
           </View>
@@ -307,13 +359,17 @@ export function SettingsScreen() {
         {/* Logout Button */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.8}>
           <Ionicons name="log-out-outline" size={20} color={colors.amber} />
-          <Text style={[styles.logoutText, { color: colors.amber }]}>Se déconnecter</Text>
+          <Text style={[styles.logoutText, { color: colors.amber }]}>{t('settings.logout')}</Text>
         </TouchableOpacity>
 
         {/* Delete Account Button */}
-        <TouchableOpacity style={[styles.logoutButton, { marginTop: spacing.md, borderColor: 'rgba(239, 68, 68, 0.3)' }]} onPress={handleDeleteAccount} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={[styles.logoutButton, { marginTop: spacing.md, borderColor: 'rgba(239, 68, 68, 0.3)' }]}
+          onPress={handleDeleteAccount}
+          activeOpacity={0.8}
+        >
           <Ionicons name="trash-outline" size={20} color={colors.error} />
-          <Text style={styles.logoutText}>Supprimer le compte</Text>
+          <Text style={styles.logoutText}>{t('settings.delete_account')}</Text>
         </TouchableOpacity>
 
         {/* Branding Footer */}
@@ -332,38 +388,100 @@ export function SettingsScreen() {
       />
 
       {/* Wilaya Selection Modal */}
-      <Modal visible={isWilayaModalVisible} animationType="slide" transparent onRequestClose={() => setIsWilayaModalVisible(false)}>
+      <Modal
+        visible={isWilayaModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setIsWilayaModalVisible(false)}
+      >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
+            <View style={[styles.modalHeader, isRTL && styles.rowReverse]}>
               <TouchableOpacity onPress={() => setIsWilayaModalVisible(false)} activeOpacity={0.7}>
                 <Ionicons name="close" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
               <Text style={styles.modalTitle}>Choisir la Wilaya</Text>
               <View style={{ width: 24 }} />
             </View>
-            <View style={styles.searchContainer}>
+            <View style={[styles.searchContainer, isRTL && styles.rowReverse]}>
               <Ionicons name="search" size={18} color={colors.textSecondary} />
               <TextInput
-                style={styles.searchInput}
+                style={[styles.searchInput, isRTL && styles.textRight]}
                 placeholder="Rechercher une wilaya..."
                 placeholderTextColor={colors.textMuted}
                 value={wilayaSearch}
                 onChangeText={setWilayaSearch}
+                textAlign={isRTL ? 'right' : 'left'}
               />
             </View>
             <FlatList
               data={filteredWilayas}
               keyExtractor={(item) => item}
               renderItem={({ item }) => (
-                <TouchableOpacity style={styles.wilayaItem} onPress={() => selectWilaya(item)}>
-                  <Text style={styles.wilayaText}>{item}</Text>
-                  <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                <TouchableOpacity
+                  style={[styles.wilayaItem, isRTL && styles.rowReverse]}
+                  onPress={() => selectWilaya(item)}
+                >
+                  <Text style={[styles.wilayaText, isRTL && styles.textRight]}>{item}</Text>
+                  <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={16} color={colors.textMuted} />
                 </TouchableOpacity>
               )}
               contentContainerStyle={{ paddingBottom: 40 }}
               showsVerticalScrollIndicator={false}
             />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Language Selection Modal */}
+      <Modal
+        visible={isLanguageModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setIsLanguageModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContainer, { height: 'auto' }]}>
+            <View style={[styles.modalHeader, isRTL && styles.rowReverse]}>
+              <TouchableOpacity onPress={() => setIsLanguageModalVisible(false)} activeOpacity={0.7}>
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+              <Text style={styles.modalTitle}>{t('settings.language_select')}</Text>
+              <View style={{ width: 24 }} />
+            </View>
+
+            {LANGUAGE_OPTIONS.map((option) => {
+              const isActive = locale === option.locale;
+              return (
+                <TouchableOpacity
+                  key={option.locale}
+                  style={[
+                    styles.languageItem,
+                    isActive && styles.languageItemActive,
+                    isRTL && styles.rowReverse,
+                  ]}
+                  onPress={() => handleLanguageSelect(option.locale)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.languageLeft, isRTL && styles.rowReverse]}>
+                    <Text style={styles.languageFlag}>{option.flag}</Text>
+                    <View>
+                      <Text style={[styles.languageNative, isRTL && styles.textRight]}>
+                        {option.nativeLabel}
+                      </Text>
+                      <Text style={[styles.languageSub, isRTL && styles.textRight]}>
+                        {option.label}
+                      </Text>
+                    </View>
+                  </View>
+                  {isActive && (
+                    <Ionicons name="checkmark-circle" size={22} color={colors.amber} />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+
+            <View style={{ height: 32 }} />
           </View>
         </View>
       </Modal>
@@ -384,6 +502,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  rowReverse: {
+    flexDirection: 'row-reverse',
+  },
+  textRight: {
+    textAlign: 'right',
   },
   headerLogo: {
     fontFamily: 'Syne_700Bold',
@@ -585,5 +709,37 @@ const styles = StyleSheet.create({
     fontFamily: 'DMSans_500Medium',
     fontSize: 15,
     color: colors.textPrimary,
+  },
+  // Language modal styles
+  languageItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.04)',
+  },
+  languageItemActive: {
+    backgroundColor: 'rgba(232, 160, 32, 0.06)',
+  },
+  languageLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  languageFlag: {
+    fontSize: 28,
+  },
+  languageNative: {
+    fontFamily: 'DMSans_700Bold',
+    fontSize: 16,
+    color: colors.textPrimary,
+  },
+  languageSub: {
+    fontFamily: 'DMSans_400Regular',
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 2,
   },
 });

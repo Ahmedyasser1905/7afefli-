@@ -18,6 +18,7 @@ import { useAuthStore } from '../store/authStore';
 import { SalonSetupScreen } from '../screens/barber/SalonSetupScreen';
 import { MySalonScreen } from '../screens/barber/MySalonScreen';
 import { SubscriptionScreen } from '../screens/barber/SubscriptionScreen';
+import { useTranslations } from '../hooks/useTranslations';
 
 const Tab = createBottomTabNavigator();
 
@@ -68,6 +69,7 @@ const notifStyles = StyleSheet.create({
 
 export function BarberTabNavigator() {
   const user = useAuthStore((s) => s.user);
+  const { t } = useTranslations();
 
   const { data: salon, isLoading, refetch } = useQuery({
     queryKey: ['my-salon', user?.id],
@@ -92,8 +94,6 @@ export function BarberTabNavigator() {
     );
   }
 
-  // FIX-7: portfolio_photos is NOT required by the backend's ReservationsService.create().
-  // Removed that condition to eliminate false 'incomplete' warnings for barbers.
   const isComplete = !!(
     salon &&
     salon.name &&
@@ -156,33 +156,33 @@ export function BarberTabNavigator() {
       <Tab.Screen
         name="Dashboard"
         component={DashboardScreen}
-        options={{ tabBarLabel: 'Accueil' }}
+        options={{ tabBarLabel: t('nav.home') }}
       />
       <Tab.Screen
         name="Calendar"
         component={CalendarScreen}
-        options={{ tabBarLabel: 'Calendrier' }}
+        options={{ tabBarLabel: t('barber.calendar', 'Calendrier') }}
       />
       <Tab.Screen
         name="Clients"
         component={ClientsScreen}
-        options={{ tabBarLabel: 'Clients' }}
+        options={{ tabBarLabel: t('barber.clients', 'Clients') }}
       />
       <Tab.Screen
         name="Mon Salon"
         component={MySalonScreen}
-        options={{ tabBarLabel: 'Mon Salon' }}
+        options={{ tabBarLabel: t('barber.my_salon', 'Mon Salon') }}
       />
       <Tab.Screen
         name="Subscription"
         component={SubscriptionScreen}
-        options={{ tabBarLabel: 'Abonnement' }}
+        options={{ tabBarLabel: t('barber.subscription', 'Abonnement') }}
       />
       <Tab.Screen
         name="Notifications"
         component={NotificationsScreen}
         options={{
-          tabBarLabel: 'Alertes',
+          tabBarLabel: t('nav.notifications'),
           tabBarIcon: ({ focused, color }) => (
             <NotificationTabIcon focused={focused} color={color} />
           ),
@@ -191,9 +191,8 @@ export function BarberTabNavigator() {
       <Tab.Screen
         name="Settings"
         component={SettingsScreen}
-        options={{ tabBarLabel: 'Paramètres' }}
+        options={{ tabBarLabel: t('nav.settings') }}
       />
     </Tab.Navigator>
   );
 }
-

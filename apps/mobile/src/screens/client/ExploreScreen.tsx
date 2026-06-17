@@ -25,14 +25,9 @@ import type { Salon } from '@barberdz/shared/types';
 import { WILAYAS_WITH_ALL } from '@barberdz/shared/constants/wilayas';
 import { useMapPreferences } from '../../store/mapPreferencesStore';
 import { getDistanceKm } from '@barberdz/shared/utils/formatters';
+import { useTranslations } from '../../hooks/useTranslations';
 
 const WILAYAS = WILAYAS_WITH_ALL;
-
-const SORT_OPTIONS = [
-  { id: 'rating', label: '⭐ Avis' },
-  { id: 'distance', label: '📍 Distance' },
-  { id: 'price', label: '💰 Prix' },
-];
 
 interface Coords {
   latitude: number;
@@ -46,6 +41,13 @@ export function ExploreScreen() {
     selectedSort, setSelectedSort,
     showMap, setShowMap,
   } = useMapPreferences();
+  const { t, isRTL } = useTranslations();
+
+  const SORT_OPTIONS = useMemo(() => [
+    { id: 'rating', label: t('explore.sort_rating') },
+    { id: 'distance', label: t('explore.sort_distance') },
+    { id: 'price', label: t('explore.sort_price') },
+  ], [t]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -219,7 +221,7 @@ export function ExploreScreen() {
             />
             <TextInput
               style={styles.searchInput}
-              placeholder="Rechercher un salon, ville, service..."
+              placeholder={t('explore.search_placeholder')}
               placeholderTextColor={colors.textMuted}
               value={searchQuery}
               onChangeText={setSearchQuery}

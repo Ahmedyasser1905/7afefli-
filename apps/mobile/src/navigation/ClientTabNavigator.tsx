@@ -13,13 +13,13 @@ import { SettingsScreen } from '../screens/client/SettingsScreen';
 import { ExploreScreen } from '../screens/client/ExploreScreen';
 import { BookingConfirmScreen } from '../screens/client/BookingConfirmScreen';
 import { FavoritesScreen } from '../screens/client/FavoritesScreen';
-// FIX-8: Import NotificationsScreen for the new tab
 import { NotificationsScreen } from '../screens/client/NotificationsScreen';
 import { colors } from '../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../lib/apiClient';
 import { useAuthStore } from '../store/authStore';
+import { useTranslations } from '../hooks/useTranslations';
 
 // Home stack (includes salon detail and booking flow)
 const HomeStack = createNativeStackNavigator();
@@ -50,7 +50,7 @@ function ExploreStackNavigator() {
 const Tab = createBottomTabNavigator();
 
 /**
- * FIX-8: Notification tab icon with unread badge — matches BarberTabNavigator pattern.
+ * Notification tab icon with unread badge — matches BarberTabNavigator pattern.
  * Reuses ['notifications-unread-count'] query so no extra API calls are made.
  */
 function NotificationTabIcon({ focused, color }: { focused: boolean; color: string }) {
@@ -92,6 +92,8 @@ function NotificationTabIcon({ focused, color }: { focused: boolean; color: stri
 }
 
 export function ClientTabNavigator() {
+  const { t } = useTranslations();
+
   return (
     <Tab.Navigator
       screenOptions={({ route }: { route: Record<string, unknown> }) => ({
@@ -133,35 +135,33 @@ export function ClientTabNavigator() {
       <Tab.Screen
         name="Home"
         component={HomeStackNavigator}
-        options={{ tabBarLabel: 'Accueil' }}
+        options={{ tabBarLabel: t('nav.home') }}
       />
       <Tab.Screen
         name="Explore"
         component={ExploreStackNavigator}
-        options={{ tabBarLabel: 'Explorer' }}
+        options={{ tabBarLabel: t('nav.explore') }}
       />
       <Tab.Screen
         name="Favorites"
         component={FavoritesScreen}
-        options={{ tabBarLabel: 'Favoris' }}
+        options={{ tabBarLabel: t('nav.favorites') }}
       />
       <Tab.Screen
         name="Appointments"
         component={MyAppointmentsScreen}
-        options={{ tabBarLabel: 'Mes RDV' }}
+        options={{ tabBarLabel: t('nav.appointments') }}
       />
-      {/* FIX-8: Notifications tab — accessible from any tab, not just HomeScreen bell */}
       <Tab.Screen
         name="Notifications"
         component={NotificationsScreen}
-        options={{ tabBarLabel: 'Alertes' }}
+        options={{ tabBarLabel: t('nav.notifications') }}
       />
       <Tab.Screen
         name="Profile"
         component={SettingsScreen}
-        options={{ tabBarLabel: 'Paramètres' }}
+        options={{ tabBarLabel: t('nav.settings') }}
       />
     </Tab.Navigator>
   );
 }
-

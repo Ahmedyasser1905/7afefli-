@@ -20,18 +20,14 @@ import Ionicons from "@react-native-vector-icons/ionicons";
 import type { Salon } from '@barberdz/shared/types';
 import { useMapPreferences } from '../../store/mapPreferencesStore';
 import { NotificationBell } from '../../components/shared/NotificationBell';
+import { useTranslations } from '../../hooks/useTranslations';
 
 import { WILAYA_BOUNDS, getWilayaFromCoords } from '@barberdz/shared/constants/wilayas';
 import { getDistanceKm } from '@barberdz/shared/utils/formatters';
 
 
-const FILTER_OPTIONS = [
-  { id: 'nearby', label: '📍 À proximité' },
-  { id: 'top_rated', label: '⭐ 4.5+ Étoiles' },
-  { id: 'beard', label: '🧔 Barbe' },
-  { id: 'haircut', label: '✂️ Coupe' },
-  { id: 'keratin', label: '✨ Kératine' },
-];
+// Filter options are built inside the component so they react to locale changes
+const FILTER_IDS = ['nearby', 'top_rated', 'beard', 'haircut', 'keratin'] as const;
 
 interface Coords {
   latitude: number;
@@ -41,7 +37,16 @@ interface Coords {
 export function HomeScreen() {
   const navigation = useNavigation<Record<string, unknown>>();
   const { activeHomeFilters, toggleHomeFilter } = useMapPreferences();
+  const { t, isRTL } = useTranslations();
   const activeFilters = new Set(activeHomeFilters);
+
+  const FILTER_OPTIONS = useMemo(() => [
+    { id: 'nearby', label: t('home.nearby') },
+    { id: 'top_rated', label: t('home.top_rated') },
+    { id: 'beard', label: t('home.beard') },
+    { id: 'haircut', label: t('home.haircut') },
+    { id: 'keratin', label: t('home.keratin') },
+  ], [t]);
   const [location, setLocation] = useState<Coords | null>(null);
   const [userWilaya, setUserWilaya] = useState<string | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
@@ -65,7 +70,7 @@ export function HomeScreen() {
         if (!isMounted) return; // component unmounted while awaiting permission
 
         if (status !== 'granted') {
-          setLocationError('Permission de localisation refusée');
+          setLocationError(t('home.location_denied'));
           setLocation({ latitude: 36.7538, longitude: 3.0588 });
           setUserWilaya('Alger');
           return;
@@ -350,7 +355,7 @@ export function HomeScreen() {
           <Ionicons name="search" size={20} color={colors.textSecondary} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Rechercher salons, wilayas..."
+            placeholder={t('home.search_placeholder')}
             placeholderTextColor={colors.textSecondary}
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -453,7 +458,7 @@ export function HomeScreen() {
             ListEmptyComponent={
               <View style={styles.emptyState}>
                 <Ionicons name="business" size={48} color={colors.textMuted} />
-                <Text style={styles.emptyTitle}>Aucun salon trouvé</Text>
+                <Text style={styles.emptyTitle}>{t('home.no_salons')}</Text>
                 <Text style={styles.emptySubtitle}>
                   {userWilaya
                     ? `Pas encore de salon enregistré à ${userWilaya}.`

@@ -23,6 +23,7 @@ import Ionicons from "@react-native-vector-icons/ionicons";
 import { formatDZD } from '@barberdz/shared/utils/formatters';
 import { LeaveReviewModal } from '../../components/client/LeaveReviewModal';
 import { cancelAppointmentReminder } from '../../lib/notifications';
+import { useTranslations } from '../../hooks/useTranslations';
 
 // ─── Type definitions ─────────────────────────────────────────────────────────────────────────
 interface SalonInfo {
@@ -69,6 +70,7 @@ export function MyAppointmentsScreen() {
   const user = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
   const [reviewReservation, setReviewReservation] = useState<ReservationItem | null>(null);
+  const { t, isRTL } = useTranslations();
 
   // Fetch client reservations
   const { data: reservations = [], isLoading, refetch } = useQuery({
@@ -299,16 +301,15 @@ export function MyAppointmentsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       {/* Top bar */}
-      <View style={styles.headerBar}>
+      <View style={[styles.headerBar, isRTL && { flexDirection: 'row-reverse' }]}>
         <Text style={styles.headerLogo}>7afefli</Text>
-        <Text style={styles.headerPageTitle}>Mes Rendez-vous</Text>
+        <Text style={styles.headerPageTitle}>{t('appointments.title')}</Text>
         <View style={{ width: 32 }} />
       </View>
 
       <View style={styles.content}>
         <View style={styles.titleSection}>
-          <Text style={styles.pageTitle}>Mes Réservations</Text>
-          <Text style={styles.pageSubtitle}>Gérez vos rendez-vous de coiffure</Text>
+          <Text style={[styles.pageTitle, isRTL && { textAlign: 'right' }]}>{t('appointments.title')}</Text>
         </View>
 
         {/* Tab Switcher */}
@@ -319,7 +320,7 @@ export function MyAppointmentsScreen() {
             activeOpacity={0.8}
           >
             <Text style={[styles.tabText, activeTab === 'upcoming' && styles.activeTabText]}>
-              À venir
+              {t('appointments.upcoming')}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -328,7 +329,7 @@ export function MyAppointmentsScreen() {
             activeOpacity={0.8}
           >
             <Text style={[styles.tabText, activeTab === 'past' && styles.activeTabText]}>
-              Passés / Annulés
+              {t('appointments.past')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -354,7 +355,7 @@ export function MyAppointmentsScreen() {
             ListEmptyComponent={
               <View style={styles.emptyState}>
                 <Ionicons name="calendar" size={48} color={colors.textMuted} />
-                <Text style={styles.emptyTitle}>Aucun rendez-vous</Text>
+                <Text style={styles.emptyTitle}>{t('appointments.empty')}</Text>
                 <Text style={styles.emptySubtitle}>
                   Vous n'avez pas de rendez-vous dans cette section.
                 </Text>
