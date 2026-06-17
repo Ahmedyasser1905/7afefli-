@@ -17,6 +17,7 @@ import { apiClient } from '../../lib/apiClient';
 import { useAuthStore } from '../../store/authStore';
 import { colors, spacing, radius } from '../../theme';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import { useTranslations } from '../../hooks/useTranslations';
 
 interface LoyaltyTransaction {
   id: string;
@@ -33,6 +34,7 @@ interface LoyaltyData {
 export function LoyaltyPointsScreen() {
   const navigation = useNavigation();
   const { session } = useAuthStore();
+  const { t } = useTranslations();
 
   const { data, isLoading, refetch, isRefetching } = useQuery<LoyaltyData>({
     queryKey: ['loyalty-points'],
@@ -64,32 +66,32 @@ export function LoyaltyPointsScreen() {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} activeOpacity={0.7}>
           <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Points Fidélité</Text>
+        <Text style={styles.headerTitle}>{t('loyalty.title')}</Text>
         <View style={{ width: 40 }} />
       </View>
 
       {/* Points Balance Hero Card */}
       <View style={styles.balanceCard}>
         <Ionicons name="trophy" size={40} color={colors.amber} />
-        <Text style={styles.balanceLabel}>Solde actuel</Text>
+        <Text style={styles.balanceLabel}>{t('loyalty.balance')}</Text>
         <Text style={styles.balancePoints}>{total}</Text>
-        <Text style={styles.balancePts}>points</Text>
+        <Text style={styles.balancePts}>{t('loyalty.points_unit')}</Text>
         <Text style={styles.balanceHint}>
-          Gagnez 10 points pour chaque rendez-vous complété
+          {t('loyalty.earn_hint')}
         </Text>
       </View>
 
       {/* Transaction History */}
-      <Text style={styles.sectionTitle}>Historique des transactions</Text>
+      <Text style={styles.sectionTitle}>{t('loyalty.history_title')}</Text>
 
       {isLoading ? (
         <ActivityIndicator color={colors.amber} size="large" style={{ marginTop: 40 }} />
       ) : transactions.length === 0 ? (
         <View style={styles.emptyWrap}>
           <Ionicons name="receipt-outline" size={48} color={colors.textMuted} />
-          <Text style={styles.emptyTitle}>Aucune transaction</Text>
+          <Text style={styles.emptyTitle}>{t('loyalty.no_transactions')}</Text>
           <Text style={styles.emptySubtitle}>
-            Complétez vos premiers rendez-vous pour commencer à gagner des points.
+            {t('loyalty.no_transactions_hint')}
           </Text>
         </View>
       ) : (

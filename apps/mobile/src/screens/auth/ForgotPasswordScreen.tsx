@@ -16,8 +16,10 @@ import { colors, spacing, radius, shadows } from '../../theme';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
+import { useTranslations } from '../../hooks/useTranslations';
 
 export default function ForgotPasswordScreen({ navigation }: { navigation: Record<string, unknown> }) {
+  const { t, isRTL } = useTranslations();
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const setNeedsPasswordReset = useAuthStore(s => s.setNeedsPasswordReset);
@@ -26,8 +28,8 @@ export default function ForgotPasswordScreen({ navigation }: { navigation: Recor
     if (!email.trim()) {
       Toast.show({
         type: 'error',
-        text1: 'Erreur',
-        text2: 'Veuillez entrer votre adresse e-mail'
+        text1: t('common.error'),
+        text2: t('auth.enter_email')
       });
       return;
     }
@@ -49,16 +51,16 @@ export default function ForgotPasswordScreen({ navigation }: { navigation: Recor
       
       Toast.show({
         type: 'success',
-        text1: 'E-mail envoyé',
-        text2: 'Vérifiez votre boîte de réception pour le code OTP'
+        text1: t('auth.email_sent'),
+        text2: t('auth.check_inbox_otp')
       });
       
       (navigation as any).navigate('VerifyCode', { email: email.trim() });
     } catch (err: unknown) {
       Toast.show({
         type: 'error',
-        text1: 'Erreur',
-        text2: (err as any)?.message || 'Une erreur est survenue. Vérifiez votre email.'
+        text1: t('common.error'),
+        text2: (err as any)?.message || t('auth.error_check_email')
       });
     } finally {
       setIsLoading(false);
@@ -87,9 +89,9 @@ export default function ForgotPasswordScreen({ navigation }: { navigation: Recor
           </View>
 
           <View style={styles.headlineContainer}>
-            <Text style={styles.headlineTitle}>Mot de passe oublié</Text>
+            <Text style={styles.headlineTitle}>{t('auth.forgot_password_title')}</Text>
             <Text style={styles.headlineSubtitle}>
-              Entrez votre adresse e-mail et nous vous enverrons un code pour réinitialiser votre mot de passe.
+              {t('auth.forgot_password_sub')}
             </Text>
           </View>
 
@@ -97,8 +99,8 @@ export default function ForgotPasswordScreen({ navigation }: { navigation: Recor
             <View style={styles.inputFieldContainer}>
               <Ionicons name="mail-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
               <TextInput
-                style={styles.input}
-                placeholder="nom@example.com"
+                style={[styles.input, { textAlign: isRTL ? 'right' : 'left' }]}
+                placeholder={t('auth.email_placeholder')}
                 placeholderTextColor={colors.textSecondary}
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -118,7 +120,7 @@ export default function ForgotPasswordScreen({ navigation }: { navigation: Recor
                 <ActivityIndicator color={colors.ink} />
               ) : (
                 <>
-                  <Text style={styles.submitButtonText}>Recevoir le code OTP</Text>
+                  <Text style={styles.submitButtonText}>{t('auth.receive_otp')}</Text>
                   <Ionicons name="send-outline" size={18} color={colors.ink} style={{ marginLeft: spacing.sm }} />
                 </>
               )}

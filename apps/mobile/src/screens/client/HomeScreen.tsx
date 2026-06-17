@@ -35,7 +35,7 @@ interface Coords {
 }
 
 export function HomeScreen() {
-  const navigation = useNavigation<Record<string, unknown>>();
+  const navigation = useNavigation<any>();
   const { activeHomeFilters, toggleHomeFilter } = useMapPreferences();
   const { t, isRTL } = useTranslations();
   const activeFilters = new Set(activeHomeFilters);
@@ -91,7 +91,7 @@ export function HomeScreen() {
               if (!lastLocationRef.current) {
                 setLocation({ latitude: 36.7538, longitude: 3.0588 });
                 setUserWilaya('Alger');
-                setLocationError('Localisation hors Algérie, position de test (Alger) utilisée');
+                setLocationError(t('home.location_outside_algeria'));
               }
               return;
             }
@@ -118,7 +118,7 @@ export function HomeScreen() {
         );
       } catch {
         if (!isMounted) return;
-        setLocationError('Localisation indisponible');
+        setLocationError(t('home.location_unavailable'));
         setLocation({ latitude: 36.7538, longitude: 3.0588 });
         setUserWilaya('Alger');
       }
@@ -206,7 +206,7 @@ export function HomeScreen() {
       let filtered = allSalons;
 
       // Secondary safety check: ensure strictly <= 50km
-      filtered = filtered.filter(a => (a.distance_meters ?? 0) <= 50000);
+      filtered = filtered.filter((a: any) => (a.distance_meters ?? 0) <= 50000);
 
       return [...filtered].sort((a, b) => {
         // 1. Sponsored salons always appear first
@@ -226,7 +226,7 @@ export function HomeScreen() {
     if (!location) return allSalons;
 
     // Strict 50km limit if location is known
-    const withinRadius = allSalons.filter(salon => getDistanceKm(location, salon) <= 50);
+    const withinRadius = allSalons.filter((salon: any) => getDistanceKm(location, salon) <= 50);
 
     return [...withinRadius].sort((a, b) => {
       // 1. Sponsored salons always appear first
@@ -252,7 +252,7 @@ export function HomeScreen() {
 
     if (activeFilters.has('beard')) {
       result = result.filter((s) =>
-        s.services?.some((srv) => {
+        s.services?.some((srv: any) => {
           const name = srv.service_name.toLowerCase();
           return name.includes('barbe') || name.includes('beard') || name.includes('rasage');
         })
@@ -261,7 +261,7 @@ export function HomeScreen() {
 
     if (activeFilters.has('haircut')) {
       result = result.filter((s) =>
-        s.services?.some((srv) => {
+        s.services?.some((srv: any) => {
           const name = srv.service_name.toLowerCase();
           return name.includes('coupe') || name.includes('hair') || name.includes('cheveux') || name.includes('coiffure');
         })
@@ -270,7 +270,7 @@ export function HomeScreen() {
 
     if (activeFilters.has('keratin')) {
       result = result.filter((s) =>
-        s.services?.some((srv) => {
+        s.services?.some((srv: any) => {
           const name = srv.service_name.toLowerCase();
           return name.includes('kératine') || name.includes('keratin') || name.includes('lissage');
         })
@@ -340,8 +340,8 @@ export function HomeScreen() {
   );
 
   const listTitle = userWilaya
-    ? `Salons à ${userWilaya}`
-    : 'Salons à proximité';
+    ? `${t('home.salons_nearby')} (${userWilaya})`
+    : t('home.salons_nearby');
 
   return (
     <SafeAreaView style={styles.container}>
@@ -426,7 +426,7 @@ export function HomeScreen() {
           <Text style={styles.listTitle}>{listTitle}</Text>
           <View style={styles.statusBadge}>
             <Text style={styles.statusBadgeText}>
-              {isLoading ? 'Recherche...' : `${filteredSalons.length} dispos`}
+              {isLoading ? t('common.searching') : `${filteredSalons.length} ${t('home.salons_count')}`}
             </Text>
           </View>
         </View>
@@ -461,8 +461,8 @@ export function HomeScreen() {
                 <Text style={styles.emptyTitle}>{t('home.no_salons')}</Text>
                 <Text style={styles.emptySubtitle}>
                   {userWilaya
-                    ? `Pas encore de salon enregistré à ${userWilaya}.`
-                    : "Essayez d'ajuster vos filtres ou votre recherche."}
+                    ? `${t('home.no_salons')} (${userWilaya}).`
+                    : t('home.adjust_filters')}
                 </Text>
               </View>
             }

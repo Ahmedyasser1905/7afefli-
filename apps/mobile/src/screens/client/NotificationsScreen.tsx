@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../../lib/apiClient';
 import { colors, spacing, radius } from '../../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
+import { useTranslations } from '../../hooks/useTranslations';
 import { formatRelativeTime } from '@barberdz/shared/utils/formatters';
 
 import { useAuthStore } from '../../store/authStore';
@@ -14,6 +15,7 @@ export function NotificationsScreen() {
   const navigation = useNavigation();
   const queryClient = useQueryClient();
   const role = useAuthStore((s) => s.role);
+  const { t } = useTranslations();
 
   // Mark all as read when opening screen
   useEffect(() => {
@@ -79,7 +81,7 @@ export function NotificationsScreen() {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Notifications</Text>
+        <Text style={styles.headerTitle}>{t('nav.notifications')}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -90,8 +92,8 @@ export function NotificationsScreen() {
       ) : notifications.length === 0 ? (
         <View style={styles.emptyState}>
           <Ionicons name="notifications-off-outline" size={64} color={colors.textMuted} />
-          <Text style={styles.emptyTitle}>Aucune notification</Text>
-          <Text style={styles.emptySubtitle}>Vous n'avez pas de nouvelles notifications pour le moment.</Text>
+          <Text style={styles.emptyTitle}>{t('notifications.empty')}</Text>
+          <Text style={styles.emptySubtitle}>{t('notifications.empty_sub')}</Text>
         </View>
       ) : (
         <FlatList

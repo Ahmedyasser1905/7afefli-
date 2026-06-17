@@ -119,27 +119,27 @@ export function MyAppointmentsScreen() {
       cancelAppointmentReminder(reservationId);
       Toast.show({
         type: 'success',
-        text1: 'Succès',
-        text2: 'Votre rendez-vous a été annulé.'
+        text1: t('common.success'),
+        text2: t('appointments.cancelled_ok')
       });
     },
     onError: (err: Error) => {
       Toast.show({
         type: 'error',
-        text1: 'Erreur',
-        text2: err.message || 'Impossible d\'annuler le rendez-vous'
+        text1: t('common.error'),
+        text2: err.message || t('appointments.cancel_failed')
       });
     },
   });
 
   const handleCancelPress = (id: string, name: string) => {
     Alert.alert(
-      'Annuler le rendez-vous',
-      `Êtes-vous sûr de vouloir annuler votre rendez-vous chez ${name} ?`,
+      t('appointments.cancel_title'),
+      t('appointments.cancel_confirm'),
       [
-        { text: 'Retour', style: 'cancel' },
+        { text: t('common.back'), style: 'cancel' },
         {
-          text: 'Annuler le RDV',
+          text: t('appointments.cancel_action'),
           style: 'destructive',
           onPress: () => cancelMutation.mutate(id),
         },
@@ -185,10 +185,10 @@ export function MyAppointmentsScreen() {
     const isUpcoming  = activeTab === 'upcoming';
 
     const statusLabel: Record<string, string> = {
-      Pending:   'En attente',
-      Confirmed: 'Confirmé',
-      Cancelled: 'Annulé',
-      Completed: 'Terminé',
+      Pending:   t('status.pending'),
+      Confirmed: t('status.confirmed'),
+      Cancelled: t('status.cancelled'),
+      Completed: t('status.completed'),
     };
 
     // Format date: "2026-06-04" → "04 juin 2026"
@@ -246,19 +246,19 @@ export function MyAppointmentsScreen() {
           <View style={styles.detailsRow}>
             <Ionicons name="cut-outline" size={16} color={colors.textSecondary} />
             <Text style={styles.detailsServiceText}>
-              {service?.service_name || 'Coupe homme'} • {service?.duration_minutes || 30} min
+              {service?.service_name || 'Coupe homme'} • {service?.duration_minutes || 30} {t('appointments.duration_min')}
             </Text>
           </View>
 
           <View style={styles.detailsRow}>
             <Ionicons name="person-outline" size={16} color={colors.textSecondary} />
             <Text style={styles.detailsServiceText}>
-              Coiffeur : {item.salon_staff ? (item.salon_staff.custom_name || item.salon_staff.profiles?.full_name) : 'N\'importe quel coiffeur'}
+              {t('appointments.barber_label')} : {item.salon_staff ? (item.salon_staff.custom_name || item.salon_staff.profiles?.full_name) : t('booking.any_barber')}
             </Text>
           </View>
 
           <View style={styles.priceRow}>
-            <Text style={styles.priceLabel}>Prix payé :</Text>
+            <Text style={styles.priceLabel}>{t('appointments.price_paid')} :</Text>
             <Text style={styles.priceValue}>{service ? formatDZD(service.price) : '0 DZD'}</Text>
           </View>
           
@@ -280,7 +280,7 @@ export function MyAppointmentsScreen() {
               onPress={() => handleCancelPress(item.id, salon?.name || 'le salon')}
               activeOpacity={0.7}
             >
-              <Text style={styles.cancelBtnText}>Annuler</Text>
+              <Text style={styles.cancelBtnText}>{t('appointments.cancel_action')}</Text>
             </TouchableOpacity>
           )}
           {!isUpcoming && effectiveStatus === 'Completed' && (Array.isArray(item.reviews) ? item.reviews.length === 0 : !item.reviews) && (
@@ -290,7 +290,7 @@ export function MyAppointmentsScreen() {
               activeOpacity={0.7}
             >
               <Ionicons name="star" size={16} color={colors.ink} style={{ marginRight: 6 }} />
-              <Text style={styles.reviewBtnText}>Évaluer</Text>
+              <Text style={styles.reviewBtnText}>{t('appointments.rate')}</Text>
             </TouchableOpacity>
           )}
         </View>

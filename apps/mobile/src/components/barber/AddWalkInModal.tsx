@@ -68,7 +68,7 @@ export function AddWalkInModal({ visible, onClose, salonId, onSuccess }: AddWalk
   const { data: services = [] } = useQuery({
     queryKey: ['salon-services', salonId],
     queryFn: async () => {
-      const data = await apiClient.get<Record<string, unknown>[]>(`/salons/${salonId}/services`);
+      const data = await apiClient.get<any[]>(`/salons/${salonId}/services`);
       return data;
     },
     enabled: visible && !!salonId,

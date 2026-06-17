@@ -96,19 +96,19 @@ export function BarberTabNavigator() {
 
   const isComplete = !!(
     salon &&
-    salon.name &&
-    salon.address &&
-    salon.wilaya &&
-    salon.commune &&
-    salon.phone &&
-    salon.description &&
-    salon.latitude !== null && salon.latitude !== undefined &&
-    salon.longitude !== null && salon.longitude !== undefined &&
-    salon.open_time &&
-    salon.close_time &&
-    salon.image_url &&
-    salon.services && salon.services.length > 0 &&
-    salon.salon_staff && salon.salon_staff.length > 0
+    (salon as any).name &&
+    (salon as any).address &&
+    (salon as any).wilaya &&
+    (salon as any).commune &&
+    (salon as any).phone &&
+    (salon as any).description &&
+    (salon as any).latitude !== null && (salon as any).latitude !== undefined &&
+    (salon as any).longitude !== null && (salon as any).longitude !== undefined &&
+    (salon as any).open_time &&
+    (salon as any).close_time &&
+    (salon as any).image_url &&
+    (salon as any).services && (salon as any).services.length > 0 &&
+    (salon as any).salon_staff && (salon as any).salon_staff.length > 0
   );
 
   if (!salon) {
@@ -135,7 +135,7 @@ export function BarberTabNavigator() {
           marginTop: 2,
         },
         tabBarIcon: ({ focused, color }: { focused: boolean, color: string }) => {
-          let iconName: unknown = 'grid';
+          let iconName: string = 'grid';
           if (route.name === 'Dashboard') {
             iconName = focused ? 'grid' : 'grid-outline';
           } else if (route.name === 'Calendar') {
@@ -149,7 +149,7 @@ export function BarberTabNavigator() {
           } else if (route.name === 'Settings') {
             iconName = focused ? 'settings' : 'settings-outline';
           }
-          return <Ionicons name={iconName} size={22} color={color} />;
+          return <Ionicons name={iconName as any} size={22} color={color} />;
         },
       })}
     >

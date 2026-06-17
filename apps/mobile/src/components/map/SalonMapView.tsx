@@ -485,7 +485,7 @@ function initLeaflet(){
   );
 
   return (
-    <View style={[styles.container, { height }, style]}>
+    <View style={[styles.container, { height }, style as any]}>
       <WebView
         ref={webViewRef}
         originWhitelist={['*']}

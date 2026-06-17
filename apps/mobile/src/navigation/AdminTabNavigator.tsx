@@ -10,10 +10,12 @@ import { colors } from '../theme';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { NotificationBell } from '../components/shared/NotificationBell';
 import { View } from 'react-native';
+import { useTranslations } from '../hooks/useTranslations';
 
 const Tab = createBottomTabNavigator();
 
 export function AdminTabNavigator() {
+  const { t } = useTranslations();
   return (
     <Tab.Navigator
       screenOptions={({ route }: { route: Record<string, unknown> }) => ({
@@ -23,7 +25,7 @@ export function AdminTabNavigator() {
           borderBottomColor: 'rgba(255, 255, 255, 0.05)',
           borderBottomWidth: 1,
         },
-        headerTitle: 'Administration',
+        headerTitle: t('admin.title'),
         headerTitleStyle: {
           fontFamily: 'Syne_700Bold',
           fontSize: 18,
@@ -50,25 +52,25 @@ export function AdminTabNavigator() {
           marginTop: 2,
         },
         tabBarIcon: ({ focused, color }: { focused: boolean; color: string }) => {
-          let iconName: unknown = 'grid';
+          let iconName: any = 'grid';
           if (route.name === 'AdminDashboard') {
             iconName = focused ? 'shield-checkmark' : 'shield-checkmark-outline';
           } else if (route.name === 'Settings') {
             iconName = focused ? 'settings' : 'settings-outline';
           }
-          return <Ionicons name={iconName} size={22} color={color} />;
+          return <Ionicons name={iconName as any} size={22} color={color} />;
         },
       })}
     >
       <Tab.Screen
         name="AdminDashboard"
         component={AdminDashboardScreen}
-        options={{ tabBarLabel: 'Administration' }}
+        options={{ tabBarLabel: t('admin.title') }}
       />
       <Tab.Screen
         name="Settings"
         component={SettingsScreen}
-        options={{ tabBarLabel: 'Paramètres', headerShown: false }}
+        options={{ tabBarLabel: t('nav.settings'), headerShown: false }}
       />
       <Tab.Screen
         name="Notifications"

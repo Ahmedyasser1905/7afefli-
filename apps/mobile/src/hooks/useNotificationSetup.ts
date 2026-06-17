@@ -87,7 +87,7 @@ export function useNotificationSetup() {
 
           if (role === 'Coiffeur') {
             if (data.type === 'new_booking' || data.reservationId) {
-              navigationRef.navigate('BarberApp' as never, { screen: 'Calendar' } as never);
+              (navigationRef as any).navigate('BarberApp', { screen: 'Calendar' });
             } else {
               navigationRef.navigate('BarberApp' as never);
             }
@@ -99,7 +99,7 @@ export function useNotificationSetup() {
               data.type === 'booking_reminder' ||
               data.reservationId
             ) {
-              navigationRef.navigate('ClientApp' as never, { screen: 'Appointments' } as never);
+              (navigationRef as any).navigate('ClientApp', { screen: 'Appointments' });
             } else {
               navigationRef.navigate('ClientApp' as never);
             }

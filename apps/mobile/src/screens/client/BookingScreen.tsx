@@ -16,6 +16,7 @@ import { useCreateReservation } from '../../hooks/booking/useCreateReservation';
 import { scheduleAppointmentReminder } from '../../lib/notifications';
 import Ionicons from "@react-native-vector-icons/ionicons";
 import type { Service } from '@barberdz/shared/types';
+import { useTranslations } from '../../hooks/useTranslations';
 
 export function BookingScreen() {
   const route = useRoute<any>();
@@ -42,6 +43,7 @@ export function BookingScreen() {
   
   const { user } = useAuthStore();
   const [clientPhone, setClientPhone] = useState(user?.phone || user?.user_metadata?.phone || '');
+  const { t } = useTranslations();
 
   // Fetch salon details
   const { data: salon, isLoading: isSalonLoading } = useQuery<Record<string, unknown> | null>({
@@ -211,14 +213,14 @@ export function BookingScreen() {
           <TouchableOpacity style={styles.backButton} onPress={handleBackPress} activeOpacity={0.7}>
             <Ionicons name="arrow-back" size={24} color={colors.amber} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Réservation</Text>
+          <Text style={styles.headerTitle}>{t('booking.title')}</Text>
           <View style={{ width: 40 }} />
         </View>
         <View style={[styles.emptyState, { flex: 1, justifyContent: 'center' }]}>
           <Ionicons name="calendar-outline" size={64} color="#EAB308" />
-          <Text style={[styles.emptyTitle, { marginTop: spacing.md }]}>Réservation active</Text>
+          <Text style={[styles.emptyTitle, { marginTop: spacing.md }]}>{t('booking.active_reservation')}</Text>
           <Text style={[styles.emptySubtitle, { marginHorizontal: spacing.xl, textAlign: 'center' }]}>
-            Vous avez déjà une réservation confirmée en cours. Vous devez la terminer ou l'annuler avant d'en créer une nouvelle.
+            {t('booking.already_confirmed')}
           </Text>
         </View>
       </SafeAreaView>
@@ -232,14 +234,14 @@ export function BookingScreen() {
           <TouchableOpacity style={styles.backButton} onPress={handleBackPress} activeOpacity={0.7}>
             <Ionicons name="arrow-back" size={24} color={colors.amber} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Réservation</Text>
+          <Text style={styles.headerTitle}>{t('booking.title')}</Text>
           <View style={{ width: 40 }} />
         </View>
         <View style={[styles.emptyState, { flex: 1, justifyContent: 'center' }]}>
           <Ionicons name="time-outline" size={64} color="#3B82F6" />
-          <Text style={[styles.emptyTitle, { marginTop: spacing.md }]}>Demande en cours</Text>
+          <Text style={[styles.emptyTitle, { marginTop: spacing.md }]}>{t('booking.pending_request')}</Text>
           <Text style={[styles.emptySubtitle, { marginHorizontal: spacing.xl, textAlign: 'center' }]}>
-            Vous avez déjà une demande de réservation en attente dans ce salon. Veuillez patienter jusqu'à ce qu'elle soit traitée.
+            {t('booking.already_pending')}
           </Text>
         </View>
       </SafeAreaView>
@@ -253,21 +255,21 @@ export function BookingScreen() {
           <TouchableOpacity style={styles.backButton} onPress={handleBackPress} activeOpacity={0.7}>
             <Ionicons name="arrow-back" size={24} color={colors.amber} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Réservation</Text>
+          <Text style={styles.headerTitle}>{t('booking.title')}</Text>
           <View style={{ width: 40 }} />
         </View>
         <View style={[styles.emptyState, { flex: 1, justifyContent: 'center' }]}>
           <Ionicons name="close-circle-outline" size={64} color="#EF4444" />
-          <Text style={[styles.emptyTitle, { marginTop: spacing.md }]}>Salon temporairement fermé</Text>
+          <Text style={[styles.emptyTitle, { marginTop: spacing.md }]}>{t('booking.salon_closed')}</Text>
           <Text style={[styles.emptySubtitle, { marginHorizontal: spacing.xl }]}>
-            Ce salon n'accepte pas de réservations actuellement car il est temporairement fermé. Veuillez réessayer plus tard.
+            {t('booking.salon_closed_detail')}
           </Text>
         </View>
       </SafeAreaView>
     );
   }
 
-  const STEPS = ['Service', 'Date', 'Barbier', 'Créneau'];
+  const STEPS = [t('booking.step_service'), t('booking.step_date'), t('booking.step_barber'), t('booking.step_slot')];
 
   return (
     <SafeAreaView style={styles.container}>
@@ -276,7 +278,7 @@ export function BookingScreen() {
         <TouchableOpacity style={styles.backButton} onPress={handleBackPress} activeOpacity={0.7}>
           <Ionicons name="arrow-back" size={24} color={colors.amber} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Réservation</Text>
+        <Text style={styles.headerTitle}>{t('booking.title')}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -315,7 +317,7 @@ export function BookingScreen() {
         {/* Step 0: Select Service */}
         {currentStep === 0 && (
           <View style={styles.stepContent}>
-            <Text style={styles.stepHeading}>Sélectionnez un service</Text>
+            <Text style={styles.stepHeading}>{t('booking.select_service')}</Text>
             {services.map((service) => (
               <TouchableOpacity
                 key={service.id}
@@ -339,7 +341,7 @@ export function BookingScreen() {
         {/* Step 1: Select Date */}
         {currentStep === 1 && (
           <View style={styles.stepContent}>
-            <Text style={styles.stepHeading}>Sélectionnez une date</Text>
+            <Text style={styles.stepHeading}>{t('booking.select_date')}</Text>
             <DateStrip selectedDate={selectedDate} onDateSelect={handleDateSelect} />
           </View>
         )}
@@ -347,7 +349,7 @@ export function BookingScreen() {
         {/* Step 2: Select Barber (optional) */}
         {currentStep === 2 && (
           <View style={styles.stepContent}>
-            <Text style={styles.stepHeading}>Choisissez votre coiffeur</Text>
+            <Text style={styles.stepHeading}>{t('booking.select_barber')}</Text>
 
             {/* Any barber option */}
             <TouchableOpacity
@@ -362,8 +364,8 @@ export function BookingScreen() {
                 <Ionicons name="people" size={20} color={colors.textPrimary} />
               </View>
               <View style={styles.barberInfo}>
-                <Text style={styles.barberName}>N'importe quel coiffeur</Text>
-                <Text style={styles.barberRole}>Option la plus rapide</Text>
+                <Text style={styles.barberName}>{t('booking.any_barber')}</Text>
+                <Text style={styles.barberRole}>{t('booking.any_barber_sub')}</Text>
               </View>
               <View style={styles.selectionDot}>
                 {selectedBarberId === null && <View style={styles.innerDot} />}
@@ -386,8 +388,8 @@ export function BookingScreen() {
                   style={styles.barberAvatar}
                 />
                 <View style={styles.barberInfo}>
-                  <Text style={styles.barberName}>{(s.custom_name as string) || ((s.profiles as Record<string,unknown>)?.full_name as string) || 'Barbier'}</Text>
-                  <Text style={styles.barberRole}>Coiffeur professionnel</Text>
+                  <Text style={styles.barberName}>{(s.custom_name as string) || ((s.profiles as Record<string,unknown>)?.full_name as string) || t('booking.barber_default')}</Text>
+                  <Text style={styles.barberRole}>{t('booking.barber_role')}</Text>
                 </View>
                 <View style={styles.selectionDot}>
                   {selectedBarberId === s.id && <View style={styles.innerDot} />}
@@ -409,13 +411,13 @@ export function BookingScreen() {
               </Text>
             </View>
 
-            <Text style={styles.stepHeading}>Sélectionnez un créneau</Text>
+            <Text style={styles.stepHeading}>{t('booking.select_time')}</Text>
 
             <View style={styles.phoneInputContainer}>
               <Ionicons name="call-outline" size={18} color={colors.amber} />
               <TextInput
                 style={styles.phoneInput}
-                placeholder="Votre numéro de téléphone"
+                placeholder={t('booking.phone_placeholder')}
                 placeholderTextColor={colors.textMuted}
                 value={clientPhone}
                 onChangeText={setClientPhone}
@@ -444,7 +446,7 @@ export function BookingScreen() {
       {currentStep === 3 && selectedService && selectedDate && (
         <View style={styles.confirmFooter}>
           <View style={styles.footerPriceCol}>
-            <Text style={styles.footerPriceLabel}>Total</Text>
+            <Text style={styles.footerPriceLabel}>{t('booking.total')}</Text>
             <Text style={styles.footerPriceValue}>{selectedService.price} DZD</Text>
           </View>
           {pendingSlot && clientPhone.trim().length >= 8 ? (
@@ -465,7 +467,7 @@ export function BookingScreen() {
                 <ActivityIndicator size="small" color={colors.ink} />
               ) : (
                 <>
-                  <Text style={styles.footerConfirmBtnText}>Confirmer {pendingSlot.startTime}</Text>
+                  <Text style={styles.footerConfirmBtnText}>{t('booking.confirm')} {pendingSlot.startTime}</Text>
                   <Ionicons name="arrow-forward" size={18} color={colors.ink} />
                 </>
               )}
@@ -473,7 +475,7 @@ export function BookingScreen() {
           ) : (
             <View style={styles.footerDateCol}>
               <Text style={styles.footerTimeHint}>
-                {pendingSlot ? "Entrez votre téléphone ↑" : "Choisissez un créneau ↑"}
+                {pendingSlot ? t('booking.enter_phone_hint') : t('booking.choose_slot_hint')}
               </Text>
             </View>
           )}

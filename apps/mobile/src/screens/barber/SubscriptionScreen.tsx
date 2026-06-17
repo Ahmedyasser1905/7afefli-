@@ -23,6 +23,7 @@ import { colors, spacing, radius } from '../../theme';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { apiClient } from '../../lib/apiClient';
 import { supabase } from '../../lib/supabase';
+import { useTranslations } from '../../hooks/useTranslations';
 
 // ---------- Types ----------
 
@@ -82,6 +83,7 @@ const formatDuration = (days: number): string => {
 
 export function SubscriptionScreen() {
   const user = useAuthStore((s) => s.user);
+  const { t } = useTranslations();
   const [processingPlan, setProcessingPlan] = useState<string | null>(null);
 
   // Fetch available plans from backend API (single source of truth)
@@ -165,7 +167,7 @@ export function SubscriptionScreen() {
       const msg = err instanceof Error ? err.message : 'Erreur lors du paiement';
       Toast.show({
         type: 'error',
-        text1: 'Erreur',
+        text1: t('common.error'),
         text2: msg
       });
     } finally {
@@ -196,7 +198,7 @@ export function SubscriptionScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Abonnement</Text>
+          <Text style={styles.headerTitle}>{t('barber.subscription')}</Text>
           <Text style={styles.headerSubtitle}>Gérez votre formule 7afefli</Text>
         </View>
 

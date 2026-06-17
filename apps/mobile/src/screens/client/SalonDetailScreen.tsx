@@ -1,4 +1,5 @@
 import Toast from 'react-native-toast-message';
+import { useTranslations } from '../../hooks/useTranslations';
 // apps/mobile/src/screens/client/SalonDetailScreen.tsx
 // Salon detail — info, gallery, reviews, "Book Now" CTA
 
@@ -31,9 +32,10 @@ const DEFAULT_COVER = 'https://images.unsplash.com/photo-1503951914875-452162b0f
 const DEFAULT_AVATAR = 'https://phfwutugsyiutqgippqg.supabase.co/storage/v1/object/public/portfolio/defaults/default-avatar.png';
 
 export function SalonDetailScreen() {
-  const route = useRoute<Record<string, unknown>>();
-  const navigation = useNavigation<Record<string, unknown>>();
+  const route = useRoute<any>();
+  const navigation = useNavigation<any>();
   const { salonId } = route.params;
+  const { t } = useTranslations();
 
   const [selectedServices, setSelectedServices] = useState<Set<string>>(new Set());
   const [isFavorited, setIsFavorited] = useState(false);
@@ -70,8 +72,8 @@ export function SalonDetailScreen() {
     } catch {
       Toast.show({
         type: 'error',
-        text1: 'Erreur',
-        text2: 'Impossible de modifier vos favoris. Connectez-vous d\'abord.'
+        text1: t('common.error'),
+        text2: t('salon.favorite_error')
       });
     } finally {
       setIsFavoritingLoading(false);
@@ -110,9 +112,9 @@ export function SalonDetailScreen() {
     });
   };
 
-  const services = (salon as Record<string, unknown>)?.services ?? [];
-  const staff = (salon as Record<string, unknown>)?.salon_staff ?? [];
-  const reviews = (salon as Record<string, unknown>)?.reviews ?? [];
+  const services: Service[] = (salon as any)?.services ?? [];
+  const staff: any[] = (salon as any)?.salon_staff ?? [];
+  const reviews: any[] = (salon as any)?.reviews ?? [];
 
   // Calculate estimated price
   const estimatedPrice = useMemo(() => {
@@ -156,8 +158,8 @@ export function SalonDetailScreen() {
     if (selectedServices.size === 0) {
       Toast.show({
         type: 'info',
-        text1: 'Sélectionnez un service',
-        text2: 'Veuillez sélectionner au moins un service pour continuer la réservation.'
+        text1: t('booking.select_service'),
+        text2: t('salon.select_service_hint')
       });
       return;
     }
@@ -221,17 +223,17 @@ export function SalonDetailScreen() {
               {(() => {
                 const label = salon.status_label;
                 let text = 'Fermé';
-                let dotStyle = styles.dotRed;
-                let textStyle = styles.textRed;
-                let badgeStyle = styles.statusBadgeClosed;
+                let dotStyle: any = styles.dotRed;
+                let textStyle: any = styles.textRed;
+                let badgeStyle: any = styles.statusBadgeClosed;
 
                 if (label === 'manually_closed') {
-                  text = 'Fermeture temporaire';
+                  text = t('salon.status_temp_closed');
                   dotStyle = styles.dotOrange;
                   textStyle = styles.textOrange;
                   badgeStyle = styles.statusBadgeWarning;
                 } else if (label === 'open_24h') {
-                  text = '24H/24';
+                  text = t('salon.status_24h');
                   dotStyle = styles.dotGreen;
                   textStyle = styles.textGreen;
                   badgeStyle = styles.statusBadgeOpen;
@@ -262,7 +264,7 @@ export function SalonDetailScreen() {
               <View style={styles.metaItem}>
                 <Ionicons name="star" size={16} color={colors.amber} />
                 <Text style={styles.metaTextBold}>
-                  {salon.average_rating ? salon.average_rating.toFixed(1) : 'Nouveau'}
+                  {salon.average_rating ? salon.average_rating.toFixed(1) : t('salon.rating_new')}
                 </Text>
                 <Text style={styles.metaTextSecondary}>({salon.total_reviews || 0} avis)</Text>
               </View>
@@ -278,10 +280,10 @@ export function SalonDetailScreen() {
         {/* Portfolio Gallery Grid */}
         <View style={styles.sectionContainer}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>Portfolio</Text>
+            <Text style={styles.sectionTitle}>{t('salon.portfolio_tab')}</Text>
             {photos.length > 0 && (
               <TouchableOpacity activeOpacity={0.7} onPress={() => setShowAllPhotos(!showAllPhotos)}>
-                <Text style={styles.seeAllText}>{showAllPhotos ? 'Réduire' : 'Voir tout'}</Text>
+                <Text style={styles.seeAllText}>{showAllPhotos ? t('salon.show_less') : t('salon.see_all')}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -306,14 +308,14 @@ export function SalonDetailScreen() {
             )
           ) : (
             <View style={styles.emptyPortfolioBox}>
-              <Text style={styles.emptySectionText}>Aucune photo disponible</Text>
+              <Text style={styles.emptySectionText}>{t('salon.no_photos')}</Text>
             </View>
           )}
         </View>
 
         {/* Services List (Interactive Selectable items) */}
         <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Nos Services</Text>
+          <Text style={styles.sectionTitle}>{t('salon.services_title')}</Text>
           <View style={styles.servicesList}>
             {services.map((service: Service) => {
               const isSelected = selectedServices.has(service.id);
@@ -351,7 +353,7 @@ export function SalonDetailScreen() {
         {/* Localisation mini-map */}
         {(salon as any).latitude && (salon as any).longitude && (
           <View style={styles.mapSection}>
-            <Text style={styles.sectionTitle}>Localisation</Text>
+            <Text style={styles.sectionTitle}>{t('salon.location_title')}</Text>
             <View style={styles.mapWrapper}>
               <SalonMapView
                 salons={[salon]}
@@ -371,7 +373,7 @@ export function SalonDetailScreen() {
               }}
             >
               <Ionicons name="navigate" size={16} color={colors.ink} />
-              <Text style={styles.directionsText}>Obtenir l'itinéraire</Text>
+              <Text style={styles.directionsText}>{t('salon.get_directions')}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -379,10 +381,10 @@ export function SalonDetailScreen() {
         {/* Team Members */}
         {staff.length > 0 && (
           <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Rencontrez l'équipe</Text>
+            <Text style={styles.sectionTitle}>{t('salon.team_title')}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.teamScroll}>
-              {staff.map((member: Record<string, unknown>) => {
-                const displayName = member.custom_name || member.profiles?.full_name?.split(' ')[0] || 'Barbier';
+              {staff.map((member: any) => {
+                const displayName = member.custom_name || member.profiles?.full_name?.split(' ')[0] || t('booking.barber_default');
                 const avatar = member.avatar_url || member.profiles?.avatar_url || DEFAULT_AVATAR;
                 return (
                   <View key={member.id} style={styles.teamItem}>
@@ -404,9 +406,9 @@ export function SalonDetailScreen() {
 
         {/* Reviews Section */}
         <View style={[styles.sectionContainer, { marginBottom: 120 }]}>
-          <Text style={styles.sectionTitle}>Avis clients ({reviews.length})</Text>
+          <Text style={styles.sectionTitle}>{t('salon.reviews_title')} ({reviews.length})</Text>
           {reviews.length > 0 ? (
-            reviews.slice(0, 3).map((review: Record<string, unknown>) => (
+            reviews.slice(0, 3).map((review: any) => (
               <View key={review.id} style={styles.reviewCard}>
                 <View style={styles.reviewHeader}>
                   <Image
@@ -415,7 +417,7 @@ export function SalonDetailScreen() {
                   />
                   <View style={styles.reviewerMeta}>
                     <Text style={styles.reviewerName}>
-                      {review.profiles?.full_name || 'Client anonyme'}
+                      {review.profiles?.full_name || t('salon.anonymous_client')}
                     </Text>
                     <View style={styles.reviewerRating}>
                       {Array.from({ length: 5 }).map((_, i) => (
@@ -423,7 +425,7 @@ export function SalonDetailScreen() {
                           key={i}
                           name="star"
                           size={12}
-                          color={i < review.rating ? colors.amber : colors.steel}
+                          color={i < (review.rating as number) ? colors.amber : colors.steel}
                         />
                       ))}
                     </View>
@@ -434,7 +436,7 @@ export function SalonDetailScreen() {
             ))
           ) : (
             <View style={styles.emptyReviewsBox}>
-              <Text style={styles.emptySectionText}>Aucun avis pour le moment</Text>
+              <Text style={styles.emptySectionText}>{t('salon.no_reviews')}</Text>
             </View>
           )}
         </View>
@@ -443,13 +445,13 @@ export function SalonDetailScreen() {
       {/* Sticky Bottom Booking Action */}
       <View style={styles.bottomActionBar}>
         <View style={styles.priceContainer}>
-          <Text style={styles.priceLabel}>Prix Estimé</Text>
+          <Text style={styles.priceLabel}>{t('salon.estimated_price')}</Text>
           <Text style={styles.priceValue}>{estimatedPrice} DZD</Text>
         </View>
         {salon.is_manually_closed ? (
           <View style={[styles.bookButton, styles.bookButtonDisabled, { flexDirection: 'row', gap: 6, opacity: 0.8 }]}>
             <Ionicons name="close-circle-outline" size={20} color={colors.ink} />
-            <Text style={styles.bookButtonText}>Salon temporairement fermé</Text>
+            <Text style={styles.bookButtonText}>{t('booking.salon_closed')}</Text>
           </View>
         ) : (
           <TouchableOpacity
@@ -457,7 +459,7 @@ export function SalonDetailScreen() {
             onPress={handleBookingPress}
             activeOpacity={0.8}
           >
-            <Text style={styles.bookButtonText}>Continuer</Text>
+            <Text style={styles.bookButtonText}>{t('salon.continue_booking')}</Text>
             <Ionicons name="arrow-forward" size={20} color={colors.ink} style={{ marginLeft: spacing.sm }} />
           </TouchableOpacity>
         )}

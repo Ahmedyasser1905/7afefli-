@@ -20,11 +20,13 @@ import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { colors, typography, spacing, radius, shadows } from '../../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
+import { useTranslations } from '../../hooks/useTranslations';
 
 // Algeria flag displayed as emoji instead of external image
 const ALGERIA_FLAG_EMOJI = '🇩🇿';
 
 export default function PhoneEntryScreen() {
+  const { t, isRTL } = useTranslations();
   const user = useAuthStore((s) => s.user);
   const setNeedsPhone = useAuthStore((s) => s.setNeedsPhone);
   const [phone, setPhone] = useState('');
@@ -34,11 +36,11 @@ export default function PhoneEntryScreen() {
 
   const handleSubmit = async () => {
     if (!phone.trim() || phone.trim().length < 9) {
-      const msg = 'Veuillez entrer un numéro de téléphone valide';
+      const msg = t('auth.invalid_phone');
       setErrorMsg(msg);
       Toast.show({
         type: 'error',
-        text1: 'Erreur',
+        text1: t('common.error'),
         text2: msg
       });
       return;
@@ -99,9 +101,9 @@ export default function PhoneEntryScreen() {
           </View>
 
           <View style={styles.headlineContainer}>
-            <Text style={styles.headlineTitle}>Votre numéro de téléphone</Text>
-            <Text style={styles.headlineSubtitle}>
-              Ajoutez votre numéro pour que les salons puissent vous contacter en cas de besoin.
+            <Text style={[styles.headlineTitle, { textAlign: isRTL ? 'right' : 'left' }]}>{t('auth.phone_entry_title')}</Text>
+            <Text style={[styles.headlineSubtitle, { textAlign: isRTL ? 'right' : 'left' }]}>
+              {t('auth.phone_entry_sub')}
             </Text>
           </View>
 
@@ -119,7 +121,7 @@ export default function PhoneEntryScreen() {
                 <Text style={styles.countryCodeText}>+213</Text>
               </View>
               <TextInput
-                style={styles.phoneInput}
+                style={[styles.phoneInput, { textAlign: isRTL ? 'right' : 'left' }]}
                 placeholder="5 50 12 34 56"
                 placeholderTextColor={colors.textSecondary}
                 keyboardType="phone-pad"
@@ -139,7 +141,7 @@ export default function PhoneEntryScreen() {
                 <ActivityIndicator color={colors.ink} />
               ) : (
                 <>
-                  <Text style={styles.submitButtonText}>Continuer</Text>
+                  <Text style={styles.submitButtonText}>{t('auth.continue')}</Text>
                   <Ionicons name="arrow-forward" size={18} color={colors.ink} style={{ marginLeft: spacing.sm }} />
                 </>
               )}
@@ -150,7 +152,7 @@ export default function PhoneEntryScreen() {
               onPress={handleSkip}
               disabled={isLoading}
             >
-              <Text style={styles.skipButtonText}>Passer cette étape</Text>
+              <Text style={styles.skipButtonText}>{t('auth.skip_step')}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>

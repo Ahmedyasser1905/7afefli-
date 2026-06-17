@@ -1,10 +1,11 @@
 // apps/mobile/src/store/languageStore.ts
 // Global language store — persists user's preferred locale (fr | ar)
-// Mirrors themeStore pattern for consistency.
+// Calls I18nManager.forceRTL() so native components mirror correctly.
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { I18nManager } from 'react-native';
 
 export type AppLocale = 'fr' | 'ar';
 
@@ -22,12 +23,16 @@ export const useLanguageStore = create<LanguageState>()(
       isRTL: false,
 
       setLocale: (locale: AppLocale) => {
-        set({ locale, isRTL: locale === 'ar' });
+        const rtl = locale === 'ar';
+        I18nManager.forceRTL(rtl);
+        set({ locale, isRTL: rtl });
       },
 
       toggleLocale: () => {
         const next: AppLocale = get().locale === 'fr' ? 'ar' : 'fr';
-        set({ locale: next, isRTL: next === 'ar' });
+        const rtl = next === 'ar';
+        I18nManager.forceRTL(rtl);
+        set({ locale: next, isRTL: rtl });
       },
     }),
     {

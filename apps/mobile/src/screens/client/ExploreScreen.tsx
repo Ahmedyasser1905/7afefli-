@@ -35,7 +35,7 @@ interface Coords {
 }
 
 export function ExploreScreen() {
-  const navigation = useNavigation<Record<string, unknown>>();
+  const navigation = useNavigation<any>();
   const {
     selectedWilaya, setSelectedWilaya,
     selectedSort, setSelectedSort,
@@ -291,7 +291,7 @@ export function ExploreScreen() {
               <TouchableOpacity
                 key={opt.id}
                 style={[styles.sortChip, isActive && styles.sortChipActive]}
-                onPress={() => setSelectedSort(opt.id)}
+                onPress={() => setSelectedSort(opt.id as 'rating' | 'distance' | 'price')}
                 activeOpacity={0.7}
               >
                 <Text
@@ -308,7 +308,7 @@ export function ExploreScreen() {
 
           <View style={styles.resultsBadge}>
             <Text style={styles.resultsBadgeText}>
-              {isLoading ? '...' : filteredSalons.length} résultat{filteredSalons.length !== 1 ? 's' : ''}
+              {isLoading ? '...' : filteredSalons.length} {t('explore.results_count')}
             </Text>
           </View>
         </View>
@@ -332,17 +332,17 @@ export function ExploreScreen() {
       {isLoading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator color={colors.amber} size="large" />
-          <Text style={styles.loadingText}>Recherche en cours...</Text>
+          <Text style={styles.loadingText}>{t('common.searching')}</Text>
         </View>
       ) : queryError ? (
         <View style={styles.emptyState}>
           <Ionicons name="alert-circle-outline" size={56} color={colors.error} />
-          <Text style={styles.emptyTitle}>Erreur de chargement</Text>
+          <Text style={styles.emptyTitle}>{t('explore.load_error')}</Text>
           <Text style={styles.emptySubtitle}>
-            {queryError instanceof Error ? queryError.message : 'Une erreur est survenue'}
+            {queryError instanceof Error ? queryError.message : t('common.error')}
           </Text>
           <TouchableOpacity style={styles.resetButton} onPress={() => refetch()}>
-            <Text style={styles.resetText}>Réessayer</Text>
+            <Text style={styles.resetText}>{t('common.retry')}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -369,13 +369,13 @@ export function ExploreScreen() {
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <Ionicons name="search-outline" size={56} color={colors.textMuted} />
-              <Text style={styles.emptyTitle}>Aucun salon trouvé</Text>
+              <Text style={styles.emptyTitle}>{t('explore.no_results')}</Text>
               <Text style={styles.emptySubtitle}>
                 {debouncedQuery
-                  ? `Aucun résultat pour "${debouncedQuery}"`
+                  ? t('explore.no_results_for_query')
                   : selectedWilaya !== 'Toutes'
-                  ? `Aucun salon à ${selectedWilaya}`
-                  : 'Essayez de modifier vos filtres'}
+                  ? t('explore.no_salon_in_wilaya')
+                  : t('explore.try_other_filters')}
               </Text>
               {(debouncedQuery || selectedWilaya !== 'Toutes') && (
                 <TouchableOpacity
@@ -387,7 +387,7 @@ export function ExploreScreen() {
                   activeOpacity={0.7}
                 >
                   <Ionicons name="refresh" size={16} color={colors.amber} />
-                  <Text style={styles.resetText}>Réinitialiser</Text>
+                  <Text style={styles.resetText}>{t('explore.reset_filters')}</Text>
                 </TouchableOpacity>
               )}
             </View>

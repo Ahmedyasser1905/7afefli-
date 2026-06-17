@@ -83,16 +83,17 @@ export function EditSalonModal({ visible, onClose, salon, onSaved }: EditSalonMo
 
   useEffect(() => {
     if (salon && visible) {
-      setName(salon.name || '');
-      setDescription(salon.description || '');
-      setWilaya(salon.wilaya || '');
-      setCommune(salon.commune || '');
-      setAddress(salon.address || '');
-      setPhone(salon.phone || '');
-      setOpenTime(salon.open_time?.substring(0, 5) || '09:00');
-      setCloseTime(salon.close_time?.substring(0, 5) || '20:00');
-      setImageUrl(salon.image_url || null);
-      setWorkingDays(salon.working_days || [0, 1, 2, 3, 4, 5, 6]);
+      const s = salon as any;
+      setName(s.name || '');
+      setDescription(s.description || '');
+      setWilaya(s.wilaya || '');
+      setCommune(s.commune || '');
+      setAddress(s.address || '');
+      setPhone(s.phone || '');
+      setOpenTime(s.open_time?.substring(0, 5) || '09:00');
+      setCloseTime(s.close_time?.substring(0, 5) || '20:00');
+      setImageUrl(s.image_url || null);
+      setWorkingDays(s.working_days || [0, 1, 2, 3, 4, 5, 6]);
     }
   }, [salon, visible]);
 

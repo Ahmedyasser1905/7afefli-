@@ -20,12 +20,14 @@ import { useAuthStore } from '../../store/authStore';
 import { colors, typography, spacing, radius, shadows } from '../../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
 import type { UserRole } from '@barberdz/shared/types';
+import { useTranslations } from '../../hooks/useTranslations';
 
 const INTERIOR_IMAGE = require('../../../assets/splash.png');
 // Algeria flag displayed as emoji instead of external image
 const ALGERIA_FLAG_EMOJI = '🇩🇿';
 
-export default function SignUpScreen({ navigation }: { navigation: Record<string, unknown> }) {
+export default function SignUpScreen({ navigation }: { navigation: any }) {
+  const { t, isRTL } = useTranslations();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -37,22 +39,22 @@ export default function SignUpScreen({ navigation }: { navigation: Record<string
 
   const handleSignUp = async () => {
     if (!fullName.trim() || !email.trim() || !password) {
-      const msg = 'Veuillez remplir le nom, l\'email et le mot de passe';
+      const msg = t('auth.fill_required_fields');
       setErrorMsg(msg);
       Toast.show({
         type: 'error',
-        text1: `Erreur`,
+        text1: t('common.error'),
         text2: msg
       });
       return;
     }
 
     if (password.length < 6) {
-      const msg = 'Le mot de passe doit contenir au moins 6 caractères';
+      const msg = t('auth.password_too_short');
       setErrorMsg(msg);
       Toast.show({
         type: 'error',
-        text1: `Erreur`,
+        text1: t('common.error'),
         text2: msg
       });
       return;
@@ -62,11 +64,11 @@ export default function SignUpScreen({ navigation }: { navigation: Record<string
     let formattedPhone: string | null = null;
     if (phone.trim().length > 0) {
       if (phone.trim().length < 9) {
-        const msg = 'Veuillez entrer un numéro de téléphone valide (min 9 chiffres)';
+        const msg = t('auth.invalid_phone');
         setErrorMsg(msg);
         Toast.show({
         type: 'error',
-        text1: `Erreur`,
+        text1: t('common.error'),
         text2: msg
       });
         return;
@@ -129,23 +131,23 @@ export default function SignUpScreen({ navigation }: { navigation: Record<string
         });
         Toast.show({
         type: 'success',
-        text1: `Succès`,
-        text2: 'Votre compte a été créé avec succès.'
+        text1: t('common.success'),
+        text2: t('auth.signup_success')
       });
       } else {
         Alert.alert(
-          'Inscription réussie',
-          'Veuillez vérifier votre boîte de réception pour confirmer votre adresse e-mail.',
+          t('auth.signup_success'),
+          t('auth.confirm_email'),
           [{ text: 'OK', onPress: () => navigation.navigate('PhoneInput') }]
         );
       }
     } catch (err: unknown) {
       console.error(err);
-      const msg = err.message || 'Une erreur est survenue lors de l\'inscription';
+      const msg = (err as Error).message || t('auth.generic_error');
       setErrorMsg(msg);
       Toast.show({
         type: 'error',
-        text1: `Erreur d\'inscription`,
+        text1: t('auth.signup_title'),
         text2: msg
       });
     } finally {
@@ -164,7 +166,7 @@ export default function SignUpScreen({ navigation }: { navigation: Record<string
           <TouchableOpacity style={styles.backButton} onPress={() => { if (navigation.canGoBack()) { navigation.goBack(); } }}>
             <Ionicons name="arrow-back" size={24} color={colors.amber} />
           </TouchableOpacity>
-          <Text style={styles.headerLogo}>Créer un compte</Text>
+          <Text style={styles.headerLogo}>{t('auth.create_account')}</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -182,8 +184,8 @@ export default function SignUpScreen({ navigation }: { navigation: Record<string
 
           {/* Headline Section */}
           <View style={styles.headlineContainer}>
-            <Text style={styles.headlineTitle}>Inscrivez-vous</Text>
-            <Text style={styles.headlineSubtitle}>Rejoignez 7afefli pour réserver en ligne.</Text>
+            <Text style={[styles.headlineTitle, { textAlign: isRTL ? 'right' : 'left' }]}>{t('auth.signup_headline')}</Text>
+            <Text style={[styles.headlineSubtitle, { textAlign: isRTL ? 'right' : 'left' }]}>{t('auth.signup_sub')}</Text>
           </View>
 
           {errorMsg && (
@@ -198,8 +200,8 @@ export default function SignUpScreen({ navigation }: { navigation: Record<string
             <View style={styles.inputFieldContainer}>
               <Ionicons name="person-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
               <TextInput
-                style={styles.input}
-                placeholder="Nom complet"
+                style={[styles.input, { textAlign: isRTL ? 'right' : 'left' }]}
+                placeholder={t('auth.full_name_placeholder')}
                 placeholderTextColor={colors.textSecondary}
                 autoCapitalize="words"
                 value={fullName}
@@ -212,8 +214,8 @@ export default function SignUpScreen({ navigation }: { navigation: Record<string
             <View style={[styles.inputFieldContainer, { marginTop: spacing.md }]}>
               <Ionicons name="mail-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
               <TextInput
-                style={styles.input}
-                placeholder="Adresse e-mail"
+                style={[styles.input, { textAlign: isRTL ? 'right' : 'left' }]}
+                placeholder={t('auth.email_placeholder')}
                 placeholderTextColor={colors.textSecondary}
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -228,8 +230,8 @@ export default function SignUpScreen({ navigation }: { navigation: Record<string
             <View style={[styles.inputFieldContainer, { marginTop: spacing.md }]}>
               <Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
               <TextInput
-                style={styles.input}
-                placeholder="Mot de passe (min 6 caractères)"
+                style={[styles.input, { textAlign: isRTL ? 'right' : 'left' }]}
+                placeholder={t('auth.password_placeholder')}
                 placeholderTextColor={colors.textSecondary}
                 secureTextEntry={!showPassword}
                 value={password}
@@ -246,14 +248,14 @@ export default function SignUpScreen({ navigation }: { navigation: Record<string
             </View>
 
             {/* Phone Number */}
-            <Text style={styles.phoneLabel}>Numéro de téléphone</Text>
+            <Text style={[styles.phoneLabel, { textAlign: isRTL ? 'right' : 'left' }]}>{t('auth.phone_label')}</Text>
             <View style={styles.phoneInputCard}>
               <View style={styles.countryCodeContainer}>
                 <Text style={styles.flagEmoji}>{ALGERIA_FLAG_EMOJI}</Text>
                 <Text style={styles.countryCodeText}>+213</Text>
               </View>
               <TextInput
-                style={styles.phoneInput}
+                style={[styles.phoneInput, { textAlign: isRTL ? 'right' : 'left' }]}
                 placeholder="5 50 12 34 56"
                 placeholderTextColor={colors.textSecondary}
                 keyboardType="phone-pad"
@@ -265,11 +267,11 @@ export default function SignUpScreen({ navigation }: { navigation: Record<string
             </View>
 
             {/* Role Selector */}
-            <Text style={styles.roleHeaderLabel}>Je suis...</Text>
+            <Text style={[styles.roleHeaderLabel, { textAlign: isRTL ? 'right' : 'left' }]}>{t('auth.role_prompt')}</Text>
             <View style={styles.roleContainer}>
               {[
-                { value: 'Client' as UserRole, icon: 'person-outline', title: 'Client', desc: 'Je veux réserver des rendez-vous' },
-                { value: 'Coiffeur' as UserRole, icon: 'cut-outline', title: 'Coiffeur / Gérant', desc: 'Je gère mon salon de coiffure' },
+                { value: 'Client' as UserRole, icon: 'person-outline', title: t('auth.role_client_label'), desc: t('auth.role_client_desc') },
+                { value: 'Coiffeur' as UserRole, icon: 'cut-outline', title: t('auth.role_barber_label'), desc: t('auth.role_barber_desc') },
               ].map((option) => (
                 <TouchableOpacity
                   key={option.value}
@@ -300,7 +302,7 @@ export default function SignUpScreen({ navigation }: { navigation: Record<string
                 <ActivityIndicator color={colors.ink} />
               ) : (
                 <>
-                  <Text style={styles.submitButtonText}>S'inscrire</Text>
+                  <Text style={styles.submitButtonText}>{t('auth.signup_title')}</Text>
                   <Ionicons
                     name="checkmark-circle-outline"
                     size={20}
@@ -314,27 +316,27 @@ export default function SignUpScreen({ navigation }: { navigation: Record<string
 
           {/* Footer / Legal */}
           <View style={styles.footer}>
-            <Text style={styles.footerText}>
-              En continuant, vous acceptez nos {'\n'}
+            <Text style={[styles.footerText, { textAlign: 'center' }]}>
+              {t('auth.terms_accept')}{'\n'}
               <Text
                 style={styles.linkText}
                 onPress={() => Linking.openURL('https://7afefli.vercel.app/terms')}
               >
-                Conditions d'utilisation
+                {t('settings.terms')}
               </Text>
-              {' '}et notre{' '}
+              {' '}{' '}
               <Text
                 style={styles.linkText}
                 onPress={() => Linking.openURL('https://7afefli.vercel.app/privacy')}
               >
-                Politique de confidentialité
+                {t('settings.privacy')}
               </Text>
             </Text>
 
             <View style={styles.loginLinkContainer}>
-              <Text style={styles.footerText}>Déjà un compte ? </Text>
+              <Text style={styles.footerText}>{t('auth.already_account')} </Text>
               <TouchableOpacity onPress={() => navigation.navigate('PhoneInput')} disabled={isLoading}>
-                <Text style={styles.loginLink}>Se connecter</Text>
+                <Text style={styles.loginLink}>{t('auth.login_button')}</Text>
               </TouchableOpacity>
             </View>
           </View>

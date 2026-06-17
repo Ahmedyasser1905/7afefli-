@@ -18,6 +18,7 @@ import { apiClient } from '../../lib/apiClient';
 import { useAuthStore } from '../../store/authStore';
 import { colors, spacing, radius } from '../../theme';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import { useTranslations } from '../../hooks/useTranslations';
 
 interface FavoriteItem {
   id: string;
@@ -40,6 +41,7 @@ const DEFAULT_COVER = 'https://images.unsplash.com/photo-1503951914875-452162b0f
 export function FavoritesScreen() {
   const user = useAuthStore((s) => s.user);
   const navigation = useNavigation<any>();
+  const { t } = useTranslations();
   const queryClient = useQueryClient();
 
   const { data: favorites = [], isLoading, refetch } = useQuery<FavoriteItem[]>({
@@ -102,8 +104,8 @@ export function FavoritesScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Mes Favoris</Text>
-        <Text style={styles.subtitle}>Salons que vous avez aimés</Text>
+        <Text style={styles.title}>{t('favorites.title')}</Text>
+        <Text style={styles.subtitle}>{t('favorites.subtitle')}</Text>
       </View>
 
       {isLoading ? (
@@ -126,9 +128,9 @@ export function FavoritesScreen() {
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <Ionicons name="heart-outline" size={56} color={colors.textMuted} />
-              <Text style={styles.emptyTitle}>Aucun favori</Text>
+              <Text style={styles.emptyTitle}>{t('favorites.empty')}</Text>
               <Text style={styles.emptySubtitle}>
-                Appuyez sur le cœur d'un salon pour l'ajouter à vos favoris.
+                {t('favorites.empty_hint')}
               </Text>
             </View>
           }
