@@ -57,7 +57,10 @@ import { NotificationsModule } from './notifications/notifications.module';
       useFactory: () => {
         const url = process.env.REDIS_URL;
         const throttlers = [
-          { name: 'global', ttl: 60 * 1000, limit: 100 },
+          // General authenticated usage — 300 req / min is generous for real users
+          { name: 'global', ttl: 60 * 1000, limit: 300 },
+          // Read-heavy discovery endpoints (GET /salons, nearby, etc.) — very high limit
+          { name: 'explore', ttl: 60 * 1000, limit: 600 },
           // Tight limit on booking creation to prevent spam / advisory-lock exhaustion
           { name: 'booking', ttl: 60 * 1000, limit: 5 },
         ];

@@ -11,6 +11,7 @@ import {
   UseGuards,
   Delete,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { SalonsService } from './salons.service';
 import { SalonServicesService } from '../salon-services/salon-services.service';
 import { CreateSalonDto } from './dto/create-salon.dto';
@@ -31,8 +32,10 @@ export class SalonsController {
   /**
    * GET /salons
    * List approved salons with optional filtering.
+   * Uses the generous 'explore' throttle (600 req/min) to support the map view.
    */
   @Get()
+  @Throttle({ explore: { ttl: 60000, limit: 600 } })
   findAll(
     @Query('wilaya') wilaya?: string,
     @Query('search') search?: string,
@@ -46,8 +49,10 @@ export class SalonsController {
   /**
    * GET /salons/nearby?lat=36.75&lng=3.06&radius=10
    * Find salons within a geographic radius.
+   * Uses the generous 'explore' throttle (600 req/min).
    */
   @Get('nearby')
+  @Throttle({ explore: { ttl: 60000, limit: 600 } })
   findNearby(
     @Query('lat') lat: number,
     @Query('lng') lng: number,

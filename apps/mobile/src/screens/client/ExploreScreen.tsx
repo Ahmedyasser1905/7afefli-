@@ -115,7 +115,11 @@ export function ExploreScreen() {
       const data = await apiClient.get<any>(`/salons?limit=200${wilayaParam}`);
       return data;
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: 10 * 60 * 1000,      // data stays fresh for 10 min
+    gcTime: 30 * 60 * 1000,          // keep in cache for 30 min
+    refetchOnWindowFocus: false,      // don't refetch when app comes to foreground
+    refetchOnReconnect: false,        // don't refetch on network reconnect
+    retry: 1,                         // only retry once on failure
   });
 
   const allSalons = useMemo(() => {
