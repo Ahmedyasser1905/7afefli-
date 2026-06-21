@@ -381,13 +381,13 @@ export function AdminDashboardScreen() {
               {(item.open_time as string)?.substring(0, 5) || '—'} – {(item.close_time as string)?.substring(0, 5) || '—'}
             </Text>
           </View>
-          {item.is_sponsored && (
+          {Boolean(item.is_sponsored) && (
             <View style={styles.metaItem}>
               <Ionicons name="star-outline" size={13} color="#9333EA" />
               <Text style={[styles.metaText, { color: '#9333EA' }]}>Sponsorisé</Text>
             </View>
           )}
-          {item.is_manually_closed && (
+          {Boolean(item.is_manually_closed) && (
             <View style={styles.metaItem}>
               <Ionicons name="lock-closed" size={13} color={colors.error} />
               <Text style={[styles.metaText, { color: colors.error }]}>Fermé</Text>
@@ -1025,13 +1025,13 @@ const styles = StyleSheet.create({
   cardTitle: { fontFamily: 'Syne_700Bold', fontSize: 15, color: colors.textPrimary },
   cardSubtitle: { fontFamily: 'DMSans_400Regular', fontSize: 12, color: colors.textSecondary, marginTop: 2 },
   cardMeta: {
-    flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm,
+    flexDirection: 'row' as const, flexWrap: 'wrap' as const, gap: spacing.sm,
     marginTop: spacing.sm, paddingTop: spacing.sm,
     borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.04)',
   },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   metaText: { fontFamily: 'DMSans_400Regular', fontSize: 12, color: colors.textSecondary },
-  cardActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm, flexWrap: 'wrap' },
+  cardActions: { flexDirection: 'row' as const, gap: spacing.sm, marginTop: spacing.sm, flexWrap: 'wrap' as const },
 
   // Badge
   badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
