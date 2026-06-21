@@ -1,10 +1,14 @@
 // apps/admin/app/api/admin/users/route.ts
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '../../../../lib/supabaseAdmin';
+import { requireAdmin } from '../../../../lib/requireAdmin';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const auth = await requireAdmin(req);
+  if (auth.error) return auth.error;
+
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from('profiles')

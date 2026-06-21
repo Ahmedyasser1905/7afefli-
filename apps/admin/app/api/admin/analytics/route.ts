@@ -1,17 +1,21 @@
 // apps/admin/app/api/admin/analytics/route.ts
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '../../../../lib/supabaseAdmin';
+import { requireAdmin } from '../../../../lib/requireAdmin';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const auth = await requireAdmin(req);
+  if (auth.error) return auth.error;
+
   try {
     const supabase = createAdminClient();
     const [paymentsResult, subsResult, topSalonsResult] = await Promise.all([
       supabase
         .from('payments')
         .select('amount, status, created_at')
-        .or('status.eq.Completed,status.eq.paid')
+        .eq('status', 'Completed')
         .limit(10000),
       supabase
         .from('user_subscriptions')
@@ -32,22 +36,28 @@ export async function GET() {
     if (topSalonsResult.error) throw topSalonsResult.error;
 
     const payments = paymentsResult.data ?? [];
-    const totalRevenue = payments.reduce((sum, p) => sum + Number(p.amount ?? 0), 0);
+    const totalRevenue = payments.reduce(
+      (sum, p: { amount?: unknown }) => sum + Number(p.amount ?? 0),
+      0,
+    );
 
     const subs = subsResult.data ?? [];
-    const mrr = subs.reduce((sum, s: any) => {
+    const mrr = subs.reduce((sum, s: Record<string, unknown>) => {
       const plan = Array.isArray(s.plans) ? s.plans[0] : s.plans;
-      return sum + Number(plan?.price ?? 0);
+      return sum + Number((plan as Record<string, unknown> | null)?.price ?? 0);
     }, 0);
     const avgSubscriptionValue = subs.length > 0 ? mrr / subs.length : 0;
 
     const planCounts: Record<string, number> = {};
-    for (const s of subs as any[]) {
+    for (const s of subs as Array<Record<string, unknown>>) {
       const plan = Array.isArray(s.plans) ? s.plans[0] : s.plans;
-      const name = plan?.name ?? 'Inconnu';
+      const name = (plan as Record<string, unknown> | null)?.name as string ?? 'Inconnu';
       planCounts[name] = (planCounts[name] ?? 0) + 1;
     }
-    const subscriptionsByPlan = Object.entries(planCounts).map(([plan_name, count]) => ({ plan_name, count }));
+    const subscriptionsByPlan = Object.entries(planCounts).map(([plan_name, count]) => ({
+      plan_name,
+      count,
+    }));
 
     return NextResponse.json({
       totalRevenue,
@@ -56,7 +66,8 @@ export async function GET() {
       subscriptionsByPlan,
       topSalons: topSalonsResult.data ?? [],
     });
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Internal error';
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

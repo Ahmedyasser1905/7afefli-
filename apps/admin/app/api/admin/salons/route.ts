@@ -1,10 +1,14 @@
 // apps/admin/app/api/admin/salons/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '../../../../lib/supabaseAdmin';
+import { requireAdmin } from '../../../../lib/requireAdmin';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
+  const auth = await requireAdmin(req);
+  if (auth.error) return auth.error;
+
   const pending = req.nextUrl.searchParams.get('pending') === 'true';
   const supabase = createAdminClient();
   let query = supabase
