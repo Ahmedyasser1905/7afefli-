@@ -298,10 +298,10 @@ const FR_FALLBACK: Record<string, string> = {
     "Vos données sont utilisées pour : gérer votre compte et vos réservations, vous envoyer des notifications liées à vos rendez-vous, améliorer les fonctionnalités de l'application, et vous présenter des salons pertinents selon votre localisation.",
   'legal.privacy_s3_title': '3. Hébergement et sécurité',
   'legal.privacy_s3_body':
-    "Toutes vos données sont hébergées sur Supabase (UE – Francfort) et protégées par un chiffrement TLS en transit et AES-256 au repos. Nous appliquons le principe du moindre privilège : chaque service n'accède qu'aux données strictement nécessaires.",
+    "Toutes vos données sont hébergées sur des serveurs sécurisés situés en Europe et protégées par des protocoles de chiffrement modernes, aussi bien pendant leur transfert que lors de leur stockage. Nous appliquons des mesures strictes pour garantir la confidentialité et l'intégrité de vos informations.",
   'legal.privacy_s4_title': '4. Partage des données',
   'legal.privacy_s4_body':
-    "Nous ne vendons jamais vos données personnelles. Elles peuvent être partagées uniquement avec les salons que vous réservez (nom, téléphone) et les prestataires techniques essentiels (Supabase, Expo) dans le cadre strict de la fourniture du service.",
+    "Nous ne vendons jamais vos données personnelles. Elles peuvent être partagées uniquement avec les salons que vous réservez (nom et numéro de téléphone) afin de confirmer votre rendez-vous, et avec nos partenaires techniques dans le seul but d'assurer le bon fonctionnement du service.",
   'legal.privacy_s5_title': '5. Localisation',
   'legal.privacy_s5_body':
     "L'accès à votre position est utilisé exclusivement pour afficher les salons proches. Vous pouvez révoquer cette permission à tout moment depuis les paramètres de votre appareil. Nous ne stockons pas votre historique de localisation.",
@@ -630,10 +630,10 @@ const AR_FALLBACK: Record<string, string> = {
     'تُستخدم بياناتك لإدارة حسابك وحجوزاتك، وإرسال إشعارات متعلقة بمواعيدك، وتحسين ميزات التطبيق، وعرض الصالونات المناسبة بناءً على موقعك الجغرافي.',
   'legal.privacy_s3_title': '٣. الاستضافة والأمان',
   'legal.privacy_s3_body':
-    'تُستضاف جميع بياناتك على Supabase (الاتحاد الأوروبي – فرانكفورت) وتُحمى بتشفير TLS أثناء النقل وAES-256 في الراحة. نطبق مبدأ أدنى الامتيازات: كل خدمة لا تصل إلا إلى البيانات الضرورية تماماً.',
+    'تُخزّن جميع بياناتك على خوادم آمنة تقع في أوروبا، وتُحمى ببروتوكولات تشفير حديثة سواء أثناء نقلها أو عند تخزينها. نطبّق تدابير صارمة لضمان سرية معلوماتك وسلامتها.',
   'legal.privacy_s4_title': '٤. مشاركة البيانات',
   'legal.privacy_s4_body':
-    'لا نبيع بياناتك الشخصية أبداً. قد تُشارَك فقط مع الصالونات التي تحجز فيها (الاسم ورقم الهاتف) والمزودين التقنيين الأساسيين (Supabase، Expo) في إطار تقديم الخدمة.',
+    'لا نبيع بياناتك الشخصية أبداً. قد تُشارَك فقط مع الصالونات التي تحجز فيها (الاسم ورقم الهاتف) لتأكيد موعدك، ومع شركائنا التقنيين في إطار تشغيل الخدمة فحسب.',
   'legal.privacy_s5_title': '٥. خدمات الموقع',
   'legal.privacy_s5_body':
     'يُستخدم الوصول إلى موقعك حصراً لعرض الصالونات القريبة منك. يمكنك إلغاء هذه الصلاحية في أي وقت من إعدادات جهازك. لا نحتفظ بسجل تاريخي لمواقعك.',
