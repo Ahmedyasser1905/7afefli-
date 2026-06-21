@@ -12,7 +12,6 @@ import {
   ScrollView,
   Alert,
   Image,
-  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
@@ -21,6 +20,7 @@ import { colors, typography, spacing, radius, shadows } from '../../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
 import type { UserRole } from '@barberdz/shared/types';
 import { useTranslations } from '../../hooks/useTranslations';
+import { LegalModal, type LegalType } from '../../components/shared/LegalModal';
 
 const INTERIOR_IMAGE = require('../../../assets/splash.png');
 // Algeria flag displayed as emoji instead of external image
@@ -35,6 +35,7 @@ export default function SignUpScreen({ navigation }: { navigation: any }) {
   const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState<UserRole>('Client');
   const [isLoading, setIsLoading] = useState(false);
+  const [legalModal, setLegalModal] = useState<LegalType | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const handleSignUp = async () => {
@@ -320,14 +321,14 @@ export default function SignUpScreen({ navigation }: { navigation: any }) {
               {t('auth.terms_accept')}{'\n'}
               <Text
                 style={styles.linkText}
-                onPress={() => Linking.openURL('https://7afefli.vercel.app/terms')}
+                onPress={() => setLegalModal('terms')}
               >
                 {t('settings.terms')}
               </Text>
-              {' '}{' '}
+              {'  '}
               <Text
                 style={styles.linkText}
-                onPress={() => Linking.openURL('https://7afefli.vercel.app/privacy')}
+                onPress={() => setLegalModal('privacy')}
               >
                 {t('settings.privacy')}
               </Text>
@@ -343,6 +344,13 @@ export default function SignUpScreen({ navigation }: { navigation: any }) {
 
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Legal modals */}
+      <LegalModal
+        type={legalModal ?? 'privacy'}
+        visible={legalModal !== null}
+        onClose={() => setLegalModal(null)}
+      />
     </SafeAreaView>
   );
 }

@@ -29,6 +29,7 @@ import { useThemeStore } from '../../store/themeStore';
 import { useLanguageStore, type AppLocale } from '../../store/languageStore';
 import { useTranslations } from '../../hooks/useTranslations';
 import { WILAYAS } from '@barberdz/shared/constants/wilayas';
+import { LegalModal, type LegalType } from '../../components/shared/LegalModal';
 
 const DEFAULT_AVATAR = 'https://phfwutugsyiutqgippqg.supabase.co/storage/v1/object/public/portfolio/defaults/default-avatar.png';
 
@@ -52,6 +53,7 @@ export function SettingsScreen() {
   const [isWilayaModalVisible, setIsWilayaModalVisible] = useState(false);
   const [isLanguageModalVisible, setIsLanguageModalVisible] = useState(false);
   const [wilayaSearch, setWilayaSearch] = useState('');
+  const [legalModal, setLegalModal] = useState<LegalType | null>(null);
 
   // DRY-1 fix: replaced inline 58-item array with shared constant
   const ALL_WILAYAS = WILAYAS;
@@ -320,10 +322,7 @@ export function SettingsScreen() {
         <View style={styles.settingsGroup}>
           <TouchableOpacity
             style={[styles.settingsRow, isRTL && styles.rowReverse]}
-            onPress={() => Alert.alert(
-              t('settings.privacy'),
-              '7afefli respecte votre vie privée. Vos données personnelles sont stockées de manière sécurisée sur des serveurs européens (Supabase) et ne sont jamais partagées avec des tiers sans votre consentement.\n\nDonnées collectées :\n• Nom, téléphone, e-mail\n• Localisation (pour trouver des salons proches)\n• Historique de réservations\n\nVous pouvez demander la suppression de vos données à tout moment depuis les paramètres.\n\nContact : contact@7afefli.com'
-            )}
+            onPress={() => setLegalModal('privacy')}
           >
             <View style={[styles.rowLeftCol, isRTL && styles.rowReverse]}>
               <Ionicons name="shield-checkmark-outline" size={20} color={colors.textSecondary} />
@@ -334,10 +333,7 @@ export function SettingsScreen() {
 
           <TouchableOpacity
             style={[styles.settingsRow, isRTL && styles.rowReverse]}
-            onPress={() => Alert.alert(
-              t('settings.terms'),
-              "En utilisant 7afefli, vous acceptez les conditions suivantes :\n\n1. L'application est destinée à la réservation de services de coiffure en Algérie.\n2. Les utilisateurs doivent fournir des informations exactes.\n3. Les annulations doivent être effectuées au moins 2 heures avant le rendez-vous.\n4. 7afefli n'est pas responsable des litiges entre clients et salons.\n5. Tout comportement abusif pourra entraîner la suspension du compte.\n\nContact : contact@7afefli.com"
-            )}
+            onPress={() => setLegalModal('terms')}
           >
             <View style={[styles.rowLeftCol, isRTL && styles.rowReverse]}>
               <Ionicons name="document-text-outline" size={20} color={colors.textSecondary} />
@@ -384,6 +380,13 @@ export function SettingsScreen() {
         onClose={() => setIsEditProfileVisible(false)}
         profileData={profileData ?? {}}
         onSaved={loadProfile}
+      />
+
+      {/* Legal Modals */}
+      <LegalModal
+        type={legalModal ?? 'privacy'}
+        visible={legalModal !== null}
+        onClose={() => setLegalModal(null)}
       />
 
       {/* Wilaya Selection Modal */}

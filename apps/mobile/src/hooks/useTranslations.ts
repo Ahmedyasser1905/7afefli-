@@ -282,6 +282,70 @@ const FR_FALLBACK: Record<string, string> = {
   'admin.settings_tab': 'Paramètres',
   // Splash
   'splash.tagline': 'Trouvez. Réservez. Coupez.',
+
+  // ─── Legal ──────────────────────────────────────────────────────────────────
+  'legal.updated': 'Dernière mise à jour : Juin 2026',
+
+  // Privacy Policy — French
+  'legal.privacy_title': 'Politique de Confidentialité',
+  'legal.privacy_intro':
+    "Chez 7afefli, la protection de vos données personnelles est une priorité absolue. Cette politique décrit les informations que nous collectons, la manière dont nous les utilisons et les droits dont vous disposez. En utilisant l'application, vous acceptez les pratiques décrites ci-dessous.",
+  'legal.privacy_s1_title': '1. Données collectées',
+  'legal.privacy_s1_body':
+    "Nous collectons les informations que vous fournissez lors de l'inscription (nom complet, adresse e-mail, numéro de téléphone) ainsi que les données générées par votre utilisation (historique des réservations, avis déposés, salons favoris, points de fidélité).",
+  'legal.privacy_s2_title': '2. Finalités du traitement',
+  'legal.privacy_s2_body':
+    "Vos données sont utilisées pour : gérer votre compte et vos réservations, vous envoyer des notifications liées à vos rendez-vous, améliorer les fonctionnalités de l'application, et vous présenter des salons pertinents selon votre localisation.",
+  'legal.privacy_s3_title': '3. Hébergement et sécurité',
+  'legal.privacy_s3_body':
+    "Toutes vos données sont hébergées sur Supabase (UE – Francfort) et protégées par un chiffrement TLS en transit et AES-256 au repos. Nous appliquons le principe du moindre privilège : chaque service n'accède qu'aux données strictement nécessaires.",
+  'legal.privacy_s4_title': '4. Partage des données',
+  'legal.privacy_s4_body':
+    "Nous ne vendons jamais vos données personnelles. Elles peuvent être partagées uniquement avec les salons que vous réservez (nom, téléphone) et les prestataires techniques essentiels (Supabase, Expo) dans le cadre strict de la fourniture du service.",
+  'legal.privacy_s5_title': '5. Localisation',
+  'legal.privacy_s5_body':
+    "L'accès à votre position est utilisé exclusivement pour afficher les salons proches. Vous pouvez révoquer cette permission à tout moment depuis les paramètres de votre appareil. Nous ne stockons pas votre historique de localisation.",
+  'legal.privacy_s6_title': '6. Notifications push',
+  'legal.privacy_s6_body':
+    "Avec votre consentement, nous envoyons des notifications pour vous rappeler vos rendez-vous et vous informer des mises à jour importantes. Vous pouvez désactiver les notifications à tout moment depuis les paramètres de l'appareil.",
+  'legal.privacy_s7_title': '7. Vos droits',
+  'legal.privacy_s7_body':
+    "Conformément à la réglementation applicable, vous disposez d'un droit d'accès, de rectification et de suppression de vos données. Pour exercer ces droits, rendez-vous dans Paramètres → Supprimer le compte ou contactez-nous par e-mail.",
+  'legal.privacy_s8_title': '8. Contact',
+  'legal.privacy_s8_body':
+    "Pour toute question relative à vos données personnelles, contactez notre délégué à la protection des données : contact@7afefli.com — Nous répondons dans un délai maximum de 72 heures.",
+
+  // Terms of Use — French
+  'legal.terms_title': "Conditions Générales d'Utilisation",
+  'legal.terms_intro':
+    "Bienvenue sur 7afefli. En accédant à l'application ou en créant un compte, vous acceptez les présentes conditions générales d'utilisation dans leur intégralité. Veuillez les lire attentivement avant toute utilisation.",
+  'legal.terms_s1_title': '1. Acceptation et champ d\'application',
+  'legal.terms_s1_body':
+    "Les présentes CGU s'appliquent à toute personne utilisant l'application 7afefli, qu'il s'agisse d'un client souhaitant réserver un service de coiffure ou d'un professionnel gérant un salon.",
+  'legal.terms_s2_title': '2. Réservations',
+  'legal.terms_s2_body':
+    "Toute réservation effectuée via 7afefli constitue un engagement ferme envers le salon. Vous devez fournir des informations exactes (nom, téléphone) au moment de la réservation. Un créneau confirmé ne peut être transféré à un tiers.",
+  'legal.terms_s3_title': '3. Annulations et no-show',
+  'legal.terms_s3_body':
+    "Les annulations doivent être effectuées au moins 2 heures avant l'heure du rendez-vous. En cas de no-show répété, 7afefli se réserve le droit de restreindre temporairement votre accès à la plateforme.",
+  'legal.terms_s4_title': '4. Responsabilité des salons',
+  'legal.terms_s4_body':
+    "7afefli est une plateforme de mise en relation. Les salons partenaires sont des entités indépendantes. Nous ne sommes pas responsables de la qualité des prestations, des retards ou des litiges entre clients et salons.",
+  'legal.terms_s5_title': '5. Comportement et abus',
+  'legal.terms_s5_body':
+    "Tout comportement abusif (avis frauduleux, harcèlement, usurpation d'identité, tentative de piratage) entraînera la suspension immédiate et définitive du compte, sans préavis ni remboursement.",
+  'legal.terms_s6_title': '6. Abonnements et paiements',
+  'legal.terms_s6_body':
+    "Les abonnements destinés aux professionnels sont facturés selon le plan choisi. Tout abonnement activé est non remboursable sauf erreur technique de notre part dûment constatée. Les tarifs peuvent évoluer avec un préavis de 30 jours.",
+  'legal.terms_s7_title': '7. Limitation de responsabilité',
+  'legal.terms_s7_body':
+    "7afefli ne saurait être tenu responsable des pertes indirectes, préjudices commerciaux ou interruptions de service liés à des événements hors de notre contrôle (panne réseau, force majeure, etc.).",
+  'legal.terms_s8_title': '8. Modifications des CGU',
+  'legal.terms_s8_body':
+    "Nous nous réservons le droit de modifier ces conditions à tout moment. En cas de modification substantielle, nous vous en informerons par notification in-app ou par e-mail. La poursuite de l'utilisation vaut acceptation des nouvelles conditions.",
+  'legal.terms_s9_title': '9. Contact et droit applicable',
+  'legal.terms_s9_body':
+    "Ces CGU sont régies par le droit algérien. Pour tout litige, les parties s'engagent à rechercher une solution amiable avant tout recours judiciaire. Contact : contact@7afefli.com",
 };
 
 const AR_FALLBACK: Record<string, string> = {
@@ -550,6 +614,70 @@ const AR_FALLBACK: Record<string, string> = {
   'admin.settings_tab': 'الإعدادات',
   // Splash
   'splash.tagline': 'ابحث. احجز. استمتع.',
+
+  // ─── Legal ──────────────────────────────────────────────────────────────────
+  'legal.updated': 'آخر تحديث: يونيو 2026',
+
+  // Privacy Policy — Arabic
+  'legal.privacy_title': 'سياسة الخصوصية',
+  'legal.privacy_intro':
+    'في 7afefli، تُعدّ حماية بياناتك الشخصية أولويتنا القصوى. تصف هذه السياسة المعلومات التي نجمعها وكيفية استخدامها والحقوق التي تتمتع بها. باستخدام التطبيق، فأنت توافق على الممارسات الموضحة أدناه.',
+  'legal.privacy_s1_title': '١. البيانات التي نجمعها',
+  'legal.privacy_s1_body':
+    'نجمع المعلومات التي تقدمها عند التسجيل (الاسم الكامل، البريد الإلكتروني، رقم الهاتف)، إضافةً إلى البيانات الناتجة عن استخدامك للتطبيق (سجل الحجوزات، التقييمات، الصالونات المفضلة، نقاط الولاء).',
+  'legal.privacy_s2_title': '٢. أغراض المعالجة',
+  'legal.privacy_s2_body':
+    'تُستخدم بياناتك لإدارة حسابك وحجوزاتك، وإرسال إشعارات متعلقة بمواعيدك، وتحسين ميزات التطبيق، وعرض الصالونات المناسبة بناءً على موقعك الجغرافي.',
+  'legal.privacy_s3_title': '٣. الاستضافة والأمان',
+  'legal.privacy_s3_body':
+    'تُستضاف جميع بياناتك على Supabase (الاتحاد الأوروبي – فرانكفورت) وتُحمى بتشفير TLS أثناء النقل وAES-256 في الراحة. نطبق مبدأ أدنى الامتيازات: كل خدمة لا تصل إلا إلى البيانات الضرورية تماماً.',
+  'legal.privacy_s4_title': '٤. مشاركة البيانات',
+  'legal.privacy_s4_body':
+    'لا نبيع بياناتك الشخصية أبداً. قد تُشارَك فقط مع الصالونات التي تحجز فيها (الاسم ورقم الهاتف) والمزودين التقنيين الأساسيين (Supabase، Expo) في إطار تقديم الخدمة.',
+  'legal.privacy_s5_title': '٥. خدمات الموقع',
+  'legal.privacy_s5_body':
+    'يُستخدم الوصول إلى موقعك حصراً لعرض الصالونات القريبة منك. يمكنك إلغاء هذه الصلاحية في أي وقت من إعدادات جهازك. لا نحتفظ بسجل تاريخي لمواقعك.',
+  'legal.privacy_s6_title': '٦. إشعارات الدفع',
+  'legal.privacy_s6_body':
+    'بموافقتك، نرسل إشعارات لتذكيرك بمواعيدك وإطلاعك على التحديثات المهمة. يمكنك تعطيل الإشعارات في أي وقت من إعدادات جهازك.',
+  'legal.privacy_s7_title': '٧. حقوقك',
+  'legal.privacy_s7_body':
+    'وفقاً للتشريعات المعمول بها، يحق لك الوصول إلى بياناتك وتصحيحها وحذفها. لممارسة هذه الحقوق، توجّه إلى الإعدادات ← حذف الحساب، أو تواصل معنا عبر البريد الإلكتروني.',
+  'legal.privacy_s8_title': '٨. التواصل معنا',
+  'legal.privacy_s8_body':
+    'لأي استفسار بشأن بياناتك الشخصية، تواصل مع مسؤول حماية البيانات لدينا: contact@7afefli.com — نردّ خلال ٧٢ ساعة كحدٍّ أقصى.',
+
+  // Terms of Use — Arabic
+  'legal.terms_title': 'شروط الاستخدام',
+  'legal.terms_intro':
+    'مرحباً بك في 7afefli. بالوصول إلى التطبيق أو إنشاء حساب، فأنت توافق على شروط الاستخدام هذه كاملةً. يُرجى قراءتها بعناية قبل أي استخدام.',
+  'legal.terms_s1_title': '١. القبول ونطاق التطبيق',
+  'legal.terms_s1_body':
+    'تُطبَّق هذه الشروط على كل من يستخدم تطبيق 7afefli، سواء أكان عميلاً يرغب في حجز خدمة حلاقة أم محترفاً يدير صالوناً.',
+  'legal.terms_s2_title': '٢. الحجوزات',
+  'legal.terms_s2_body':
+    'يُعدّ كل حجز يتم عبر 7afefli التزاماً قاطعاً تجاه الصالون. يجب تقديم معلومات دقيقة (الاسم والهاتف) عند الحجز. لا يجوز نقل الموعد المؤكد لطرف ثالث.',
+  'legal.terms_s3_title': '٣. الإلغاء وعدم الحضور',
+  'legal.terms_s3_body':
+    'يجب إلغاء الحجز قبل ساعتين على الأقل من موعده. في حال تكرار الغياب دون إشعار، تحتفظ 7afefli بالحق في تقييد وصولك إلى المنصة مؤقتاً.',
+  'legal.terms_s4_title': '٤. مسؤولية الصالونات',
+  'legal.terms_s4_body':
+    '7afefli منصة وسيطة. الصالونات الشريكة كيانات مستقلة. لسنا مسؤولين عن جودة الخدمات أو التأخيرات أو النزاعات بين العملاء والصالونات.',
+  'legal.terms_s5_title': '٥. السلوك والانتهاكات',
+  'legal.terms_s5_body':
+    'يُفضي أي سلوك مسيء (تقييمات مزورة، مضايقة، انتحال شخصية، محاولات اختراق) إلى تعليق الحساب فوراً وبشكل دائم، دون إشعار مسبق أو استرداد.',
+  'legal.terms_s6_title': '٦. الاشتراكات والمدفوعات',
+  'legal.terms_s6_body':
+    'تُحاسَب اشتراكات المحترفين وفق الخطة المختارة. أي اشتراك مُفعَّل غير قابل للاسترداد إلا في حالة خطأ تقني مؤكد من جانبنا. قد تتغير الأسعار مع إشعار مسبق لمدة ٣٠ يوماً.',
+  'legal.terms_s7_title': '٧. تحديد المسؤولية',
+  'legal.terms_s7_body':
+    'لا تتحمل 7afefli المسؤولية عن الخسائر غير المباشرة أو الأضرار التجارية أو انقطاع الخدمة الناجم عن أحداث خارجة عن إرادتنا (أعطال الشبكة، القوة القاهرة...).',
+  'legal.terms_s8_title': '٨. تعديلات الشروط',
+  'legal.terms_s8_body':
+    'نحتفظ بحق تعديل هذه الشروط في أي وقت. في حال إجراء تعديلات جوهرية، سنُعلمك عبر إشعار داخل التطبيق أو بريد إلكتروني. الاستمرار في الاستخدام يُعدّ قبولاً للشروط الجديدة.',
+  'legal.terms_s9_title': '٩. التواصل والقانون المطبق',
+  'legal.terms_s9_body':
+    'تخضع هذه الشروط للقانون الجزائري. في حال أي نزاع، يلتزم الطرفان بالسعي إلى حل ودي قبل اللجوء إلى القضاء. التواصل: contact@7afefli.com',
 };
 
 const FALLBACKS: Record<AppLocale, Record<string, string>> = {
