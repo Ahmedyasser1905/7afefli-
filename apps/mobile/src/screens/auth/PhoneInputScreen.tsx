@@ -19,6 +19,7 @@ import { useAuthStore } from '../../store/authStore';
 import { colors, typography, spacing, radius, shadows } from '../../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
 import { useTranslations } from '../../hooks/useTranslations';
+import { LegalModal, type LegalType } from '../../components/shared/LegalModal';
 
 const INTERIOR_IMAGE = require('../../../assets/splash.png');
 
@@ -29,6 +30,7 @@ export default function PhoneInputScreen({ navigation }: { navigation: any }) {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [legalModal, setLegalModal] = useState<LegalType | null>(null);
 
   const handleEmailSubmit = async () => {
     if (!email || !password) {
@@ -163,9 +165,21 @@ export default function PhoneInputScreen({ navigation }: { navigation: any }) {
           <View style={styles.footer}>
             <Text style={[styles.footerText, { textAlign: 'center' }]}>
               {t('auth.terms_accept')}{'\n'}
-              <Text style={styles.linkText}>{t('settings.terms')}</Text> {t('auth.terms_accept').includes('et') ? '' : ''}<Text style={styles.linkText}>{t('settings.privacy')}</Text>
+              <Text
+                style={styles.linkText}
+                onPress={() => setLegalModal('terms')}
+              >
+                {t('settings.terms')}
+              </Text>
+              {'  '}
+              <Text
+                style={styles.linkText}
+                onPress={() => setLegalModal('privacy')}
+              >
+                {t('settings.privacy')}
+              </Text>
             </Text>
-            
+
             <View style={styles.signUpLinkContainer}>
               <Text style={styles.footerText}>{t('auth.no_account')} </Text>
               <TouchableOpacity onPress={() => navigation.navigate('SignUp')} disabled={isLoading}>
@@ -176,6 +190,13 @@ export default function PhoneInputScreen({ navigation }: { navigation: any }) {
 
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Legal modals */}
+      <LegalModal
+        type={legalModal ?? 'privacy'}
+        visible={legalModal !== null}
+        onClose={() => setLegalModal(null)}
+      />
     </SafeAreaView>
   );
 }

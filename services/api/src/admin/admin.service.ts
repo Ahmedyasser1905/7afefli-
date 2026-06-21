@@ -84,7 +84,10 @@ export class AdminService {
     const to = from + limit - 1;
     const { data, count, error } = await this.supabase.adminClient
       .from('salons')
-      .select('*, profiles:owner_id(full_name, phone_number)', { count: 'exact' })
+      .select(
+        '*, profiles!salons_owner_id_fkey(full_name, phone_number)',
+        { count: 'exact' },
+      )
       .order('created_at', { ascending: false })
       .range(from, to);
     if (error) throw new Error(error.message);

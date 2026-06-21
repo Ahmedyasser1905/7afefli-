@@ -8,8 +8,6 @@ import { SettingsScreen } from '../screens/client/SettingsScreen';
 import { NotificationsScreen } from '../screens/client/NotificationsScreen';
 import { colors } from '../theme';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import { NotificationBell } from '../components/shared/NotificationBell';
-import { View } from 'react-native';
 import { useTranslations } from '../hooks/useTranslations';
 
 const Tab = createBottomTabNavigator();
@@ -19,23 +17,8 @@ export function AdminTabNavigator() {
   return (
     <Tab.Navigator
       screenOptions={({ route }: { route: Record<string, unknown> }) => ({
-        headerShown: route.name === 'AdminDashboard',
-        headerStyle: {
-          backgroundColor: colors.carbon,
-          borderBottomColor: 'rgba(255, 255, 255, 0.05)',
-          borderBottomWidth: 1,
-        },
-        headerTitle: t('admin.title'),
-        headerTitleStyle: {
-          fontFamily: 'Syne_700Bold',
-          fontSize: 18,
-          color: colors.textPrimary,
-        },
-        headerRight: () => (
-          <View style={{ marginRight: 16 }}>
-            <NotificationBell />
-          </View>
-        ),
+        // Each screen manages its own header to avoid double-header
+        headerShown: false,
         tabBarStyle: {
           backgroundColor: colors.carbon,
           borderTopColor: 'rgba(255, 255, 255, 0.05)',
@@ -55,6 +38,8 @@ export function AdminTabNavigator() {
           let iconName: any = 'grid';
           if (route.name === 'AdminDashboard') {
             iconName = focused ? 'shield-checkmark' : 'shield-checkmark-outline';
+          } else if (route.name === 'Notifications') {
+            iconName = focused ? 'notifications' : 'notifications-outline';
           } else if (route.name === 'Settings') {
             iconName = focused ? 'settings' : 'settings-outline';
           }
@@ -68,14 +53,14 @@ export function AdminTabNavigator() {
         options={{ tabBarLabel: t('admin.title') }}
       />
       <Tab.Screen
-        name="Settings"
-        component={SettingsScreen}
-        options={{ tabBarLabel: t('nav.settings'), headerShown: false }}
-      />
-      <Tab.Screen
         name="Notifications"
         component={NotificationsScreen}
-        options={{ tabBarButton: () => null, headerShown: false }}
+        options={{ tabBarLabel: t('nav.notifications') }}
+      />
+      <Tab.Screen
+        name="Settings"
+        component={SettingsScreen}
+        options={{ tabBarLabel: t('nav.settings') }}
       />
     </Tab.Navigator>
   );
