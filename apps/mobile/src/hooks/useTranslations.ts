@@ -6,6 +6,8 @@
 //  • Translations are fetched once per locale change and cached in React Query.
 //  • Falls back to a built-in FR/AR dictionary so the app is never blank offline.
 //  • The t() function is memoised so reference equality is stable between renders.
+//  • FIX: Supabase translations are MERGED on top of the fallback so any missing
+//    keys in the DB still resolve via the built-in fallback, preventing raw key display.
 
 import { useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -557,21 +559,31 @@ const FALLBACKS: Record<AppLocale, Record<string, string>> = {
 
 // ─── Supabase fetch ──────────────────────────────────────────────────────────
 async function fetchTranslations(locale: AppLocale): Promise<Record<string, string>> {
-  const { data, error } = await supabase
-    .from('translations')
-    .select('key, value')
-    .eq('locale', locale);
+  // Always start with the full built-in fallback so every key has a value.
+  // Supabase rows are merged on top — DB values override fallback values.
+  const base = { ...FALLBACKS[locale] };
 
-  if (error || !data) {
-    // Return fallback silently — network might be unavailable
-    return FALLBACKS[locale];
+  try {
+    const { data, error } = await supabase
+      .from('translations')
+      .select('key, value')
+      .eq('locale', locale);
+
+    if (error || !data || data.length === 0) {
+      // Network unavailable or table empty — use built-in fallback silently
+      return base;
+    }
+
+    for (const row of data) {
+      if (row.key && row.value) {
+        base[row.key] = row.value;
+      }
+    }
+  } catch {
+    // Unexpected error — built-in fallback ensures UI is never blank
   }
 
-  const map: Record<string, string> = {};
-  for (const row of data) {
-    map[row.key] = row.value;
-  }
-  return map;
+  return base;
 }
 
 // ─── Public hook ─────────────────────────────────────────────────────────────
@@ -583,15 +595,18 @@ export function useTranslations() {
     queryFn: () => fetchTranslations(locale),
     // Keep translations cached for 10 minutes — they rarely change
     staleTime: 10 * 60 * 1000,
-    // Provide fallback as placeholder data so UI is never blank
+    // Provide fallback as placeholder data so UI is never blank during initial load
     placeholderData: FALLBACKS[locale],
   });
 
-  // Stable t() function — only recreated when locale or translations change
+  // Stable t() function — only recreated when locale or translations change.
+  // Always merges with fallback to guarantee every key resolves.
   const t = useCallback(
     (key: string, fallback?: string): string => {
+      // Use live translations (which already include the fallback base), then
+      // fall back to the static dictionary, then the key itself as last resort.
       const dict = translations ?? FALLBACKS[locale];
-      return dict[key] ?? fallback ?? key;
+      return dict[key] ?? FALLBACKS[locale][key] ?? fallback ?? key;
     },
     [translations, locale],
   );

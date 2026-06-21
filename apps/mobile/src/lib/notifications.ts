@@ -1,5 +1,9 @@
 // apps/mobile/src/lib/notifications.ts
 // Expo Push Notifications setup & utilities
+//
+// NOTE: setNotificationHandler is configured in index.ts at app entry so it
+// is registered before any component mounts (required for background/killed-state
+// notification wakeups). Do NOT call it again here.
 
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
@@ -19,21 +23,6 @@ function getNotificationsModule() {
     console.warn('[Notifications] Failed to load expo-notifications:', err);
     return null;
   }
-}
-
-const Notifications = getNotificationsModule();
-
-// Configure notification appearance (when app is in foreground)
-if (Notifications) {
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-      shouldShowBanner: true,
-      shouldShowList: true,
-    }),
-  });
 }
 
 // ─────────────────────────────────────────────────────────
@@ -84,9 +73,14 @@ export async function registerForPushNotifications(userId: string): Promise<void
     }
 
     // Get Expo push token
-    const projectId = process.env.EXPO_PUBLIC_PROJECT_ID || Constants.expoConfig?.extra?.eas?.projectId;
+    // Priority: env var → app.json extra.eas.projectId → Constants.easConfig.projectId
+    const projectId =
+      process.env.EXPO_PUBLIC_PROJECT_ID ||
+      Constants.expoConfig?.extra?.eas?.projectId ||
+      (Constants as any).easConfig?.projectId;
+
     if (!projectId) {
-      console.warn('[Push] Missing EXPO_PUBLIC_PROJECT_ID — push notifications will not work in production');
+      console.warn('[Push] No EAS projectId found — push notifications will not work in production.');
       return;
     }
 
