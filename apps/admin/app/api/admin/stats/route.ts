@@ -1,10 +1,14 @@
 // apps/admin/app/api/admin/stats/route.ts
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '../../../../lib/supabaseAdmin';
+import { requireAdmin } from '../../../../lib/requireAdmin';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const auth = await requireAdmin(req);
+  if (auth.error) return auth.error;
+
   try {
     const supabase = createAdminClient();
     const [
@@ -20,10 +24,13 @@ export async function GET() {
       supabase.from('salons').select('*', { count: 'exact', head: true }).eq('is_approved', false),
       supabase.from('profiles').select('*', { count: 'exact', head: true }),
       supabase.from('reservations').select('*', { count: 'exact', head: true }),
-      supabase.from('payments').select('amount').eq('status', 'paid'),
+      supabase.from('payments').select('amount').eq('status', 'Completed'),
     ]);
 
-    const totalRevenue = (revenueData ?? []).reduce((sum: number, p: any) => sum + Number(p.amount ?? 0), 0);
+    const totalRevenue = (revenueData ?? []).reduce(
+      (sum: number, p: { amount?: unknown }) => sum + Number(p.amount ?? 0),
+      0,
+    );
 
     return NextResponse.json({
       totalSalons: totalSalons ?? 0,
@@ -33,7 +40,8 @@ export async function GET() {
       totalReservations: totalReservations ?? 0,
       totalRevenue,
     });
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Internal error';
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

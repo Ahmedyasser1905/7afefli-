@@ -12,6 +12,7 @@ import {
   ParseBoolPipe,
   ParseIntPipe,
   Query,
+  ForbiddenException,
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { SupabaseAuthGuard } from '../auth/auth.guard';
@@ -22,7 +23,18 @@ import { UpdateAdminSalonDto } from './dto/update-admin-salon.dto';
 import { UpdatePlanDto } from './dto/update-plan.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { BroadcastNotificationDto } from './dto/broadcast-notification.dto';
+import { AuthenticatedUser } from '../auth/auth.guard';
 
+/**
+ * All endpoints in this controller are protected by:
+ *   1. SupabaseAuthGuard  — validates the Supabase JWT signature and expiry
+ *   2. RolesGuard         — checks that request.user.role === 'Admin'
+ *
+ * Both guards run for every handler because they are declared at the class level.
+ * Individual handlers that deal with the admin's own identity perform an
+ * additional runtime check (defense-in-depth) to guarantee the user object
+ * is populated even if the guard chain is reconfigured in the future.
+ */
 @Controller('admin')
 @UseGuards(SupabaseAuthGuard, RolesGuard)
 @Roles('Admin')
@@ -75,7 +87,12 @@ export class AdminController {
   banUser(
     @Param('id') id: string,
     @Body('isBanned', ParseBoolPipe) isBanned: boolean,
+    @CurrentUser() admin: AuthenticatedUser,
   ) {
+    // Defense-in-depth: prevent self-ban through any code path
+    if (id === admin.id) {
+      throw new ForbiddenException('Cannot ban your own account');
+    }
     return this.adminService.banUser(id, isBanned);
   }
 
@@ -83,7 +100,12 @@ export class AdminController {
   changeUserRole(
     @Param('id') id: string,
     @Body() dto: UpdateUserRoleDto,
+    @CurrentUser() admin: AuthenticatedUser,
   ) {
+    // Defense-in-depth: prevent self-demotion through any code path
+    if (id === admin.id && dto.role !== 'Admin') {
+      throw new ForbiddenException('Cannot downgrade your own Admin role');
+    }
     return this.adminService.changeUserRole(id, dto.role);
   }
 
@@ -223,13 +245,22 @@ export class AdminController {
   /**
    * POST /admin/notifications/broadcast
    * Broadcast a notification to all users.
+   *
+   * Defense-in-depth: even though the class-level guards already guarantee
+   * only authenticated Admins reach this handler, we explicitly validate
+   * that adminId is present before passing it to the service layer.
    */
   @Post('notifications/broadcast')
   broadcastNotification(
     @Body() dto: BroadcastNotificationDto,
-    @CurrentUser('id') adminId: string,
+    @CurrentUser() admin: AuthenticatedUser,
   ) {
-    return this.adminService.broadcastNotification(dto, adminId);
+    // Runtime guard: this should never be falsy given the guards above,
+    // but protects against future guard misconfiguration.
+    if (!admin?.id) {
+      throw new ForbiddenException('Authenticated admin ID is required for broadcast');
+    }
+    return this.adminService.broadcastNotification(dto, admin.id);
   }
 
   /**
