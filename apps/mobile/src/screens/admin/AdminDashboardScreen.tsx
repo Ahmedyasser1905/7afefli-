@@ -556,25 +556,27 @@ export function AdminDashboardScreen() {
           </Text>
         </TouchableOpacity>
       ) : (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.statsRow}
-        >
-          {[
-            { icon: 'business', label: 'Salons', value: totalSalons, color: colors.amber },
-            { icon: 'checkmark-circle', label: 'Approuvés', value: approvedSalons, color: colors.success },
-            { icon: 'time-outline', label: 'En attente', value: pendingSalons, color: colors.warning },
-            { icon: 'people', label: 'Utilisateurs', value: totalUsers, color: colors.amber },
-            { icon: 'calendar', label: 'Réservations', value: totalReservations, color: '#4A90D9' },
-          ].map((s) => (
-            <View key={s.label} style={styles.statCard}>
-              <Ionicons name={s.icon as any} size={20} color={s.color} />
-              <Text style={styles.statNumber}>{s.value}</Text>
-              <Text style={styles.statLabel}>{s.label}</Text>
-            </View>
-          ))}
-        </ScrollView>
+        <View style={styles.statsContainer}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.statsRow}
+          >
+            {[
+              { icon: 'business', label: 'Salons', value: totalSalons, color: colors.amber },
+              { icon: 'checkmark-circle', label: 'Approuvés', value: approvedSalons, color: colors.success },
+              { icon: 'time-outline', label: 'En attente', value: pendingSalons, color: colors.warning },
+              { icon: 'people', label: 'Utilisateurs', value: totalUsers, color: colors.amber },
+              { icon: 'calendar', label: 'Réservations', value: totalReservations, color: '#4A90D9' },
+            ].map((s) => (
+              <View key={s.label} style={styles.statCard}>
+                <Ionicons name={s.icon as any} size={20} color={s.color} />
+                <Text style={styles.statNumber}>{s.value}</Text>
+                <Text style={styles.statLabel}>{s.label}</Text>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
       )}
 
       {/* ── Tabs ── */}
@@ -608,231 +610,234 @@ export function AdminDashboardScreen() {
       </ScrollView>
 
       {/* ── Content ── */}
+      <View style={{ flex: 1 }}>
 
-      {activeTab === 'salons' && (
-        salonsError ? renderError(() => refetchSalons()) :
-        salonsLoading ? <ActivityIndicator color={colors.amber} size="large" style={{ marginTop: 40 }} /> : (
-          <FlatList
-            data={salons}
-            keyExtractor={(item) => item.id as string}
-            renderItem={renderSalonItem}
-            contentContainerStyle={styles.list}
-            refreshControl={
-              <RefreshControl
-                refreshing={salonsRefetching}
-                onRefresh={() => { setSalonsPage(1); refetchSalons(); }}
-                tintColor={colors.amber}
-              />
-            }
-            ListEmptyComponent={<Text style={styles.emptyText}>Aucun salon enregistré</Text>}
-            ListFooterComponent={
-              salonsPage < salonsTotalPages ? (
-                <TouchableOpacity style={styles.loadMoreBtn} onPress={() => setSalonsPage(p => p + 1)}>
-                  <Text style={styles.loadMoreText}>Charger plus</Text>
-                  <Ionicons name="chevron-down" size={16} color={colors.amber} />
-                </TouchableOpacity>
-              ) : null
-            }
-          />
-        )
-      )}
+        {activeTab === 'salons' && (
+          salonsError ? renderError(() => refetchSalons()) :
+          salonsLoading ? <ActivityIndicator color={colors.amber} size="large" style={{ marginTop: 40 }} /> : (
+            <FlatList
+              data={salons}
+              keyExtractor={(item) => item.id as string}
+              renderItem={renderSalonItem}
+              contentContainerStyle={styles.list}
+              refreshControl={
+                <RefreshControl
+                  refreshing={salonsRefetching}
+                  onRefresh={() => { setSalonsPage(1); refetchSalons(); }}
+                  tintColor={colors.amber}
+                />
+              }
+              ListEmptyComponent={<Text style={styles.emptyText}>Aucun salon enregistré</Text>}
+              ListFooterComponent={
+                salonsPage < salonsTotalPages ? (
+                  <TouchableOpacity style={styles.loadMoreBtn} onPress={() => setSalonsPage(p => p + 1)}>
+                    <Text style={styles.loadMoreText}>Charger plus</Text>
+                    <Ionicons name="chevron-down" size={16} color={colors.amber} />
+                  </TouchableOpacity>
+                ) : null
+              }
+            />
+          )
+        )}
 
-      {activeTab === 'users' && (
-        usersError ? renderError(() => refetchUsers()) :
-        usersLoading ? <ActivityIndicator color={colors.amber} size="large" style={{ marginTop: 40 }} /> : (
-          <FlatList
-            data={users}
-            keyExtractor={(item) => item.id as string}
-            renderItem={renderUserItem}
-            contentContainerStyle={styles.list}
-            refreshControl={
-              <RefreshControl
-                refreshing={usersRefetching}
-                onRefresh={() => { setUsersPage(1); refetchUsers(); }}
-                tintColor={colors.amber}
-              />
-            }
-            ListEmptyComponent={<Text style={styles.emptyText}>Aucun utilisateur</Text>}
-            ListFooterComponent={
-              usersPage < usersTotalPages ? (
-                <TouchableOpacity style={styles.loadMoreBtn} onPress={() => setUsersPage(p => p + 1)}>
-                  <Text style={styles.loadMoreText}>Charger plus</Text>
-                  <Ionicons name="chevron-down" size={16} color={colors.amber} />
-                </TouchableOpacity>
-              ) : null
-            }
-          />
-        )
-      )}
+        {activeTab === 'users' && (
+          usersError ? renderError(() => refetchUsers()) :
+          usersLoading ? <ActivityIndicator color={colors.amber} size="large" style={{ marginTop: 40 }} /> : (
+            <FlatList
+              data={users}
+              keyExtractor={(item) => item.id as string}
+              renderItem={renderUserItem}
+              contentContainerStyle={styles.list}
+              refreshControl={
+                <RefreshControl
+                  refreshing={usersRefetching}
+                  onRefresh={() => { setUsersPage(1); refetchUsers(); }}
+                  tintColor={colors.amber}
+                />
+              }
+              ListEmptyComponent={<Text style={styles.emptyText}>Aucun utilisateur</Text>}
+              ListFooterComponent={
+                usersPage < usersTotalPages ? (
+                  <TouchableOpacity style={styles.loadMoreBtn} onPress={() => setUsersPage(p => p + 1)}>
+                    <Text style={styles.loadMoreText}>Charger plus</Text>
+                    <Ionicons name="chevron-down" size={16} color={colors.amber} />
+                  </TouchableOpacity>
+                ) : null
+              }
+            />
+          )
+        )}
 
-      {activeTab === 'reservations' && (
-        resError ? renderError(() => refetchRes()) :
-        resLoading ? <ActivityIndicator color={colors.amber} size="large" style={{ marginTop: 40 }} /> : (
-          <FlatList
-            data={reservations}
-            keyExtractor={(item) => item.id as string}
-            renderItem={renderReservationItem}
-            contentContainerStyle={styles.list}
-            refreshControl={
-              <RefreshControl
-                refreshing={resRefetching}
-                onRefresh={() => { setResPage(1); refetchRes(); }}
-                tintColor={colors.amber}
-              />
-            }
-            ListEmptyComponent={<Text style={styles.emptyText}>Aucune réservation</Text>}
-            ListFooterComponent={
-              resPage < resTotalPages ? (
-                <TouchableOpacity style={styles.loadMoreBtn} onPress={() => setResPage(p => p + 1)}>
-                  <Text style={styles.loadMoreText}>Charger plus</Text>
-                  <Ionicons name="chevron-down" size={16} color={colors.amber} />
-                </TouchableOpacity>
-              ) : null
-            }
-          />
-        )
-      )}
+        {activeTab === 'reservations' && (
+          resError ? renderError(() => refetchRes()) :
+          resLoading ? <ActivityIndicator color={colors.amber} size="large" style={{ marginTop: 40 }} /> : (
+            <FlatList
+              data={reservations}
+              keyExtractor={(item) => item.id as string}
+              renderItem={renderReservationItem}
+              contentContainerStyle={styles.list}
+              refreshControl={
+                <RefreshControl
+                  refreshing={resRefetching}
+                  onRefresh={() => { setResPage(1); refetchRes(); }}
+                  tintColor={colors.amber}
+                />
+              }
+              ListEmptyComponent={<Text style={styles.emptyText}>Aucune réservation</Text>}
+              ListFooterComponent={
+                resPage < resTotalPages ? (
+                  <TouchableOpacity style={styles.loadMoreBtn} onPress={() => setResPage(p => p + 1)}>
+                    <Text style={styles.loadMoreText}>Charger plus</Text>
+                    <Ionicons name="chevron-down" size={16} color={colors.amber} />
+                  </TouchableOpacity>
+                ) : null
+              }
+            />
+          )
+        )}
 
-      {activeTab === 'analytics' && (
-        analyticsError ? renderError(() => refetchAnalytics()) :
-        analyticsLoading ? <ActivityIndicator color={colors.amber} size="large" style={{ marginTop: 40 }} /> : (
-          <ScrollView contentContainerStyle={[styles.list, { paddingTop: 8 }]} showsVerticalScrollIndicator={false}>
-            {/* Revenue Overview */}
-            <Text style={styles.sectionHeading}>Revenus & Abonnements</Text>
-            <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
-              {[
-                { label: 'Revenu total', value: formatCurrency((analyticsData?.totalRevenue as number) ?? 0), icon: 'cash-outline' },
-                { label: 'MRR', value: formatCurrency((analyticsData?.mrr as number) ?? 0), icon: 'trending-up-outline' },
-                { label: 'Moy. abo.', value: formatCurrency((analyticsData?.avgSubscriptionValue as number) ?? 0), icon: 'receipt-outline' },
-              ].map((m) => (
-                <View key={m.label} style={styles.analyticsCard}>
-                  <Ionicons name={m.icon as any} size={20} color={colors.amber} />
-                  <Text style={styles.analyticsValue}>{m.value}</Text>
-                  <Text style={styles.analyticsLabel}>{m.label}</Text>
-                </View>
-              ))}
-            </View>
 
-            {/* Subscriptions by Plan */}
-            <Text style={styles.sectionHeading}>Abonnements par plan</Text>
-            {((analyticsData?.subscriptionsByPlan as any[]) ?? []).length === 0 ? (
-              <Text style={styles.emptyText}>Aucun abonnement actif</Text>
-            ) : (
-              ((analyticsData?.subscriptionsByPlan as any[]) ?? []).map((p: any) => (
-                <View key={p.plan_name} style={[styles.card, { flexDirection: 'row', alignItems: 'center' }]}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.cardTitle}>{p.plan_name}</Text>
-                    <Text style={styles.cardSubtitle}>{p.count} abonné(s)</Text>
+        {activeTab === 'analytics' && (
+          analyticsError ? renderError(() => refetchAnalytics()) :
+          analyticsLoading ? <ActivityIndicator color={colors.amber} size="large" style={{ marginTop: 40 }} /> : (
+            <ScrollView contentContainerStyle={[styles.list, { paddingTop: 8 }]} showsVerticalScrollIndicator={false}>
+              <Text style={styles.sectionHeading}>Revenus &amp; Abonnements</Text>
+              <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
+                {[
+                  { label: 'Revenu total', value: formatCurrency((analyticsData?.totalRevenue as number) ?? 0), icon: 'cash-outline' },
+                  { label: 'MRR', value: formatCurrency((analyticsData?.mrr as number) ?? 0), icon: 'trending-up-outline' },
+                  { label: 'Moy. abo.', value: formatCurrency((analyticsData?.avgSubscriptionValue as number) ?? 0), icon: 'receipt-outline' },
+                ].map((m) => (
+                  <View key={m.label} style={styles.analyticsCard}>
+                    <Ionicons name={m.icon as any} size={20} color={colors.amber} />
+                    <Text style={styles.analyticsValue}>{m.value}</Text>
+                    <Text style={styles.analyticsLabel}>{m.label}</Text>
                   </View>
-                  <Text style={{ fontFamily: 'Syne_700Bold', fontSize: 22, color: colors.amber }}>{p.count}</Text>
-                </View>
-              ))
-            )}
+                ))}
+              </View>
 
-            {/* Top Salons */}
-            <Text style={[styles.sectionHeading, { marginTop: 8 }]}>Top salons (note)</Text>
-            {((analyticsData?.topSalons as any[]) ?? []).length === 0 ? (
-              <Text style={styles.emptyText}>Aucune donnée</Text>
-            ) : (
-              ((analyticsData?.topSalons as any[]) ?? []).map((s: any, i: number) => (
-                <View key={s.id} style={[styles.card, { flexDirection: 'row', alignItems: 'center', gap: 10 }]}>
-                  <Text style={{ fontFamily: 'Syne_700Bold', fontSize: 18, color: colors.textMuted, width: 28 }}>#{i + 1}</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.cardTitle}>{s.name}</Text>
-                    <Text style={styles.cardSubtitle}>{s.wilaya} · {s.total_reviews ?? 0} avis</Text>
+              <Text style={styles.sectionHeading}>Abonnements par plan</Text>
+              {((analyticsData?.subscriptionsByPlan as any[]) ?? []).length === 0 ? (
+                <Text style={styles.emptyText}>Aucun abonnement actif</Text>
+              ) : (
+                ((analyticsData?.subscriptionsByPlan as any[]) ?? []).map((p: any) => (
+                  <View key={p.plan_name} style={[styles.card, { flexDirection: 'row', alignItems: 'center' }]}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.cardTitle}>{p.plan_name}</Text>
+                      <Text style={styles.cardSubtitle}>{p.count} abonné(s)</Text>
+                    </View>
+                    <Text style={{ fontFamily: 'Syne_700Bold', fontSize: 22, color: colors.amber }}>{p.count}</Text>
                   </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <Ionicons name="star" size={14} color={colors.amber} />
-                    <Text style={{ fontFamily: 'Syne_700Bold', fontSize: 14, color: colors.amber }}>
-                      {Number(s.average_rating ?? 0).toFixed(1)}
+                ))
+              )}
+
+              <Text style={[styles.sectionHeading, { marginTop: 8 }]}>Top salons (note)</Text>
+              {((analyticsData?.topSalons as any[]) ?? []).length === 0 ? (
+                <Text style={styles.emptyText}>Aucune donnée</Text>
+              ) : (
+                ((analyticsData?.topSalons as any[]) ?? []).map((s: any, i: number) => (
+                  <View key={s.id} style={[styles.card, { flexDirection: 'row', alignItems: 'center', gap: 10 }]}>
+                    <Text style={{ fontFamily: 'Syne_700Bold', fontSize: 18, color: colors.textMuted, width: 28 }}>#{i + 1}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.cardTitle}>{s.name}</Text>
+                      <Text style={styles.cardSubtitle}>{s.wilaya} · {s.total_reviews ?? 0} avis</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <Ionicons name="star" size={14} color={colors.amber} />
+                      <Text style={{ fontFamily: 'Syne_700Bold', fontSize: 14, color: colors.amber }}>
+                        {Number(s.average_rating ?? 0).toFixed(1)}
+                      </Text>
+                    </View>
+                  </View>
+                ))
+              )}
+            </ScrollView>
+          )
+        )}
+
+        {activeTab === 'broadcast' && (
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          >
+            <ScrollView contentContainerStyle={[styles.list, { paddingTop: 8 }]} showsVerticalScrollIndicator={false}>
+              {/* Compose */}
+              <View style={styles.broadcastCard}>
+                <View style={styles.broadcastCardHeader}>
+                  <Ionicons name="megaphone" size={20} color={colors.amber} />
+                  <Text style={styles.broadcastCardTitle}>Envoyer une notification à tous</Text>
+                </View>
+                <Text style={styles.broadcastHint}>
+                  La notification sera envoyée à tous les utilisateurs inscrits, même hors de l'application.
+                </Text>
+
+                <Text style={styles.inputLabel}>Titre *</Text>
+                <TextInput
+                  style={styles.inputField}
+                  placeholder="Ex: Nouveau salon disponible !"
+                  placeholderTextColor={colors.textMuted}
+                  value={broadcastTitle}
+                  onChangeText={setBroadcastTitle}
+                  maxLength={100}
+                />
+                <Text style={styles.charCount}>{broadcastTitle.length}/100</Text>
+
+                <Text style={styles.inputLabel}>Message *</Text>
+                <TextInput
+                  style={[styles.inputField, styles.inputArea]}
+                  placeholder="Écrivez votre message ici..."
+                  placeholderTextColor={colors.textMuted}
+                  value={broadcastBody}
+                  onChangeText={setBroadcastBody}
+                  multiline
+                  numberOfLines={4}
+                  maxLength={300}
+                  textAlignVertical="top"
+                />
+                <Text style={styles.charCount}>{broadcastBody.length}/300</Text>
+
+                <TouchableOpacity
+                  style={[styles.sendBtn, (!broadcastTitle.trim() || !broadcastBody.trim() || broadcastMutation.isPending) && styles.sendBtnDisabled]}
+                  onPress={handleSendBroadcast}
+                  activeOpacity={0.8}
+                  disabled={!broadcastTitle.trim() || !broadcastBody.trim() || broadcastMutation.isPending}
+                >
+                  {broadcastMutation.isPending ? (
+                    <ActivityIndicator color={colors.ink} size="small" />
+                  ) : (
+                    <>
+                      <Ionicons name="send" size={18} color={colors.ink} />
+                      <Text style={styles.sendBtnText}>Envoyer à tous les utilisateurs</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              {/* Broadcast history */}
+              <Text style={[styles.sectionHeading, { marginTop: 8 }]}>Historique des diffusions</Text>
+              {broadcastsLoading ? (
+                <ActivityIndicator color={colors.amber} style={{ marginTop: 16 }} />
+              ) : broadcastHistory.length === 0 ? (
+                <Text style={styles.emptyText}>Aucune diffusion envoyée</Text>
+              ) : (
+                broadcastHistory.map((b) => (
+                  <View key={b.id as string} style={styles.card}>
+                    <Text style={styles.cardTitle}>{b.title as string}</Text>
+                    <Text style={[styles.cardSubtitle, { marginTop: 4 }]}>{b.body as string}</Text>
+                    <Text style={[styles.cardSubtitle, { marginTop: 6, color: colors.textMuted }]}>
+                      {formatDate((b.sent_at ?? b.created_at) as string)}
+                      {(b.profiles as any)?.full_name ? ` · Par ${(b.profiles as any).full_name}` : ''}
                     </Text>
                   </View>
-                </View>
-              ))
-            )}
-          </ScrollView>
-        )
-      )}
+                ))
+              )}
+            </ScrollView>
+          </KeyboardAvoidingView>
+        )}
 
-      {activeTab === 'broadcast' && (
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-          <ScrollView contentContainerStyle={[styles.list, { paddingTop: 8 }]} showsVerticalScrollIndicator={false}>
-            {/* Compose */}
-            <View style={styles.broadcastCard}>
-              <View style={styles.broadcastCardHeader}>
-                <Ionicons name="megaphone" size={20} color={colors.amber} />
-                <Text style={styles.broadcastCardTitle}>Envoyer une notification à tous</Text>
-              </View>
-              <Text style={styles.broadcastHint}>
-                La notification sera envoyée à tous les utilisateurs inscrits, même hors de l'application.
-              </Text>
+      </View>{/* end flex:1 content wrapper */}
 
-              <Text style={styles.inputLabel}>Titre *</Text>
-              <TextInput
-                style={styles.inputField}
-                placeholder="Ex: Nouveau salon disponible !"
-                placeholderTextColor={colors.textMuted}
-                value={broadcastTitle}
-                onChangeText={setBroadcastTitle}
-                maxLength={100}
-              />
-              <Text style={styles.charCount}>{broadcastTitle.length}/100</Text>
 
-              <Text style={styles.inputLabel}>Message *</Text>
-              <TextInput
-                style={[styles.inputField, styles.inputArea]}
-                placeholder="Écrivez votre message ici..."
-                placeholderTextColor={colors.textMuted}
-                value={broadcastBody}
-                onChangeText={setBroadcastBody}
-                multiline
-                numberOfLines={4}
-                maxLength={300}
-                textAlignVertical="top"
-              />
-              <Text style={styles.charCount}>{broadcastBody.length}/300</Text>
-
-              <TouchableOpacity
-                style={[styles.sendBtn, (!broadcastTitle.trim() || !broadcastBody.trim() || broadcastMutation.isPending) && styles.sendBtnDisabled]}
-                onPress={handleSendBroadcast}
-                activeOpacity={0.8}
-                disabled={!broadcastTitle.trim() || !broadcastBody.trim() || broadcastMutation.isPending}
-              >
-                {broadcastMutation.isPending ? (
-                  <ActivityIndicator color={colors.ink} size="small" />
-                ) : (
-                  <>
-                    <Ionicons name="send" size={18} color={colors.ink} />
-                    <Text style={styles.sendBtnText}>Envoyer à tous les utilisateurs</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
-
-            {/* Broadcast history */}
-            <Text style={[styles.sectionHeading, { marginTop: 8 }]}>Historique des diffusions</Text>
-            {broadcastsLoading ? (
-              <ActivityIndicator color={colors.amber} style={{ marginTop: 16 }} />
-            ) : broadcastHistory.length === 0 ? (
-              <Text style={styles.emptyText}>Aucune diffusion envoyée</Text>
-            ) : (
-              broadcastHistory.map((b) => (
-                <View key={b.id as string} style={styles.card}>
-                  <Text style={styles.cardTitle}>{b.title as string}</Text>
-                  <Text style={[styles.cardSubtitle, { marginTop: 4 }]}>{b.body as string}</Text>
-                  <Text style={[styles.cardSubtitle, { marginTop: 6, color: colors.textMuted }]}>
-                    {formatDate((b.sent_at ?? b.created_at) as string)}
-                    {(b.profiles as any)?.full_name ? ` · Par ${(b.profiles as any).full_name}` : ''}
-                  </Text>
-                </View>
-              ))
-            )}
-          </ScrollView>
-        </KeyboardAvoidingView>
-      )}
 
       {/* ── User Detail Modal ── */}
       <Modal
@@ -976,10 +981,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center',
     marginHorizontal: spacing.lg, marginVertical: 8,
   },
+  statsContainer: {
+    height: 110,  // Fixed height prevents the horizontal ScrollView from expanding vertically
+  },
   statsRow: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     gap: spacing.sm,
+    alignItems: 'center',
   },
   statCard: {
     width: 90,
@@ -997,17 +1006,22 @@ const styles = StyleSheet.create({
   // Tabs
   tabRow: {
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.sm,
+    paddingTop: spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.07)',
     gap: 4,
   },
   tab: {
-    flexDirection: 'row', alignItems: 'center',
-    gap: 5, paddingHorizontal: 12, paddingVertical: 8,
-    borderRadius: radius.full,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+    marginBottom: -1, // align with the container bottom border
   },
-  tabActive: { backgroundColor: 'rgba(232,160,32,0.12)' },
+  tabActive: { borderBottomColor: colors.amber },
   tabText: { fontFamily: 'DMSans_500Medium', fontSize: 13, color: colors.textSecondary },
   tabTextActive: { color: colors.amber, fontFamily: 'DMSans_700Bold' },
 
