@@ -547,7 +547,7 @@ export function AdminDashboardScreen() {
 
       {/* ── Stats ── */}
       {statsLoading ? (
-        <ActivityIndicator color={colors.amber} size="small" style={{ marginVertical: 12 }} />
+        <ActivityIndicator color={colors.amber} size="small" style={{ marginVertical: 10 }} />
       ) : statsError ? (
         <TouchableOpacity style={styles.statsErrorRow} onPress={() => refetchStats()}>
           <Ionicons name="refresh" size={14} color={colors.amber} />
@@ -556,40 +556,30 @@ export function AdminDashboardScreen() {
           </Text>
         </TouchableOpacity>
       ) : (
-        <View style={styles.statsContainer}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.statsRow}
-          >
-            {[
-              { icon: 'business', label: 'Salons', value: totalSalons, color: colors.amber },
-              { icon: 'checkmark-circle', label: 'Approuvés', value: approvedSalons, color: colors.success },
-              { icon: 'time-outline', label: 'En attente', value: pendingSalons, color: colors.warning },
-              { icon: 'people', label: 'Utilisateurs', value: totalUsers, color: colors.amber },
-              { icon: 'calendar', label: 'Réservations', value: totalReservations, color: '#4A90D9' },
-            ].map((s) => (
-              <View key={s.label} style={styles.statCard}>
-                <Ionicons name={s.icon as any} size={20} color={s.color} />
-                <Text style={styles.statNumber}>{s.value}</Text>
-                <Text style={styles.statLabel}>{s.label}</Text>
-              </View>
-            ))}
-          </ScrollView>
+        <View style={styles.statsRow}>
+          {[
+            { icon: 'business', label: 'Salons', value: totalSalons, color: colors.amber },
+            { icon: 'checkmark-circle', label: 'Approuvés', value: approvedSalons, color: colors.success },
+            { icon: 'time-outline', label: 'En attente', value: pendingSalons, color: colors.warning },
+            { icon: 'people', label: 'Utilisateurs', value: totalUsers, color: colors.amber },
+            { icon: 'calendar', label: 'Réservations', value: totalReservations, color: '#4A90D9' },
+          ].map((s) => (
+            <View key={s.label} style={styles.statCard}>
+              <Ionicons name={s.icon as any} size={18} color={s.color} />
+              <Text style={styles.statNumber}>{s.value}</Text>
+              <Text style={styles.statLabel}>{s.label}</Text>
+            </View>
+          ))}
         </View>
       )}
 
       {/* ── Tabs ── */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.tabRow}
-      >
+      <View style={styles.tabRow}>
         {([
           { key: 'salons', icon: 'business-outline', label: 'Salons' },
           { key: 'users', icon: 'people-outline', label: 'Utilisateurs' },
           { key: 'reservations', icon: 'calendar-outline', label: 'RDV' },
-          { key: 'analytics', icon: 'bar-chart-outline', label: 'Analytics' },
+          { key: 'analytics', icon: 'bar-chart-outline', label: 'Stats' },
           { key: 'broadcast', icon: 'megaphone-outline', label: 'Diffusion' },
         ] as { key: AdminTab; icon: string; label: string }[]).map((tab) => (
           <TouchableOpacity
@@ -599,7 +589,7 @@ export function AdminDashboardScreen() {
           >
             <Ionicons
               name={tab.icon as any}
-              size={13}
+              size={14}
               color={activeTab === tab.key ? colors.amber : colors.textSecondary}
             />
             <Text style={[styles.tabText, activeTab === tab.key && styles.tabTextActive]}>
@@ -607,7 +597,7 @@ export function AdminDashboardScreen() {
             </Text>
           </TouchableOpacity>
         ))}
-      </ScrollView>
+      </View>
 
       {/* ── Content ── */}
       <View style={{ flex: 1 }}>
@@ -978,48 +968,45 @@ const styles = StyleSheet.create({
 
   // Stats
   statsErrorRow: {
-    flexDirection: 'row', alignItems: 'center',
+    flexDirection: 'row' as const, alignItems: 'center' as const,
     marginHorizontal: spacing.lg, marginVertical: 8,
   },
-  statsContainer: {
-    height: 110,  // Fixed height prevents the horizontal ScrollView from expanding vertically
-  },
   statsRow: {
-    paddingHorizontal: spacing.lg,
+    flexDirection: 'row' as const,
+    paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    gap: spacing.sm,
-    alignItems: 'center',
+    gap: 6,
   },
   statCard: {
-    width: 90,
+    flex: 1,
     backgroundColor: colors.carbon,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    alignItems: 'center',
-    gap: 4,
+    borderRadius: radius.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: 4,
+    alignItems: 'center' as const,
+    gap: 2,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.05)',
   },
-  statNumber: { fontFamily: 'Syne_700Bold', fontSize: 20, color: colors.textPrimary },
-  statLabel: { fontFamily: 'DMSans_400Regular', fontSize: 10, color: colors.textSecondary, textAlign: 'center' },
+  statNumber: { fontFamily: 'Syne_700Bold', fontSize: 17, color: colors.textPrimary },
+  statLabel: { fontFamily: 'DMSans_400Regular', fontSize: 9, color: colors.textSecondary, textAlign: 'center' as const },
 
   // Tabs
   tabRow: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
+    flexDirection: 'row' as const,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.07)',
-    gap: 4,
+    paddingHorizontal: spacing.sm,
   },
   tab: {
+    flex: 1,
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
+    justifyContent: 'center' as const,
     gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 10,
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
-    marginBottom: -1,
   },
   tabActive: { borderBottomColor: colors.amber },
   tabText: { fontFamily: 'DMSans_500Medium', fontSize: 11, color: colors.textSecondary },
