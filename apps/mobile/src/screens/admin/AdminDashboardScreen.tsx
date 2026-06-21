@@ -599,7 +599,7 @@ export function AdminDashboardScreen() {
           >
             <Ionicons
               name={tab.icon as any}
-              size={16}
+              size={13}
               color={activeTab === tab.key ? colors.amber : colors.textSecondary}
             />
             <Text style={[styles.tabText, activeTab === tab.key && styles.tabTextActive]}>
@@ -1014,15 +1014,15 @@ const styles = StyleSheet.create({
   tab: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
-    gap: 5,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
-    marginBottom: -1, // align with the container bottom border
+    marginBottom: -1,
   },
   tabActive: { borderBottomColor: colors.amber },
-  tabText: { fontFamily: 'DMSans_500Medium', fontSize: 13, color: colors.textSecondary },
+  tabText: { fontFamily: 'DMSans_500Medium', fontSize: 11, color: colors.textSecondary },
   tabTextActive: { color: colors.amber, fontFamily: 'DMSans_700Bold' },
 
   // List / Cards
