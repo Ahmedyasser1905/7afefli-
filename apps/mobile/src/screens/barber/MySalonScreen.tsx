@@ -92,10 +92,10 @@ export function MySalonScreen() {
   });
 
   const removeStaff = async (staffId: string, name: string) => {
-    Alert.alert('Retirer', `Voulez-vous retirer ${name} de l'équipe ?`, [
-      { text: 'Annuler', style: 'cancel' },
+    Alert.alert(t('barber.remove_staff'), `${t('barber.remove_staff_confirm').replace('ce barbier', name)}`, [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Retirer',
+        text: t('barber.remove_staff'),
         style: 'destructive',
         onPress: async () => {
           try {
@@ -103,10 +103,10 @@ export function MySalonScreen() {
             refetchStaff();
           } catch (err: unknown) {
             Toast.show({
-        type: 'error',
-        text1: t('common.error'),
-        text2: (err as Error).message || 'Impossible de retirer ce barbier'
-      });
+              type: 'error',
+              text1: t('common.error'),
+              text2: (err as Error).message || t('barber.remove_staff_failed')
+            });
           }
         },
       },
@@ -154,7 +154,7 @@ export function MySalonScreen() {
       });
 
       if (!uploadRes.ok) {
-        throw new Error('Upload échoué');
+        throw new Error(t('barber.upload_failed'));
       }
 
       // Step 3: Register the photo in the backend (creates the DB record)
@@ -163,15 +163,15 @@ export function MySalonScreen() {
       Toast.show({
         type: 'success',
         text1: t('common.success'),
-        text2: 'Photo ajoutée au portfolio'
+        text2: t('barber.portfolio_added')
       });
       refetchPortfolio();
     } catch (err: unknown) {
-      const msg = (err as Error).message || 'Erreur upload portfolio';
-      if (msg.toLowerCase().includes('limité') || msg.toLowerCase().includes('plan')) {
-        Alert.alert('Limite atteinte', msg, [
-          { text: 'Annuler', style: 'cancel' },
-          { text: 'Voir les abonnements', onPress: () => navigation.navigate('Subscription' as never) }
+      const msg = (err as Error).message || t('barber.portfolio_upload_error');
+      if (msg.toLowerCase().includes('limit') || msg.toLowerCase().includes('plan')) {
+        Alert.alert(t('barber.portfolio_limit_title'), msg, [
+          { text: t('common.cancel'), style: 'cancel' },
+          { text: t('barber.portfolio_limit_action'), onPress: () => navigation.navigate('Subscription' as never) }
         ]);
       } else {
         Toast.show({
@@ -186,23 +186,21 @@ export function MySalonScreen() {
   };
 
   const deletePhoto = async (photoId: string, storagePath: string) => {
-    Alert.alert('Supprimer', 'Voulez-vous supprimer cette photo ?', [
-      { text: 'Annuler', style: 'cancel' },
+    Alert.alert(t('barber.delete_photo'), t('barber.delete_photo_confirm'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Supprimer',
+        text: t('barber.delete_photo'),
         style: 'destructive',
         onPress: async () => {
           try {
-            // Storage cleanup is handled server-side by DELETE /salons/:id/portfolio/:photoId
-            // The API endpoint performs both the DB record deletion and the storage file removal
             await apiClient.delete(`/salons/${salon?.id}/portfolio/${photoId}`);
             refetchPortfolio();
           } catch (err: unknown) {
             Toast.show({
-        type: 'error',
-        text1: t('common.error'),
-        text2: (err as Error).message || 'Impossible de supprimer'
-      });
+              type: 'error',
+              text1: t('common.error'),
+              text2: (err as Error).message || t('barber.delete_failed')
+            });
           }
         },
       },
@@ -259,7 +257,7 @@ export function MySalonScreen() {
       Toast.show({
         type: 'error',
         text1: t('common.error'),
-        text2: (err as Error).message || 'Erreur upload avatar'
+        text2: (err as Error).message || t('barber.avatar_upload_error')
       });
     } finally {
       setUploading(false);
@@ -267,10 +265,10 @@ export function MySalonScreen() {
   };
 
   const deleteService = async (id: string) => {
-    Alert.alert('Supprimer', 'Voulez-vous supprimer ce service ?', [
-      { text: 'Annuler', style: 'cancel' },
+    Alert.alert(t('barber.delete_service'), t('barber.delete_service_confirm'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Supprimer',
+        text: t('barber.delete_service'),
         style: 'destructive',
         onPress: async () => {
           try {
@@ -278,10 +276,10 @@ export function MySalonScreen() {
             refetchServices();
           } catch (err: unknown) {
             Toast.show({
-        type: 'error',
-        text1: t('common.error'),
-        text2: (err as Error).message || 'Impossible de supprimer'
-      });
+              type: 'error',
+              text1: t('common.error'),
+              text2: (err as Error).message || t('barber.delete_failed')
+            });
           }
         }
       }
@@ -308,7 +306,7 @@ export function MySalonScreen() {
             </View>
           )}
           <View>
-            <Text style={styles.headerTitle}>{(salon?.name as string) || 'Mon Salon'}</Text>
+            <Text style={styles.headerTitle}>{(salon?.name as string) || t('barber.my_salon')}</Text>
             <Text style={styles.headerSubtitle}>{salon?.wilaya as string} • {(salon?.open_time as string)?.substring(0,5)} - {(salon?.close_time as string)?.substring(0,5)}</Text>
           </View>
         </View>
@@ -330,7 +328,7 @@ export function MySalonScreen() {
             onPress={() => setActiveTab(tab)}
           >
             <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-              {tab === 'services' ? 'Services' : tab === 'staff' ? 'Barbiers' : tab === 'portfolio' ? 'Portfolio' : 'Avis'}
+              {tab === 'services' ? t('barber.tab_services') : tab === 'staff' ? t('barber.tab_barbers') : tab === 'portfolio' ? t('barber.tab_portfolio') : t('barber.tab_reviews')}
             </Text>
           </TouchableOpacity>
         ))}
@@ -341,13 +339,13 @@ export function MySalonScreen() {
           <View style={styles.section}>
             <TouchableOpacity style={styles.addBtn} onPress={() => setIsServiceModalVisible(true)}>
               <Ionicons name="add" size={20} color={colors.ink} />
-              <Text style={styles.addBtnText}>Ajouter un service</Text>
+              <Text style={styles.addBtnText}>{t('barber.add_service')}</Text>
             </TouchableOpacity>
 
             {isServicesLoading ? (
               <ActivityIndicator color={colors.amber} style={{ marginTop: 20 }} />
             ) : services.length === 0 ? (
-              <Text style={styles.emptyText}>Aucun service configuré.</Text>
+              <Text style={styles.emptyText}>{t('barber.no_service')}</Text>
             ) : (
               services.map((service: Record<string, unknown>) => (
                 <View key={service.id as string} style={styles.serviceCard}>
@@ -377,13 +375,13 @@ export function MySalonScreen() {
               ) : (
                 <>
                   <Ionicons name="camera" size={20} color={colors.ink} />
-                  <Text style={styles.addBtnText}>Ajouter une photo</Text>
+                  <Text style={styles.addBtnText}>{t('barber.add_photo')}</Text>
                 </>
               )}
             </TouchableOpacity>
 
             {photos.length === 0 ? (
-              <Text style={styles.emptyText}>Votre portfolio est vide.</Text>
+              <Text style={styles.emptyText}>{t('barber.no_photos')}</Text>
             ) : (
               <View style={styles.grid}>
                 {photos.map((photo: Record<string, unknown>) => (
@@ -407,11 +405,11 @@ export function MySalonScreen() {
           <View style={styles.section}>
             <TouchableOpacity style={styles.addBtn} onPress={() => setIsStaffModalVisible(true)}>
               <Ionicons name="person-add" size={20} color={colors.ink} />
-              <Text style={styles.addBtnText}>Ajouter un barbier</Text>
+              <Text style={styles.addBtnText}>{t('barber.add_barber')}</Text>
             </TouchableOpacity>
 
             {staff.length === 0 ? (
-              <Text style={styles.emptyText}>Aucun barbier dans votre équipe.</Text>
+              <Text style={styles.emptyText}>{t('barber.no_barbers')}</Text>
             ) : (
               staff.map((member: Record<string, unknown>) => {
                 const profiles = member.profiles as Record<string, unknown> | undefined;
@@ -431,11 +429,11 @@ export function MySalonScreen() {
                       </View>
                     </TouchableOpacity>
                     <View style={styles.staffInfo}>
-                      <Text style={styles.staffName}>{(member.custom_name as string) || (profiles?.full_name as string) || 'Barbier'}</Text>
-                      <Text style={styles.staffPhone}>{(profiles?.phone_number as string) || 'Pas de compte'}</Text>
+                      <Text style={styles.staffName}>{(member.custom_name as string) || (profiles?.full_name as string) || t('barber.staff_fallback')}</Text>
+                      <Text style={styles.staffPhone}>{(profiles?.phone_number as string) || t('barber.staff_no_account')}</Text>
                     </View>
                     <TouchableOpacity
-                      onPress={() => removeStaff(member.id as string, (member.custom_name as string) || (profiles?.full_name as string) || 'ce barbier')}
+                      onPress={() => removeStaff(member.id as string, (member.custom_name as string) || (profiles?.full_name as string) || t('barber.staff_fallback'))}
                       style={styles.deleteBtn}
                     >
                       <Ionicons name="close-circle" size={22} color={colors.error} />
@@ -450,14 +448,14 @@ export function MySalonScreen() {
         {activeTab === 'reviews' && (
           <View style={styles.section}>
             {reviews.length === 0 ? (
-              <Text style={styles.emptyText}>Aucun avis pour l'instant.</Text>
+              <Text style={styles.emptyText}>{t('barber.no_reviews')}</Text>
             ) : (
               reviews.map((review: Record<string, unknown>) => {
                 const reviewProfiles = review.profiles as Record<string, unknown> | undefined;
                 return (
                 <View key={review.id as string} style={styles.reviewCard}>
                   <View style={styles.reviewHeader}>
-                    <Text style={styles.reviewName}>{(reviewProfiles?.full_name as string) || 'Client anonyme'}</Text>
+                    <Text style={styles.reviewName}>{(reviewProfiles?.full_name as string) || t('barber.anonymous_client')}</Text>
                     <View style={styles.stars}>
                       {Array.from({ length: 5 }).map((_, i) => (
                         <Ionicons
@@ -472,7 +470,7 @@ export function MySalonScreen() {
                   {Boolean(review.comment) && <Text style={styles.reviewComment}>{review.comment as string}</Text>}
                   {Boolean(review.response) && (
                     <View style={{ backgroundColor: 'rgba(232,160,32,0.08)', borderRadius: radius.sm, padding: spacing.sm, marginTop: spacing.sm, borderLeftWidth: 3, borderLeftColor: colors.amber }}>
-                      <Text style={{ fontFamily: 'DMSans_500Medium', fontSize: 12, color: colors.amber, marginBottom: 4 }}>Votre réponse</Text>
+                      <Text style={{ fontFamily: 'DMSans_500Medium', fontSize: 12, color: colors.amber, marginBottom: 4 }}>{t('barber.your_reply')}</Text>
                       <Text style={{ fontFamily: 'DMSans_400Regular', fontSize: 13, color: colors.textSecondary }}>{review.response as string}</Text>
                     </View>
                   )}
@@ -482,14 +480,14 @@ export function MySalonScreen() {
                       style={{ alignSelf: 'flex-start', marginTop: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: 4 }}
                     >
                       <Ionicons name="chatbubble-outline" size={14} color={colors.amber} />
-                      <Text style={{ fontFamily: 'DMSans_500Medium', fontSize: 13, color: colors.amber }}>Répondre</Text>
+                      <Text style={{ fontFamily: 'DMSans_500Medium', fontSize: 13, color: colors.amber }}>{t('barber.reply')}</Text>
                     </TouchableOpacity>
                   )}
                   {respondingReview === (review.id as string) && (
                     <View style={{ marginTop: spacing.sm }}>
                       <TextInput
                         style={{ backgroundColor: colors.ink, borderRadius: radius.sm, padding: spacing.sm, color: colors.textPrimary, fontFamily: 'DMSans_400Regular', fontSize: 13, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', minHeight: 60, textAlignVertical: 'top' }}
-                        placeholder="Votre réponse..."
+                        placeholder={t('barber.reply_placeholder')}
                         placeholderTextColor={colors.textMuted}
                         value={responseText}
                         onChangeText={setResponseText}
@@ -497,7 +495,7 @@ export function MySalonScreen() {
                       />
                       <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
                         <TouchableOpacity onPress={() => setRespondingReview(null)} style={{ flex: 1, padding: spacing.sm, alignItems: 'center', borderRadius: radius.sm, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
-                          <Text style={{ fontFamily: 'DMSans_500Medium', fontSize: 13, color: colors.textSecondary }}>Annuler</Text>
+                          <Text style={{ fontFamily: 'DMSans_500Medium', fontSize: 13, color: colors.textSecondary }}>{t('common.cancel')}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity 
                           onPress={async () => {
@@ -508,15 +506,15 @@ export function MySalonScreen() {
                               refetchReviews();
                             } catch (err: unknown) {
                               Toast.show({
-        type: 'error',
-        text1: t('common.error'),
-        text2: (err as Error).message || 'Erreur lors de l\'envoi'
-      });
+                                type: 'error',
+                                text1: t('common.error'),
+                                text2: (err as Error).message || t('barber.reply_error')
+                              });
                             }
                           }}
                           style={{ flex: 1, padding: spacing.sm, alignItems: 'center', borderRadius: radius.sm, backgroundColor: colors.amber }}
                         >
-                          <Text style={{ fontFamily: 'DMSans_700Bold', fontSize: 13, color: colors.ink }}>Envoyer</Text>
+                          <Text style={{ fontFamily: 'DMSans_700Bold', fontSize: 13, color: colors.ink }}>{t('barber.reply_send')}</Text>
                         </TouchableOpacity>
                       </View>
                     </View>

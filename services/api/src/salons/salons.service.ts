@@ -252,20 +252,34 @@ export class SalonsService {
 
     if (error) throw new InternalServerErrorException(`Failed to create salon: ${error.message}`);
 
-    // Dynamically assign the default free plan
-    const { data: defaultPlan } = await this.supabase.adminClient
+    // Dynamically assign the trial plan (is_trial_plan = true, e.g. Pro).
+    // Falls back to the free plan (price = 0) if none is configured.
+    const { data: trialPlan } = await this.supabase.adminClient
       .from('plans')
       .select('id, name')
-      .eq('price', 0)
+      .eq('is_trial_plan', true)
       .eq('is_active', true)
       .order('sort_order', { ascending: true })
       .limit(1)
       .maybeSingle();
 
-    if (defaultPlan) {
+    const { data: freePlan } = !trialPlan
+      ? await this.supabase.adminClient
+          .from('plans')
+          .select('id, name')
+          .eq('price', 0)
+          .eq('is_active', true)
+          .order('sort_order', { ascending: true })
+          .limit(1)
+          .maybeSingle()
+      : { data: null };
+
+    const assignedPlan = trialPlan ?? freePlan;
+
+    if (assignedPlan) {
       await this.supabase.adminClient.from('user_subscriptions').insert({
         salon_id: data.id,
-        plan: defaultPlan.id,
+        plan: assignedPlan.id,
         status: 'Trial',
         starts_at: new Date().toISOString(),
         trial_ends_at: data.trial_ends_at,

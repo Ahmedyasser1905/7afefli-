@@ -1,5 +1,6 @@
 import {
   Controller,
+  Get,
   Post,
   Body,
   Headers,
@@ -81,6 +82,108 @@ export class PaymentsController {
   }
 
   /**
+   * GET /payments/success
+   * Chargily requires an HTTPS success_url. This endpoint bridges the gap by
+   * serving an HTML page that immediately redirects the mobile WebView / browser
+   * to the app's deep link (hafefli://payment/success).
+   */
+  @Get('success')
+  @HttpCode(HttpStatus.OK)
+  paymentSuccess(@Res() res: Response) {
+    const deepLink = process.env.PAYMENT_DEEPLINK_SUCCESS || 'hafefli://payment/success';
+    return res.status(200).send(`<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Paiement confirmé — 7afefli</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+         background:#0f0f0f;color:#fff;min-height:100vh;
+         display:flex;align-items:center;justify-content:center;text-align:center;padding:24px}
+    .card{max-width:360px;width:100%}
+    .icon{font-size:64px;margin-bottom:20px}
+    h1{font-size:22px;font-weight:700;margin-bottom:8px;color:#22c55e}
+    p{font-size:15px;color:#aaa;margin-bottom:32px;line-height:1.5}
+    .btn{display:none;width:100%;padding:16px;background:#e8a020;color:#000;
+         border:none;border-radius:14px;font-size:16px;font-weight:700;
+         cursor:pointer;text-decoration:none;margin-bottom:12px}
+    .btn:active{opacity:.85}
+    .hint{font-size:13px;color:#666}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">✅</div>
+    <h1>Paiement confirmé !</h1>
+    <p>Votre abonnement a été activé avec succès.<br>Retour vers l'application...</p>
+    <a id="btn" class="btn" href="${deepLink}">Ouvrir 7afefli</a>
+    <p id="hint" class="hint" style="display:none">Si l'application ne s'ouvre pas,<br>appuyez sur le bouton ci-dessus.</p>
+  </div>
+  <script>
+    // 1. Try to open the app immediately
+    window.location.href = '${deepLink}';
+    // 2. After 1.5s, if we're still here, show the manual button
+    setTimeout(function(){
+      document.getElementById('btn').style.display='block';
+      document.getElementById('hint').style.display='block';
+    }, 1500);
+  </script>
+</body>
+</html>`);
+  }
+
+  /**
+   * GET /payments/failure
+   * Same bridge pattern as /payments/success but for failed / cancelled payments.
+   */
+  @Get('failure')
+  @HttpCode(HttpStatus.OK)
+  paymentFailure(@Res() res: Response) {
+    const deepLink = process.env.PAYMENT_DEEPLINK_FAILURE || 'hafefli://payment/failure';
+    return res.status(200).send(`<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Paiement non complété — 7afefli</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+         background:#0f0f0f;color:#fff;min-height:100vh;
+         display:flex;align-items:center;justify-content:center;text-align:center;padding:24px}
+    .card{max-width:360px;width:100%}
+    .icon{font-size:64px;margin-bottom:20px}
+    h1{font-size:22px;font-weight:700;margin-bottom:8px;color:#ef4444}
+    p{font-size:15px;color:#aaa;margin-bottom:32px;line-height:1.5}
+    .btn{display:none;width:100%;padding:16px;background:#e8a020;color:#000;
+         border:none;border-radius:14px;font-size:16px;font-weight:700;
+         cursor:pointer;text-decoration:none;margin-bottom:12px}
+    .btn:active{opacity:.85}
+    .hint{font-size:13px;color:#666}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">❌</div>
+    <h1>Paiement non complété</h1>
+    <p>Le paiement n'a pas été finalisé.<br>Retour vers l'application...</p>
+    <a id="btn" class="btn" href="${deepLink}">Retourner à 7afefli</a>
+    <p id="hint" class="hint" style="display:none">Si l'application ne s'ouvre pas,<br>appuyez sur le bouton ci-dessus.</p>
+  </div>
+  <script>
+    window.location.href = '${deepLink}';
+    setTimeout(function(){
+      document.getElementById('btn').style.display='block';
+      document.getElementById('hint').style.display='block';
+    }, 1500);
+  </script>
+</body>
+</html>`);
+  }
+
+  /**
    * POST /payments/webhook
    * Handle Chargily payment webhook — activates subscription on successful payment.
    * Now uses dynamic duration from subscription_plans table.
@@ -159,24 +262,27 @@ export class PaymentsController {
             this.logger.warn(`Payment upsert error for ${paymentId}: ${paymentError.message}`);
           }
 
-          // 2. Activate subscription (sync trigger auto-updates salon)
-          await this.supabase.adminClient
+          // 2. Activate / renew subscription — upsert on salon_id (one record per salon).
+          //    This handles both first-time activation and renewals correctly.
+          //    The lock trigger now allows same-plan renewal and upgrades.
+          const { error: subError } = await this.supabase.adminClient
             .from('user_subscriptions')
-            .update({
-              status: 'Active',
-              plan: planData?.id || null,  // FK to plans table (renamed from plan_id)
-              starts_at: new Date().toISOString(),
-              ends_at: endsAt,
-            })
-            .eq('salon_id', salon_id);
+            .upsert(
+              {
+                salon_id,
+                plan: planData?.id || null,
+                status: 'Active',
+                starts_at: new Date().toISOString(),
+                ends_at: endsAt,
+                trial_ends_at: null,  // clear trial on paid activation
+              },
+              { onConflict: 'salon_id' },
+            );
 
-          // 2b. Immediately sync plan_price / subscription_status on the salon row
-          //     (so the salon appears at the correct sort position right away,
-          //     without waiting for the midnight cron job)
-          try {
-            await this.supabase.adminClient.rpc('sync_all_subscription_statuses');
-          } catch {
-            // Non-fatal — cron job will handle this if RPC is unavailable
+          if (subError) {
+            this.logger.error(`Subscription upsert failed for salon ${salon_id}: ${subError.message}`);
+          } else {
+            this.logger.log(`Subscription activated for salon ${salon_id}: plan=${plan}, ends_at=${endsAt}`);
           }
 
           // 3. Notify the salon owner that their subscription is activated (fire-and-forget)

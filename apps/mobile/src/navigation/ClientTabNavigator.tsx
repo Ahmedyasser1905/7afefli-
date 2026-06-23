@@ -47,6 +47,19 @@ function ExploreStackNavigator() {
   );
 }
 
+// Favorites stack (favorites → salon detail → booking)
+const FavoritesStack = createNativeStackNavigator();
+function FavoritesStackNavigator() {
+  return (
+    <FavoritesStack.Navigator screenOptions={{ headerShown: false }}>
+      <FavoritesStack.Screen name="FavoritesMain" component={FavoritesScreen} />
+      <FavoritesStack.Screen name="SalonDetail" component={SalonDetailScreen} />
+      <FavoritesStack.Screen name="Booking" component={BookingScreen} />
+      <FavoritesStack.Screen name="BookingConfirm" component={BookingConfirmScreen} />
+    </FavoritesStack.Navigator>
+  );
+}
+
 const Tab = createBottomTabNavigator();
 
 /**
@@ -144,7 +157,7 @@ export function ClientTabNavigator() {
       />
       <Tab.Screen
         name="Favorites"
-        component={FavoritesScreen}
+        component={FavoritesStackNavigator}
         options={{ tabBarLabel: t('nav.favorites') }}
       />
       <Tab.Screen

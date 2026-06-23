@@ -11,7 +11,7 @@ import {
   Easing,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRoute, useNavigation } from '@react-navigation/native';
+import { useRoute, useNavigation, CommonActions } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../lib/apiClient';
 import { colors, spacing, radius } from '../../theme';
@@ -70,24 +70,31 @@ export function BookingConfirmScreen() {
   const service = (reservation as any)?.services ?? (reservation as any)?.service;
 
   const handleGoHome = () => {
-    // Reset current stack (Home or Explore) to its first screen
+    // Pop the current HomeStack/ExploreStack to its root screen
     navigation.popToTop();
 
-    // BookingConfirm is inside HomeStack/ExploreStack (1st parent)
-    // which is itself a tab inside ClientTabNavigator (2nd parent)
-    const tabNavigator = navigation.getParent()?.getParent();
+    // Then switch the tab navigator (two levels up) to the Home tab
+    const tabNavigator = navigation.getParent()?.getParent?.();
     if (tabNavigator) {
       tabNavigator.navigate('Home');
+    } else {
+      // Fallback: just go back to the root of the current stack
+      navigation.dispatch(CommonActions.navigate({ name: 'HomeMain' }));
     }
   };
 
   const handleViewAppointments = () => {
-    // Reset current stack (Home or Explore) to its first screen
+    // Pop the current HomeStack/ExploreStack to its root screen
     navigation.popToTop();
 
     // Navigate two levels up to reach the ClientTabNavigator
-    const tabNavigator = navigation.getParent()?.getParent();
-    tabNavigator?.navigate('Appointments');
+    const tabNavigator = navigation.getParent()?.getParent?.();
+    if (tabNavigator) {
+      tabNavigator.navigate('Appointments');
+    } else {
+      // Fallback: go back to root
+      navigation.goBack();
+    }
   };
 
   return (

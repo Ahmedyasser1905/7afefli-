@@ -51,6 +51,20 @@ async function bootstrap() {
     // ── Graceful shutdown (applicable to serverless container reuse) ────────
     app.enableShutdownHooks();
 
+    // ── Raw body for Chargily webhook ─────────────────────────────────────────
+    // MUST come before express.json() — Chargily verifies its HMAC signature
+    // against the raw request body. Once express.json() runs, the Buffer is gone.
+    server.use(
+      '/api/v1/payments/webhook',
+      expressLib.raw({ type: 'application/json' }),
+      (req: any, _res: any, next: any) => {
+        if (Buffer.isBuffer(req.body)) {
+          req.rawBody = req.body;
+        }
+        next();
+      },
+    );
+
     // ── Body size limit — protect against oversized payloads ────────────────
     app.use(expressLib.json({ limit: '1mb' }));
     app.use(expressLib.urlencoded({ extended: true, limit: '1mb' }));
