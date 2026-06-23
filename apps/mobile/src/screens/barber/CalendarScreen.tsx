@@ -112,7 +112,7 @@ const DEFAULT_AVATAR = 'https://phfwutugsyiutqgippqg.supabase.co/storage/v1/obje
 export function CalendarScreen() {
   const user = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
-  const { t } = useTranslations();
+  const { t, locale } = useTranslations();
   // selectedDate can be any valid YYYY-MM-DD, not limited to the next 14 days
   const [selectedDate, setSelectedDate] = useState(algToday());
   const [isWalkInModalVisible, setIsWalkInModalVisible] = useState(false);
@@ -237,13 +237,13 @@ export function CalendarScreen() {
 
   const monthYearLabel = useMemo(() => {
     const [y, m, d] = selectedDate.split('-').map(Number);
-    return new Date(y, m - 1, d).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
-  }, [selectedDate]);
+    return new Date(y, m - 1, d).toLocaleDateString(locale === 'ar' ? 'ar-DZ' : 'fr-FR', { month: 'long', year: 'numeric' });
+  }, [selectedDate, locale]);
 
   const selectedDayLabel = useMemo(() => {
     const [y, m, d] = selectedDate.split('-').map(Number);
-    return new Date(y, m - 1, d).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-  }, [selectedDate]);
+    return new Date(y, m - 1, d).toLocaleDateString(locale === 'ar' ? 'ar-DZ' : 'fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  }, [selectedDate, locale]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -252,7 +252,7 @@ export function CalendarScreen() {
         <View style={styles.headerTitleRow}>
           <Text style={styles.headerLogo}>7afefli</Text>
           <View style={styles.headerDivider} />
-          <Text style={styles.headerSub}>Mon Planning</Text>
+          <Text style={styles.headerSub}>{t('barber.my_planning')}</Text>
         </View>
         <Image
           source={{ uri: user?.user_metadata?.avatar_url || DEFAULT_AVATAR }}
@@ -283,7 +283,7 @@ export function CalendarScreen() {
                 onPress={() => setSelectedDate(algToday())}
                 activeOpacity={0.7}
               >
-                <Text style={[styles.todayBtnText, selectedDate === algToday() && styles.todayBtnTextActive]}>Auj.</Text>
+                <Text style={[styles.todayBtnText, selectedDate === algToday() && styles.todayBtnTextActive]}>{t('barber.today_btn')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.navBtn}
@@ -308,7 +308,7 @@ export function CalendarScreen() {
               const isToday = dateStr === algToday();
               const isPast = dateStr < algToday();
               const [y, m, d] = dateStr.split('-').map(Number);
-              const dayName = new Date(y, m - 1, d).toLocaleDateString('fr-FR', { weekday: 'short' }).slice(0, 3).toUpperCase();
+              const dayName = new Date(y, m - 1, d).toLocaleDateString(locale === 'ar' ? 'ar-DZ' : 'fr-FR', { weekday: 'short' }).slice(0, 3).toUpperCase();
               const dayNum = d;
               const hasPending = pendingAll.some((r) => r.appointment_date === dateStr && r.status === 'Pending');
               const hasBookings = pendingAll.some((r) => r.appointment_date === dateStr) ||
@@ -383,7 +383,7 @@ export function CalendarScreen() {
                 const match = (reservation.notes as string).match(/Client:\s*(.*?)(?:\s*-\s*Tel:|\s*\n|$)/);
                 walkInName = match?.[1]?.trim() || '';
               }
-              const displayName = walkInName || (client?.full_name as string) || 'Client';
+              const displayName = walkInName || (client?.full_name as string) || t('barber.client_fallback');
 
               const isPending   = reservation.status === 'Pending';
               const isConfirmed = reservation.status === 'Confirmed';
@@ -414,7 +414,7 @@ export function CalendarScreen() {
                   <Text style={styles.blockClientText} numberOfLines={1}>{displayName}</Text>
                   {height > 52 && (
                     <Text style={styles.blockServiceText} numberOfLines={1}>
-                      {service?.service_name as string || 'Service'}
+                      {service?.service_name as string || t('barber.service_fallback')}
                     </Text>
                   )}
                   <Text style={styles.blockTimeText}>
@@ -485,18 +485,18 @@ export function CalendarScreen() {
                     <View style={styles.pendingDateBadge}>
                       <Text style={styles.pendingDateDay}>{rd}</Text>
                       <Text style={styles.pendingDateMonth}>
-                        {new Date(ry, rm - 1, rd).toLocaleDateString('fr-FR', { month: 'short' })}
+                        {new Date(ry, rm - 1, rd).toLocaleDateString(locale === 'ar' ? 'ar-DZ' : 'fr-FR', { month: 'short' })}
                       </Text>
                     </View>
                     <View style={styles.pendingCardCenter}>
                       <View style={styles.pendingNameRow}>
                         <Text style={styles.pendingClientName} numberOfLines={1}>
-                          {client?.full_name as string || 'Client'}
+                          {client?.full_name as string || t('barber.client_fallback')}
                         </Text>
-                        {isWalkIn && <View style={styles.walkInBadge}><Text style={styles.walkInBadgeText}>Sans RDV</Text></View>}
+                        {isWalkIn && <View style={styles.walkInBadge}><Text style={styles.walkInBadgeText}>{t('barber.walkin_badge')}</Text></View>}
                       </View>
                       <Text style={styles.pendingServiceText} numberOfLines={1}>
-                        {service?.service_name as string || 'Service'} • {formatTime(r.start_time)}
+                        {service?.service_name as string || t('barber.service_fallback')} • {formatTime(r.start_time)}
                       </Text>
                     </View>
                     <View style={styles.pendingCardActions}>

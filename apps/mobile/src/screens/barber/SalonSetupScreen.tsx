@@ -65,7 +65,7 @@ export function SalonSetupScreen({ onComplete, existingSalon }: { onComplete: ()
       Toast.show({
         type: 'error',
         text1: t('common.error'),
-        text2: 'Veuillez remplir tous les champs obligatoires'
+        text2: t('setup.fill_required')
       });
       return;
     }
@@ -82,8 +82,8 @@ export function SalonSetupScreen({ onComplete, existingSalon }: { onComplete: ()
 
     if (!coordsChosen || coordsAreDefault) {
       Alert.alert(
-        'Position requise',
-        'Veuillez placer votre salon sur la carte avant de continuer.',
+        t('setup.location_required'),
+        t('setup.place_on_map'),
       );
       return;
     }
@@ -95,7 +95,7 @@ export function SalonSetupScreen({ onComplete, existingSalon }: { onComplete: ()
       form.latitude >= ALG_BOUNDS.minLat && form.latitude <= ALG_BOUNDS.maxLat &&
       form.longitude >= ALG_BOUNDS.minLng && form.longitude <= ALG_BOUNDS.maxLng;
     if (!coordsValid) {
-      Alert.alert('Emplacement invalide', "Veuillez choisir un emplacement en Algérie sur la carte.");
+      Alert.alert(t('setup.invalid_location'), t('setup.invalid_location_msg'));
       return;
     }
 
@@ -120,8 +120,8 @@ export function SalonSetupScreen({ onComplete, existingSalon }: { onComplete: ()
         queryClient.invalidateQueries({ queryKey: ['explore-explore-salons'] });
         queryClient.invalidateQueries({ queryKey: ['nearby-salons'] });
         queryClient.invalidateQueries({ queryKey: ['my-salon'] });
-        Alert.alert(t('common.success'), 'Votre salon a été mis à jour avec succès !', [
-          { text: 'Continuer', onPress: onComplete }
+        Alert.alert(t('common.success'), t('setup.updated_success'), [
+          { text: t('setup.continue'), onPress: onComplete }
         ]);
       } else {
         await apiClient.post('/salons', {
@@ -142,15 +142,15 @@ export function SalonSetupScreen({ onComplete, existingSalon }: { onComplete: ()
         queryClient.invalidateQueries({ queryKey: ['explore-explore-salons'] });
         queryClient.invalidateQueries({ queryKey: ['nearby-salons'] });
         queryClient.invalidateQueries({ queryKey: ['my-salon'] });
-        Alert.alert(t('common.success'), 'Votre salon a été créé avec succès !', [
-          { text: 'Continuer', onPress: onComplete }
+        Alert.alert(t('common.success'), t('setup.created_success'), [
+          { text: t('setup.continue'), onPress: onComplete }
         ]);
       }
     } catch (err: unknown) {
       Toast.show({
         type: 'error',
         text1: t('common.error'),
-        text2: (err as Error)?.message ?? 'Une erreur est survenue'
+        text2: (err as Error)?.message ?? t('setup.generic_error')
       });
     } finally {
       setLoading(false);
@@ -295,16 +295,16 @@ export function SalonSetupScreen({ onComplete, existingSalon }: { onComplete: ()
           <View style={{ height: 40, marginBottom: spacing.md }} />
         )}
         <View style={styles.titleContainer}>
-          <Text style={styles.headerTitle}>Configuration du Salon</Text>
+          <Text style={styles.headerTitle}>{t('setup.title')}</Text>
           <Text style={styles.headerSubtitle}>
-            {step === 1 ? 'Informations générales' : 'Emplacement sur la carte'}
+            {step === 1 ? t('setup.step1') : t('setup.step2')}
           </Text>
         </View>
       </View>
 
       {step === 1 ? (
         <ScrollView style={styles.form} keyboardShouldPersistTaps="handled">
-          <Text style={styles.label}>Nom du salon</Text>
+          <Text style={styles.label}>{t('setup.salon_name')}</Text>
           <TextInput
             style={styles.input}
             placeholder="Ex: Barber Shop VIP"
@@ -314,7 +314,7 @@ export function SalonSetupScreen({ onComplete, existingSalon }: { onComplete: ()
           />
 
 
-          <Text style={styles.label}>Description (optionnel)</Text>
+          <Text style={styles.label}>{t('setup.description')}</Text>
           <TextInput
             style={[styles.input, { height: 80, textAlignVertical: 'top', paddingTop: 12 }]}
             placeholder="Ex: Salon moderne, coupes tendance..."
@@ -324,14 +324,14 @@ export function SalonSetupScreen({ onComplete, existingSalon }: { onComplete: ()
             multiline
             numberOfLines={3}
           />
-          <Text style={styles.label}>Wilaya</Text>
+          <Text style={styles.label}>{t('setup.wilaya')}</Text>
           <TouchableOpacity
             style={styles.pickerButton}
             onPress={() => setWilayaPickerVisible(true)}
             activeOpacity={0.7}
           >
             <Text style={form.wilaya ? styles.pickerValue : styles.pickerPlaceholder}>
-              {form.wilaya || 'Sélectionner une wilaya'}
+              {form.wilaya || t('setup.select_wilaya')}
             </Text>
             <Ionicons name="chevron-down" size={18} color={colors.textSecondary} />
           </TouchableOpacity>
@@ -339,7 +339,7 @@ export function SalonSetupScreen({ onComplete, existingSalon }: { onComplete: ()
           <Modal visible={wilayaPickerVisible} animationType="slide" transparent>
             <View style={styles.modalOverlay}>
               <View style={styles.modalSheet}>
-                <Text style={styles.modalTitle}>Sélectionner une wilaya</Text>
+                <Text style={styles.modalTitle}>{t('setup.select_wilaya')}</Text>
                 <FlatList
                   data={WILAYAS as unknown as string[]}
                   keyExtractor={(item) => item}
@@ -365,7 +365,7 @@ export function SalonSetupScreen({ onComplete, existingSalon }: { onComplete: ()
             </View>
           </Modal>
 
-          <Text style={styles.label}>Commune</Text>
+          <Text style={styles.label}>{t('setup.commune')}</Text>
           <TextInput
             style={styles.input}
             placeholder="Ex: Bab El Oued"
@@ -374,7 +374,7 @@ export function SalonSetupScreen({ onComplete, existingSalon }: { onComplete: ()
             onChangeText={(t) => setForm({ ...form, commune: t })}
           />
 
-          <Text style={styles.label}>Adresse complète</Text>
+          <Text style={styles.label}>{t('setup.address')}</Text>
           <TextInput
             style={styles.input}
             placeholder="Ex: 12 Rue Didouche Mourad"
@@ -383,7 +383,7 @@ export function SalonSetupScreen({ onComplete, existingSalon }: { onComplete: ()
             onChangeText={(t) => setForm({ ...form, address: t })}
           />
 
-          <Text style={styles.label}>Téléphone du salon</Text>
+          <Text style={styles.label}>{t('setup.phone')}</Text>
           <TextInput
             style={styles.input}
             placeholder="Ex: 0550123456"
@@ -395,7 +395,7 @@ export function SalonSetupScreen({ onComplete, existingSalon }: { onComplete: ()
 
           <View style={styles.row}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.label}>Heure d'ouverture</Text>
+              <Text style={styles.label}>{t('setup.open_time')}</Text>
               <TextInput
                 style={styles.input}
                 placeholder="09:00"
@@ -406,7 +406,7 @@ export function SalonSetupScreen({ onComplete, existingSalon }: { onComplete: ()
             </View>
             <View style={{ width: spacing.md }} />
             <View style={{ flex: 1 }}>
-              <Text style={styles.label}>Heure de fermeture</Text>
+              <Text style={styles.label}>{t('setup.close_time')}</Text>
               <TextInput
                 style={styles.input}
                 placeholder="20:00"
@@ -417,9 +417,9 @@ export function SalonSetupScreen({ onComplete, existingSalon }: { onComplete: ()
             </View>
           </View>
 
-          <Text style={styles.label}>Jours d'ouverture</Text>
+          <Text style={styles.label}>{t('setup.working_days')}</Text>
           <View style={styles.daysRow}>
-            {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map((label, index) => {
+            {[t('setup.day_mon'), t('setup.day_tue'), t('setup.day_wed'), t('setup.day_thu'), t('setup.day_fri'), t('setup.day_sat'), t('setup.day_sun')].map((label, index) => {
               const dayNum = index + 1;
               const isSelected = form.working_days.includes(dayNum);
               return (
@@ -436,7 +436,7 @@ export function SalonSetupScreen({ onComplete, existingSalon }: { onComplete: ()
         </ScrollView>
       ) : (
         <View style={styles.mapContainer}>
-          <Text style={styles.mapHint}>Déplacez le marqueur ou cliquez sur la carte pour définir votre position exacte.</Text>
+          <Text style={styles.mapHint}>{t('setup.map_hint')}</Text>
           <View style={styles.mapWrapper}>
             <WebView
               source={{ html: mapHtml }}
@@ -468,7 +468,7 @@ export function SalonSetupScreen({ onComplete, existingSalon }: { onComplete: ()
             style={[styles.button, styles.buttonOutline]} 
             onPress={() => setStep(1)}
           >
-            <Text style={styles.buttonOutlineText}>Retour</Text>
+            <Text style={styles.buttonOutlineText}>{t('setup.back')}</Text>
           </TouchableOpacity>
         )}
         
@@ -480,7 +480,7 @@ export function SalonSetupScreen({ onComplete, existingSalon }: { onComplete: ()
           {loading ? (
             <ActivityIndicator color={colors.ink} />
           ) : (
-            <Text style={styles.buttonText}>{step === 1 ? 'Suivant' : 'Terminer'}</Text>
+            <Text style={styles.buttonText}>{step === 1 ? t('setup.next') : t('setup.finish')}</Text>
           )}
         </TouchableOpacity>
       </View>

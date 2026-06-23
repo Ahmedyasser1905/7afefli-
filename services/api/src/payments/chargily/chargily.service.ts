@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadGatewayException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 
@@ -28,9 +28,10 @@ export class ChargilyService {
       };
     }
 
-    // Use production endpoint in production, test endpoint otherwise
-    const isProduction = process.env.NODE_ENV === 'production';
-    const chargilyBase = isProduction
+    // Detect mode from the key prefix — this is more reliable than NODE_ENV
+    // because a test key must always hit the test endpoint, even in production.
+    const isLiveKey = this.secretKey.startsWith('live_sk_');
+    const chargilyBase = isLiveKey
       ? 'https://pay.chargily.net/api/v2'
       : 'https://pay.chargily.net/test/api/v2';
 
@@ -56,8 +57,10 @@ export class ChargilyService {
 
       if (!response.ok) {
         const errBody = await response.text();
-        console.error('Chargily checkout error:', errBody);
-        throw new Error(`Chargily API error: ${response.status}`);
+        console.error(`Chargily checkout error [${response.status}]:`, errBody);
+        throw new BadGatewayException(
+          `Chargily API error ${response.status}: ${errBody}`,
+        );
       }
 
       const result = await response.json();
@@ -66,11 +69,18 @@ export class ChargilyService {
         id: result.id,
       };
     } catch (err) {
-      console.error('Chargily checkout failed:', err);
-      // fix (H1): never silently return a mock URL in production — propagate the error
-      // so the caller can surface a proper message to the barber instead of an invalid
-      // payment link that looks real.
-      throw new Error(`Payment gateway unavailable. Please try again later. (${(err as Error).message})`);
+      // Re-throw NestJS HTTP exceptions as-is (e.g. BadGatewayException from the
+      // !response.ok branch above) so they are not wrapped into a second exception.
+      if (err instanceof BadGatewayException) {
+        throw err;
+      }
+      const message = (err as Error).message || 'Unknown error';
+      console.error('Chargily checkout failed:', message);
+      // Throw a 502 Bad Gateway so NestJS returns a clean error to the caller
+      // instead of an opaque 500 Internal Server Error.
+      throw new BadGatewayException(
+        `Payment gateway unavailable — please try again later. (${message})`,
+      );
     }
   }
 

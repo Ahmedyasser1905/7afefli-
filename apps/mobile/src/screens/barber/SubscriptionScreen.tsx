@@ -53,9 +53,9 @@ interface PlanItem {
 
 // ---------- Helpers ----------
 
-const formatDate = (dateStr: string | null): string => {
+const formatDate = (dateStr: string | null, locale: string): string => {
   if (!dateStr) return '—';
-  return new Date(dateStr).toLocaleDateString('fr-FR', {
+  return new Date(dateStr).toLocaleDateString(locale === 'ar' ? 'ar-DZ' : 'fr-FR', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
@@ -72,19 +72,16 @@ const formatPrice = (price: number): string => {
   return price.toLocaleString('fr-DZ');
 };
 
-const formatDuration = (days: number): string => {
-  if (days === 30 || days === 31) return '/mois';
-  if (days === 90) return '/trimestre';
-  if (days === 365 || days === 366) return '/an';
-  return `/${days}j`;
-};
-
 // ---------- Component ----------
 
 export function SubscriptionScreen() {
   const user = useAuthStore((s) => s.user);
-  const { t } = useTranslations();
+  const { t, locale } = useTranslations();
   const [processingPlan, setProcessingPlan] = useState<string | null>(null);
+  // Track whether we just opened a payment URL so we know to poll on return
+  const awaitingPaymentReturn = React.useRef(false);
+  const pollIntervalRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollAttemptsRef = React.useRef(0);
 
   // Fetch available plans from backend API (single source of truth)
   const {
@@ -112,15 +109,43 @@ export function SubscriptionScreen() {
       return data;
     },
     enabled: !!user,
-    staleTime: 10_000,
+    staleTime: 0,  // always revalidate on focus — webhook may have updated the DB
   });
+
+  // Stop any running poll
+  const stopPolling = React.useCallback(() => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+    pollAttemptsRef.current = 0;
+  }, []);
+
+  // Poll subscription every 3s for up to 30s after returning from payment.
+  // The Chargily webhook fires asynchronously — the app may return to foreground
+  // before the webhook has updated the DB. Polling bridges this timing gap.
+  const startPaymentPolling = React.useCallback(() => {
+    stopPolling();
+    pollAttemptsRef.current = 0;
+    pollIntervalRef.current = setInterval(async () => {
+      pollAttemptsRef.current += 1;
+      const result = await refetchSub();
+      const newStatus = result.data?.status;
+      // Stop once we confirm activation OR after 10 attempts (30s)
+      if (newStatus === 'Active' || pollAttemptsRef.current >= 10) {
+        stopPolling();
+        awaitingPaymentReturn.current = false;
+      }
+    }, 3000);
+  }, [refetchSub, stopPolling]);
 
   // Force refetch on screen focus
   useFocusEffect(
     React.useCallback(() => {
       refetchPlans();
       refetchSub();
-    }, [refetchPlans, refetchSub])
+      return () => stopPolling(); // clean up poll on blur
+    }, [refetchPlans, refetchSub, stopPolling])
   );
 
   // Force refetch when app transitions back to active (foreground)
@@ -129,18 +154,37 @@ export function SubscriptionScreen() {
       if (nextAppState === 'active') {
         refetchPlans();
         refetchSub();
+        // If we were waiting for a payment to complete, start polling
+        if (awaitingPaymentReturn.current) {
+          startPaymentPolling();
+        }
       }
     });
     return () => {
       appStateSub.remove();
+      stopPolling();
     };
-  }, [refetchPlans, refetchSub]);
+  }, [refetchPlans, refetchSub, startPaymentPolling, stopPolling]);
 
   // Derived state
   const status = subscription?.status || 'Trial';
+  const isTrialActive = subscription?.is_trial_active ?? (status === 'Trial');
+  const trialPlanName = subscription?.plan_details?.name || 'Pro';
   const trialEnds = subscription?.trial_ends_at || null;
   const subEnds = subscription?.ends_at || null;
   const daysLeft = status === 'Trial' ? getDaysLeft(trialEnds) : status === 'Active' ? getDaysLeft(subEnds) : 0;
+
+  const formatDuration = (days: number): string => {
+    if (days === 30 || days === 31) return t('barber.sub_per_month');
+    if (days === 90) return t('barber.sub_per_quarter');
+    if (days === 365 || days === 366) return t('barber.sub_per_year');
+    return `/${days}${t('barber.sub_per_days')}`;
+  };
+
+  const formatDaysLeft = (n: number | null) => {
+    if (n === null) return '—';
+    return `${n} ${n !== 1 ? t('barber.sub_day_plural') : t('barber.sub_day_singular')}`;
+  };
 
   const isLoading = plansLoading || subLoading;
   // HIGH-4: Use actual query loading states so the pull-to-refresh spinner
@@ -161,10 +205,13 @@ export function SubscriptionScreen() {
       );
 
       if (result.checkout_url) {
+        // Mark that we expect a payment return so AppState handler starts polling
+        awaitingPaymentReturn.current = true;
         await Linking.openURL(result.checkout_url);
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erreur lors du paiement';
+      const msg = err instanceof Error ? err.message : t('barber.sub_payment_error');
+      awaitingPaymentReturn.current = false;
       Toast.show({
         type: 'error',
         text1: t('common.error'),
@@ -199,7 +246,7 @@ export function SubscriptionScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>{t('barber.subscription')}</Text>
-          <Text style={styles.headerSubtitle}>Gérez votre formule 7afefli</Text>
+          <Text style={styles.headerSubtitle}>{t('barber.sub_subtitle')}</Text>
         </View>
 
         {/* Current Plan Status Card */}
@@ -219,11 +266,15 @@ export function SubscriptionScreen() {
                 styles.statusBadgeText,
                 { color: status === 'Active' ? colors.success : status === 'Trial' ? colors.warning : colors.error }
               ]}>
-                {status === 'Active' ? 'Actif' : status === 'Trial' ? 'Essai Gratuit' : 'Expiré'}
+                {status === 'Active'
+                  ? t('barber.sub_status_active')
+                  : status === 'Trial'
+                    ? (isTrialActive ? t('barber.sub_trial_badge').replace('{plan}', trialPlanName) : t('barber.sub_status_trial'))
+                    : t('barber.sub_status_expired')}
               </Text>
             </View>
             {subscription?.plan_details?.name && (
-              <Text style={styles.currentPlanName}>Plan {subscription.plan_details.name}</Text>
+              <Text style={styles.currentPlanName}>{t('barber.sub_plan_label').replace('{name}', subscription.plan_details.name)}</Text>
             )}
           </View>
 
@@ -232,14 +283,14 @@ export function SubscriptionScreen() {
               <>
                 <View style={styles.detailRow}>
                   <Ionicons name="calendar-outline" size={18} color={colors.textSecondary} />
-                  <Text style={styles.detailLabel}>Fin de l'essai</Text>
-                  <Text style={styles.detailValue}>{formatDate(trialEnds)}</Text>
+                  <Text style={styles.detailLabel}>{t('barber.sub_trial_ends')}</Text>
+                  <Text style={styles.detailValue}>{formatDate(trialEnds, locale)}</Text>
                 </View>
                 <View style={styles.detailRow}>
                   <Ionicons name="hourglass-outline" size={18} color={colors.warning} />
-                  <Text style={styles.detailLabel}>Jours restants</Text>
+                  <Text style={styles.detailLabel}>{t('barber.sub_days_left')}</Text>
                   <Text style={[styles.detailValue, { color: (daysLeft ?? 0) <= 7 ? colors.error : colors.warning }]}>
-                    {daysLeft !== null ? `${daysLeft} jour${daysLeft !== 1 ? 's' : ''}` : '—'}
+                    {formatDaysLeft(daysLeft ?? null)}
                   </Text>
                 </View>
               </>
@@ -248,28 +299,28 @@ export function SubscriptionScreen() {
               <>
                 <View style={styles.detailRow}>
                   <Ionicons name="calendar-outline" size={18} color={colors.textSecondary} />
-                  <Text style={styles.detailLabel}>Début</Text>
-                  <Text style={styles.detailValue}>{formatDate(subscription?.starts_at ?? null)}</Text>
+                  <Text style={styles.detailLabel}>{t('barber.sub_starts')}</Text>
+                  <Text style={styles.detailValue}>{formatDate(subscription?.starts_at ?? null, locale)}</Text>
                 </View>
                 
                 {Number(subscription?.plan_details?.price || 0) === 0 ? (
                   <View style={styles.detailRow}>
                     <Ionicons name="infinite-outline" size={18} color={colors.success} />
-                    <Text style={styles.detailLabel}>Durée</Text>
-                    <Text style={[styles.detailValue, { color: colors.success }]}>Illimitée (Gratuit)</Text>
+                    <Text style={styles.detailLabel}>{t('barber.sub_duration')}</Text>
+                    <Text style={[styles.detailValue, { color: colors.success }]}>{t('barber.sub_unlimited')}</Text>
                   </View>
                 ) : (
                   <>
                     <View style={styles.detailRow}>
                       <Ionicons name="calendar-outline" size={18} color={colors.textSecondary} />
-                      <Text style={styles.detailLabel}>Expire le</Text>
-                      <Text style={styles.detailValue}>{formatDate(subEnds)}</Text>
+                      <Text style={styles.detailLabel}>{t('barber.sub_expires')}</Text>
+                      <Text style={styles.detailValue}>{formatDate(subEnds, locale)}</Text>
                     </View>
                     <View style={styles.detailRow}>
                       <Ionicons name="hourglass-outline" size={18} color={colors.success} />
-                      <Text style={styles.detailLabel}>Jours restants</Text>
+                      <Text style={styles.detailLabel}>{t('barber.sub_days_left')}</Text>
                       <Text style={[styles.detailValue, { color: colors.success }]}>
-                        {daysLeft !== null ? `${daysLeft} jour${daysLeft !== 1 ? 's' : ''}` : '—'}
+                        {formatDaysLeft(daysLeft ?? null)}
                       </Text>
                     </View>
                   </>
@@ -280,8 +331,7 @@ export function SubscriptionScreen() {
               <View style={styles.expiredBanner}>
                 <Ionicons name="warning-outline" size={22} color={colors.error} />
                 <Text style={styles.expiredText}>
-                  Votre abonnement a expiré. Votre salon n'est plus visible aux clients.
-                  Renouvelez pour réapparaître.
+                  {t('barber.sub_expired_msg')}
                 </Text>
               </View>
             )}
@@ -298,15 +348,21 @@ export function SubscriptionScreen() {
 
           // Filter plans to show
           const plansToShow = plans.filter(p => {
-            // Ne jamais afficher un plan gratuit comme option d'achat
+            // Never show the free plan as a purchasable option
             if (p.price === 0) return false;
-            
-            // Si actif, ne montrer que les plans supérieurs
+
+            // If active paid: only show upgrades above current plan
             if (isActive && currentPlanDetails) {
               return p.sort_order > currentPlanDetails.sort_order;
             }
-            
-            // En essai ou expiré : montrer tous les plans payants
+
+            // During active trial: user already has trial plan (e.g. Pro) for free.
+            // Only show plans above the trial plan as upgrade options.
+            if (isTrialActive && currentPlanDetails) {
+              return p.sort_order > currentPlanDetails.sort_order;
+            }
+
+            // Expired or no trial plan info: show all paid plans
             return true;
           });
 
@@ -340,7 +396,7 @@ export function SubscriptionScreen() {
 
                   <View style={styles.currentPlanBtn}>
                     <Ionicons name="checkmark-circle" size={18} color={colors.success} />
-                    <Text style={styles.currentPlanBtnText}>Votre plan actuel</Text>
+                    <Text style={styles.currentPlanBtnText}>{t('barber.sub_current_plan')}</Text>
                   </View>
                 </View>
               )}
@@ -348,7 +404,7 @@ export function SubscriptionScreen() {
               {/* Upgrade / Subscribe section */}
               {plansToShow.length > 0 && (
                 <Text style={styles.sectionTitle}>
-                  {isActive ? 'Passer au supérieur' : 'Choisir une formule'}
+                  {isActive ? t('barber.sub_upgrade_title') : t('barber.sub_choose_title')}
                 </Text>
               )}
 
@@ -367,12 +423,12 @@ export function SubscriptionScreen() {
                   >
                     {isUpgrade && (
                       <View style={styles.recommendedBadge}>
-                        <Text style={styles.recommendedText}>⬆️ Upgrade</Text>
+                        <Text style={styles.recommendedText}>{t('barber.sub_upgrade_badge')}</Text>
                       </View>
                     )}
                     {!isUpgrade && plan.is_recommended && (
                       <View style={styles.recommendedBadge}>
-                        <Text style={styles.recommendedText}>⭐ Recommandé</Text>
+                        <Text style={styles.recommendedText}>{t('barber.sub_recommended_badge')}</Text>
                       </View>
                     )}
 
@@ -411,7 +467,7 @@ export function SubscriptionScreen() {
                         <>
                           <Ionicons name={isUpgrade ? 'arrow-up-circle' : 'card-outline'} size={18} color={colors.ink} />
                           <Text style={[styles.subscribeBtnText, styles.subscribeBtnTextRecommended]}>
-                            {isUpgrade ? `Passer à ${plan.name}` : `S'abonner à ${plan.name}`}
+                            {isUpgrade ? t('barber.sub_upgrade_btn').replace('{name}', plan.name) : t('barber.sub_subscribe_btn').replace('{name}', plan.name)}
                           </Text>
                         </>
                       )}
@@ -425,7 +481,7 @@ export function SubscriptionScreen() {
                 <View style={styles.emptyState}>
                   <Ionicons name="trophy" size={48} color={colors.amber} />
                   <Text style={[styles.emptyText, { color: colors.amber }]}>
-                    Vous avez le meilleur plan ! 🎉
+                    {t('barber.sub_best_plan')}
                   </Text>
                 </View>
               )}
@@ -437,7 +493,7 @@ export function SubscriptionScreen() {
         {plans.length === 0 && !plansLoading && (
           <View style={styles.emptyState}>
             <Ionicons name="cart-outline" size={48} color={colors.textMuted} />
-            <Text style={styles.emptyText}>Aucune formule disponible pour le moment.</Text>
+            <Text style={styles.emptyText}>{t('barber.sub_no_plans')}</Text>
           </View>
         )}
 
@@ -445,7 +501,7 @@ export function SubscriptionScreen() {
         <View style={styles.infoCard}>
           <Ionicons name="shield-checkmark-outline" size={20} color={colors.textSecondary} />
           <Text style={styles.infoText}>
-            Paiement sécurisé par Chargily Pay. Vous serez redirigé vers la page de paiement.
+            {t('barber.sub_payment_info')}
           </Text>
         </View>
       </ScrollView>

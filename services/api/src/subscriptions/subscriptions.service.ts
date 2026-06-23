@@ -54,16 +54,17 @@ export class SubscriptionsService {
 
   /**
    * Daily subscription checks:
-   * 1. Expire trials past trial_ends_at
-   * 2. Expire active subscriptions past ends_at
-   * 3. Sync salon status (handled by trigger, but double-check)
+   * 1. Expire trials past trial_ends_at → downgrade to free plan
+   * 2. Keep active trials on the trial plan (is_trial_plan = true)
+   * 3. Expire active paid subscriptions past ends_at
+   * 4. Sync salon status (handled by trigger, but double-check)
    */
   @Cron('0 0 * * *', { timeZone: 'Africa/Algiers' })
   async handleDailySubscriptionChecks() {
     this.logger.log('Running daily subscription checks...');
     const now = new Date().toISOString();
 
-    // Fetch default free plan dynamically
+    // Fetch default free plan (price = 0) dynamically
     const { data: defaultPlan } = await this.supabase.adminClient
       .from('plans')
       .select('id, name')
@@ -75,6 +76,28 @@ export class SubscriptionsService {
 
     const defaultPlanId = defaultPlan?.id || null;
     const defaultPlanName = defaultPlan?.name || 'Free';
+
+    // Fetch the trial plan (is_trial_plan = true, e.g. Pro) dynamically
+    const { data: trialPlan } = await this.supabase.adminClient
+      .from('plans')
+      .select('id, name')
+      .eq('is_trial_plan', true)
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    const trialPlanId = trialPlan?.id || null;
+
+    // Ensure all active Trial subscriptions are on the trial plan
+    if (trialPlanId) {
+      await this.supabase.adminClient
+        .from('user_subscriptions')
+        .update({ plan: trialPlanId })
+        .eq('status', 'Trial')
+        .gte('trial_ends_at', now)
+        .neq('plan', trialPlanId);
+    }
 
     // H5 Fix: Downgrade trials → Free Plan ('Active')
     const { data: expiredTrials, error: trialErr } = await this.supabase.adminClient
@@ -177,7 +200,40 @@ export class SubscriptionsService {
   }
 
   /**
+   * Helper to map a plan row to the standard plan_details shape.
+   */
+  private mapPlanDetails(p: any) {
+    if (!p) return null;
+    return {
+      id: p.id,
+      name: p.name,
+      price: p.price,
+      duration: p.duration_days,
+      duration_days: p.duration_days,
+      max_barbers: p.max_barbers,
+      max_photos: p.max_portfolio_photos,
+      max_portfolio_photos: p.max_portfolio_photos,
+      max_reservations: p.max_reservations,
+      features: p.features,
+      is_active: p.is_active,
+      sort_order: p.sort_order,
+      slug: p.slug,
+      is_recommended: p.is_recommended,
+      featured_listing: p.featured_listing,
+      sponsored_listing: p.sponsored_listing,
+      premium_badge: p.premium_badge,
+      advanced_statistics: p.advanced_statistics,
+      marketing_included: p.marketing_included,
+      priority_support: p.priority_support,
+      is_trial_plan: p.is_trial_plan ?? false,
+    };
+  }
+
+  /**
    * Get the subscription plan for the authenticated owner's salon.
+   * When the subscription is in Trial status and the trial hasn't expired,
+   * plan_details reflects the trial plan (is_trial_plan = true, e.g. Pro)
+   * so the user experiences full trial features. status remains 'Trial'.
    */
   async getMyPlan(ownerId: string) {
     // 1. Find the salon by owner
@@ -191,7 +247,27 @@ export class SubscriptionsService {
       throw new NotFoundException('Salon not found for this owner');
     }
 
-    // 2. Try to find a subscription record
+    // 2. Fetch the trial plan (is_trial_plan = true) and free plan in parallel
+    const [{ data: trialPlan }, { data: freePlan }] = await Promise.all([
+      this.supabase.adminClient
+        .from('plans')
+        .select('*')
+        .eq('is_trial_plan', true)
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true })
+        .limit(1)
+        .maybeSingle(),
+      this.supabase.adminClient
+        .from('plans')
+        .select('*')
+        .eq('price', 0)
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true })
+        .limit(1)
+        .maybeSingle(),
+    ]);
+
+    // 3. Try to find a subscription record
     const { data: subscription } = await this.supabase.adminClient
       .from('user_subscriptions')
       .select('*, plans(*)')
@@ -200,72 +276,40 @@ export class SubscriptionsService {
       .maybeSingle();
 
     if (subscription) {
+      const isTrial = subscription.status === 'Trial';
+      const trialActive = isTrial &&
+        subscription.trial_ends_at &&
+        new Date(subscription.trial_ends_at) > new Date();
+
+      // During active trial: override plan_details with the trial plan (Pro)
+      // so the user sees Pro features — while status stays 'Trial'
+      const effectivePlan = trialActive && trialPlan
+        ? trialPlan
+        : subscription.plans;
+
       return {
         ...subscription,
-        plan_details: subscription.plans ? {
-          id: subscription.plans.id,
-          name: subscription.plans.name,
-          price: subscription.plans.price,
-          duration: subscription.plans.duration_days,
-          duration_days: subscription.plans.duration_days,
-          max_barbers: subscription.plans.max_barbers,
-          max_photos: subscription.plans.max_portfolio_photos,
-          max_portfolio_photos: subscription.plans.max_portfolio_photos,
-          max_reservations: subscription.plans.max_reservations,
-          features: subscription.plans.features,
-          is_active: subscription.plans.is_active,
-          sort_order: subscription.plans.sort_order,
-          slug: subscription.plans.slug,
-          is_recommended: subscription.plans.is_recommended,
-          featured_listing: subscription.plans.featured_listing,
-          sponsored_listing: subscription.plans.sponsored_listing,
-          premium_badge: subscription.plans.premium_badge,
-          advanced_statistics: subscription.plans.advanced_statistics,
-          marketing_included: subscription.plans.marketing_included,
-          priority_support: subscription.plans.priority_support,
-        } : null
+        // Expose whether we're in trial so the UI can show the right badge
+        is_trial_active: !!trialActive,
+        plan_details: this.mapPlanDetails(effectivePlan),
       };
     }
 
-    // 3. No subscription record — return default trial based on salon data
-    const { data: defaultPlan } = await this.supabase.adminClient
-      .from('plans')
-      .select('*')
-      .eq('price', 0)
-      .eq('is_active', true)
-      .order('sort_order', { ascending: true })
-      .limit(1)
-      .maybeSingle();
+    // 4. No subscription record — synthesise from salon data
+    const isSalonTrial = (salon.subscription_status || 'Trial') === 'Trial';
+    const trialActive = isSalonTrial &&
+      salon.trial_ends_at &&
+      new Date(salon.trial_ends_at) > new Date();
 
-    const planDetails = defaultPlan ? {
-      id: defaultPlan.id,
-      name: defaultPlan.name,
-      price: defaultPlan.price,
-      duration: defaultPlan.duration_days,
-      duration_days: defaultPlan.duration_days,
-      max_barbers: defaultPlan.max_barbers,
-      max_photos: defaultPlan.max_portfolio_photos,
-      max_portfolio_photos: defaultPlan.max_portfolio_photos,
-      max_reservations: defaultPlan.max_reservations,
-      features: defaultPlan.features,
-      is_active: defaultPlan.is_active,
-      sort_order: defaultPlan.sort_order,
-      slug: defaultPlan.slug,
-      is_recommended: defaultPlan.is_recommended,
-      featured_listing: defaultPlan.featured_listing,
-      sponsored_listing: defaultPlan.sponsored_listing,
-      premium_badge: defaultPlan.premium_badge,
-      advanced_statistics: defaultPlan.advanced_statistics,
-      marketing_included: defaultPlan.marketing_included,
-      priority_support: defaultPlan.priority_support,
-    } : null;
+    const effectivePlan = trialActive && trialPlan ? trialPlan : freePlan;
 
     return {
       id: null,
       salon_id: salon.id,
       status: salon.subscription_status || 'Trial',
-      plan: defaultPlan?.id || null,
-      plan_details: planDetails,
+      plan: effectivePlan?.id || null,
+      plan_details: this.mapPlanDetails(effectivePlan),
+      is_trial_active: !!trialActive,
       trial_ends_at: salon.trial_ends_at || null,
       starts_at: null,
       ends_at: null,

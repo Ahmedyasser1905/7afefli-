@@ -85,7 +85,7 @@ export function ClientsScreen() {
     // Format backend data into the UI's ClientItem structure.
     const members = (clientsData.appMembers || []).map((m: any) => ({
       id: m.id,
-      name: m.full_name || 'Sans Nom',
+      name: m.full_name || t('barber.no_name'),
       phone: m.phone_number || '',
       avatarUrl: m.avatar_url || null,
       loyaltyPoints: m.loyalty_points || 0,
@@ -101,7 +101,7 @@ export function ClientsScreen() {
 
     const walkIns = (clientsData.walkInClients || []).map((w: any) => ({
       id: w.id,
-      name: w.full_name || 'Client de passage',
+      name: w.full_name || t('barber.walkin_client'),
       phone: w.phone_number || '',
       avatarUrl: null,
       loyaltyPoints: 0,
@@ -188,12 +188,12 @@ export function ClientsScreen() {
 
           <View style={styles.clientMeta}>
             <Text style={styles.clientName}>{item.name}</Text>
-            <Text style={styles.clientPhone}>{item.phone || 'Aucun numéro'}</Text>
+            <Text style={styles.clientPhone}>{item.phone || t('barber.no_phone')}</Text>
             
             <View style={styles.badgesRow}>
               <View style={styles.visitBadge}>
                 <Ionicons name="calendar-outline" size={12} color={colors.textSecondary} />
-                <Text style={styles.badgeText}>{item.totalVisits} visite{item.totalVisits > 1 ? 's' : ''}</Text>
+                <Text style={styles.badgeText}>{item.totalVisits} {item.totalVisits > 1 ? t('barber.visits_plural') : t('barber.visits_singular')}</Text>
               </View>
               {item.isRegistered && (
                 <View style={styles.pointsBadge}>
@@ -243,7 +243,7 @@ export function ClientsScreen() {
           activeOpacity={0.7}
         >
           <Text style={[styles.statVal, activeFilter === 'total' && styles.statValActive]}>{stats.total}</Text>
-          <Text style={[styles.statLabel, activeFilter === 'total' && styles.statLabelActive]}>Total Clients</Text>
+          <Text style={[styles.statLabel, activeFilter === 'total' && styles.statLabelActive]}>{t('barber.total_clients')}</Text>
         </TouchableOpacity>
         
         <View style={styles.statDivider} />
@@ -254,7 +254,7 @@ export function ClientsScreen() {
           activeOpacity={0.7}
         >
           <Text style={[styles.statVal, activeFilter === 'registered' && styles.statValActive]}>{stats.registered}</Text>
-          <Text style={[styles.statLabel, activeFilter === 'registered' && styles.statLabelActive]}>Membres App</Text>
+          <Text style={[styles.statLabel, activeFilter === 'registered' && styles.statLabelActive]}>{t('barber.app_members')}</Text>
         </TouchableOpacity>
         
         <View style={styles.statDivider} />
@@ -265,7 +265,7 @@ export function ClientsScreen() {
           activeOpacity={0.7}
         >
           <Text style={[styles.statVal, activeFilter === 'walkIns' && styles.statValActive]}>{stats.walkIns}</Text>
-          <Text style={[styles.statLabel, activeFilter === 'walkIns' && styles.statLabelActive]}>Sans RDV</Text>
+          <Text style={[styles.statLabel, activeFilter === 'walkIns' && styles.statLabelActive]}>{t('barber.walkins_label')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -274,7 +274,7 @@ export function ClientsScreen() {
         <Ionicons name="search" size={20} color={colors.textSecondary} style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Rechercher par nom ou téléphone..."
+          placeholder={t('barber.search_clients')}
           placeholderTextColor={colors.textSecondary}
           value={search}
           onChangeText={setSearch}
@@ -304,7 +304,7 @@ export function ClientsScreen() {
           <Ionicons name="people-outline" size={64} color={colors.textMuted} />
           <Text style={styles.emptyText}>{t('barber.no_reservations')}</Text>
           <Text style={styles.emptySubtext}>
-            {search ? 'Essayez une autre recherche' : 'Les clients s\'afficheront ici après leur premier rendez-vous'}
+            {search ? t('barber.no_search_results') : t('barber.no_clients_hint')}
           </Text>
         </View>
       )}
@@ -320,7 +320,7 @@ export function ClientsScreen() {
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Détails Client</Text>
+                <Text style={styles.modalTitle}>{t('barber.client_details')}</Text>
                 <TouchableOpacity onPress={() => setSelectedClient(null)} style={styles.closeModalBtn}>
                   <Ionicons name="close" size={24} color={colors.textPrimary} />
                 </TouchableOpacity>
@@ -337,7 +337,7 @@ export function ClientsScreen() {
                     </View>
                   )}
                   <Text style={styles.modalName}>{selectedClient.name}</Text>
-                  <Text style={styles.modalPhone}>{selectedClient.phone || 'Aucun numéro'}</Text>
+                  <Text style={styles.modalPhone}>{selectedClient.phone || t('barber.no_phone')}</Text>
                   
                   {selectedClient.phone && (
                     <TouchableOpacity
@@ -345,7 +345,7 @@ export function ClientsScreen() {
                       onPress={() => handleCallClient(selectedClient.phone)}
                     >
                       <Ionicons name="call" size={16} color={colors.ink} />
-                      <Text style={styles.modalCallBtnText}>Appeler le client</Text>
+                      <Text style={styles.modalCallBtnText}>{t('barber.call_client')}</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -354,22 +354,22 @@ export function ClientsScreen() {
                 <View style={styles.modalStatsGrid}>
                   <View style={styles.modalStatItem}>
                     <Text style={styles.modalStatVal}>{selectedClient.totalVisits}</Text>
-                    <Text style={styles.modalStatLbl}>Rendez-vous</Text>
+                    <Text style={styles.modalStatLbl}>{t('barber.appointments_count')}</Text>
                   </View>
                   <View style={styles.modalStatItem}>
                     <Text style={styles.modalStatVal}>{formatDZD(selectedClient.totalSpent)}</Text>
-                    <Text style={styles.modalStatLbl}>Total dépensé</Text>
+                    <Text style={styles.modalStatLbl}>{t('barber.total_spent')}</Text>
                   </View>
                   {selectedClient.isRegistered && (
                     <View style={styles.modalStatItem}>
                       <Text style={styles.modalStatVal}>{selectedClient.loyaltyPoints}</Text>
-                      <Text style={styles.modalStatLbl}>Points fidélité</Text>
+                      <Text style={styles.modalStatLbl}>{t('barber.loyalty_points')}</Text>
                     </View>
                   )}
                 </View>
 
                 {/* History list */}
-                <Text style={styles.historyTitle}>Historique des rendez-vous</Text>
+                <Text style={styles.historyTitle}>{t('barber.appointment_history')}</Text>
                 {selectedClient.appointments.map((appt) => (
                   <View key={appt.id} style={styles.historyCard}>
                     <View style={styles.historyRow}>

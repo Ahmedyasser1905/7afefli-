@@ -32,7 +32,7 @@ const DEFAULT_AVATAR = 'https://phfwutugsyiutqgippqg.supabase.co/storage/v1/obje
 export function DashboardScreen() {
   const user = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
-  const { t } = useTranslations();
+  const { t, locale } = useTranslations();
 
   // HIGH-2: Use a single canonical query key ['my-salon', user?.id] so this screen
   // shares the same React Query cache entry as MySalonScreen and SalonSetupScreen.
@@ -193,14 +193,14 @@ export function DashboardScreen() {
       const [y, m, d] = viewDate.split('-').map(Number);
       const dt = new Date(y, m - 1, d);
       if (viewDate === today()) return t('barber.today');
-      return dt.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+      return dt.toLocaleDateString(locale === 'ar' ? 'ar-DZ' : 'fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
     }
     if (viewMode === 'month') {
       const [y, m] = viewMonth.split('-').map(Number);
-      return new Date(y, m - 1, 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+      return new Date(y, m - 1, 1).toLocaleDateString(locale === 'ar' ? 'ar-DZ' : 'fr-FR', { month: 'long', year: 'numeric' });
     }
     return t('barber.period_all');
-  }, [viewMode, viewDate, viewMonth, t]);
+  }, [viewMode, viewDate, viewMonth, t, locale]);
 
   const revenuePeriodLabel = viewMode === 'day' ? t('barber.period_day') : viewMode === 'month' ? t('barber.period_month') : t('barber.period_total');
 
@@ -383,7 +383,9 @@ export function DashboardScreen() {
       await apiClient.patch(`/salons/${salonId}`, { is_manually_closed: isClosed });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['barber-salon'] });
+      // Use the canonical query key shared by all screens so the status is
+      // immediately reflected in the header badge without a manual refresh.
+      queryClient.invalidateQueries({ queryKey: ['my-salon', user?.id] });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     },
     onError: (error: any) => {
@@ -403,14 +405,14 @@ export function DashboardScreen() {
     } else {
       Toast.show({
         type: 'info',
-        text1: 'Gestion du salon',
-        text2: `L'action "${action}" sera bientôt disponible.`
+        text1: t('barber.action_management'),
+        text2: `"${action}" ${t('barber.action_soon')}`
       });
     }
   };
 
   const renderHeader = () => {
-    const barberName = user?.user_metadata?.full_name?.split(' ')[0] || 'Barbier';
+    const barberName = user?.user_metadata?.full_name?.split(' ')[0] || t('barber.name_fallback');
     const avatarUrl = user?.user_metadata?.avatar_url || DEFAULT_AVATAR;
 
     return (
@@ -420,8 +422,8 @@ export function DashboardScreen() {
           <View style={styles.profileMeta}>
             <Image source={{ uri: avatarUrl }} style={styles.profileThumb} />
             <View style={{ flex: 1 }}>
-              <Text style={styles.greetingTitle} numberOfLines={1}>Bonjour, {barberName} 👋</Text>
-              <Text style={styles.salonNameSub} numberOfLines={1}>{(salon?.name as string) || 'Mon salon coiffeur'}</Text>
+              <Text style={styles.greetingTitle} numberOfLines={1}>{t('barber.greeting')}, {barberName} 👋</Text>
+              <Text style={styles.salonNameSub} numberOfLines={1}>{(salon?.name as string) || t('barber.my_salon_fallback')}</Text>
             </View>
             <NotificationBell />
           </View>
@@ -442,9 +444,9 @@ export function DashboardScreen() {
               <>
                 <View style={[styles.statusToggleDot, { backgroundColor: colors.ink }]} />
                 <Text style={styles.statusToggleText}>
-                  {salon?.status_label === 'open_24h' ? '24H/24' :
-                   salon?.status_label === 'open' ? 'Ouvert' :
-                   salon?.status_label === 'manually_closed' ? 'Fermé (Temp)' : 'Fermé'}
+                  {salon?.status_label === 'open_24h' ? t('barber.status_open_24h') :
+                   salon?.status_label === 'open' ? t('barber.status_open') :
+                   salon?.status_label === 'manually_closed' ? t('barber.status_closed_temp') : t('barber.status_closed')}
                 </Text>
               </>
             )}
@@ -457,13 +459,13 @@ export function DashboardScreen() {
         {Boolean(salon && !isComplete) && (() => {
           // Derive missing items as a list of { label, tab, screen } descriptors
           const missingItems: Array<{ label: string; icon: string; onPress: () => void }> = [];
-          if (!salon?.image_url) missingItems.push({ label: 'Photo / logo du salon', icon: 'image-outline', onPress: () => navigation.navigate('Mon Salon' as never) });
-          if (!salon?.description) missingItems.push({ label: 'Description du salon', icon: 'document-text-outline', onPress: () => navigation.navigate('Mon Salon' as never) });
-          if (!salon?.commune) missingItems.push({ label: 'Commune (localisation)', icon: 'location-outline', onPress: () => navigation.navigate('SalonSetup' as never) });
-          if (!hasServices) missingItems.push({ label: 'Au moins un service', icon: 'cut-outline', onPress: () => navigation.navigate('Mon Salon' as never) });
-          if (!hasBarbers) missingItems.push({ label: 'Au moins un coiffeur', icon: 'person-add-outline', onPress: () => navigation.navigate('Mon Salon' as never) });
+          if (!salon?.image_url) missingItems.push({ label: t('barber.missing_photo'), icon: 'image-outline', onPress: () => navigation.navigate('Mon Salon' as never) });
+          if (!salon?.description) missingItems.push({ label: t('barber.missing_description'), icon: 'document-text-outline', onPress: () => navigation.navigate('Mon Salon' as never) });
+          if (!salon?.commune) missingItems.push({ label: t('barber.missing_commune'), icon: 'location-outline', onPress: () => navigation.navigate('SalonSetup' as never) });
+          if (!hasServices) missingItems.push({ label: t('barber.missing_service'), icon: 'cut-outline', onPress: () => navigation.navigate('Mon Salon' as never) });
+          if (!hasBarbers) missingItems.push({ label: t('barber.missing_barber'), icon: 'person-add-outline', onPress: () => navigation.navigate('Mon Salon' as never) });
           const photos = salon?.portfolio_photos as unknown[] | undefined;
-          if (!photos || photos.length === 0) missingItems.push({ label: 'Au moins une photo portfolio', icon: 'images-outline', onPress: () => navigation.navigate('Mon Salon' as never) });
+          if (!photos || photos.length === 0) missingItems.push({ label: t('barber.missing_portfolio'), icon: 'images-outline', onPress: () => navigation.navigate('Mon Salon' as never) });
 
           if (missingItems.length === 0) return null;
           return (
@@ -471,14 +473,14 @@ export function DashboardScreen() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
                 <Ionicons name="alert-circle" size={20} color="#EF4444" />
                 <Text style={{ fontFamily: 'DMSans_700Bold', fontSize: 14, color: '#EF4444', flex: 1 }}>
-                  Salon incomplet — Réservations bloquées 🔒
+                  {t('barber.salon_incomplete_title')}
                 </Text>
                 <Text style={{ fontFamily: 'DMSans_500Medium', fontSize: 11, color: colors.textMuted }}>
-                  {missingItems.length} manquant{missingItems.length > 1 ? 's' : ''}
+                  {missingItems.length}
                 </Text>
               </View>
               <Text style={{ fontFamily: 'DMSans_400Regular', fontSize: 12, color: colors.textSecondary, marginBottom: spacing.sm, lineHeight: 17 }}>
-                Complétez les éléments ci-dessous pour que vos clients puissent réserver.
+                {t('barber.salon_incomplete_body')}
               </Text>
               {missingItems.map((item, idx) => (
                 <TouchableOpacity
@@ -502,7 +504,7 @@ export function DashboardScreen() {
         {Boolean(salon?.is_manually_closed) && (
           <View style={{ backgroundColor: 'rgba(239,68,68,0.15)', borderRadius: radius.md, padding: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md }}>
             <Ionicons name="close-circle" size={20} color="#EF4444" />
-            <Text style={{ fontFamily: 'DMSans_500Medium', fontSize: 13, color: '#EF4444', flex: 1 }}>SALON FERMÉ — Les clients ne peuvent pas réserver</Text>
+          <Text style={{ fontFamily: 'DMSans_500Medium', fontSize: 13, color: '#EF4444', flex: 1 }}>{t('barber.salon_closed_banner')}</Text>
           </View>
         )}
 
@@ -511,8 +513,7 @@ export function DashboardScreen() {
           <View style={styles.approvalBanner}>
             <Ionicons name="time-outline" size={16} color={colors.amber} />
             <Text style={styles.approvalText}>
-              Votre salon est en attente de validation par notre équipe.
-              Vous recevrez une notification dès qu'il sera approuvé.
+              {t('barber.approval_pending')}
             </Text>
           </View>
         )}
@@ -553,7 +554,7 @@ export function DashboardScreen() {
 
         {/* Quick Shop Management Actions */}
         <View style={styles.quickActionsContainer}>
-          <Text style={styles.sectionHeaderTitle}>Gestion du Salon</Text>
+          <Text style={styles.sectionHeaderTitle}>{t('barber.manage_salon')}</Text>
           <View style={styles.actionsRow}>
             <TouchableOpacity
               style={styles.actionCard}
@@ -561,7 +562,7 @@ export function DashboardScreen() {
               activeOpacity={0.8}
             >
               <Ionicons name="add-circle-outline" size={24} color={colors.amber} />
-              <Text style={styles.actionCardText}>Ajouter sans RDV</Text>
+              <Text style={styles.actionCardText}>{t('barber.add_walkin')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.actionCard}
@@ -569,7 +570,7 @@ export function DashboardScreen() {
               activeOpacity={0.8}
             >
               <Ionicons name="calendar-outline" size={24} color={colors.amber} />
-              <Text style={styles.actionCardText}>Bloquer heures</Text>
+              <Text style={styles.actionCardText}>{t('barber.block_hours')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -606,7 +607,7 @@ export function DashboardScreen() {
             >
               <Text style={styles.dateNavLabelText}>{periodLabel}</Text>
               {viewDate !== today() && (
-                <Text style={styles.dateNavReturnHint}>Appuyez pour revenir à aujourd'hui</Text>
+                <Text style={styles.dateNavReturnHint}>{t('barber.return_today')}</Text>
               )}
             </TouchableOpacity>
             <TouchableOpacity style={styles.navArrowBtn} onPress={goToNextDay} activeOpacity={0.7}>
@@ -629,7 +630,7 @@ export function DashboardScreen() {
         )}
         {viewMode === 'all' && (
           <View style={styles.dateNavRowCenter}>
-            <Text style={styles.dateNavLabelText}>Tout l'historique du salon</Text>
+            <Text style={styles.dateNavLabelText}>{t('barber.all_history')}</Text>
           </View>
         )}
 
@@ -682,7 +683,7 @@ export function DashboardScreen() {
           <Ionicons name="lock-closed" size={20} color={colors.amber} />
         </View>
         <View>
-          <Text style={styles.blockedLabel}>Créneau bloqué</Text>
+          <Text style={styles.blockedLabel}>{t('barber.slot_blocked')}</Text>
           <Text style={styles.blockedTime}>
             {formatTime(item.start_time as string)} – {formatTime(item.end_time as string)}
           </Text>
@@ -699,7 +700,7 @@ export function DashboardScreen() {
         ) : (
           <>
             <Ionicons name="lock-open-outline" size={14} color={colors.ink} />
-            <Text style={styles.unblockBtnText}>Débloquer</Text>
+            <Text style={styles.unblockBtnText}>{t('barber.unblock')}</Text>
           </>
         )}
       </TouchableOpacity>
@@ -743,7 +744,7 @@ export function DashboardScreen() {
       }
     }
     if (!displayClientName || displayClientName.trim() === '') {
-      displayClientName = (item.client_phone as string) || (client?.phone_number as string) || 'Client Inconnu';
+      displayClientName = (item.client_phone as string) || (client?.phone_number as string) || t('barber.unknown_client');
     }
 
     let borderLeftColor: string = colors.steel;
@@ -765,7 +766,7 @@ export function DashboardScreen() {
           <View style={styles.bookingDetails}>
             <Text style={styles.clientName}>{displayClientName}</Text>
             <Text style={styles.serviceName}>
-              {(service?.service_name as string) || 'Service'} • {item.salon_staff ? ((item.salon_staff as Record<string,unknown>).custom_name as string || ((item.salon_staff as Record<string,unknown>).profiles as Record<string,unknown>)?.full_name as string) : "N'importe quel coiffeur"}
+              {(service?.service_name as string) || t('barber.service_fallback')} • {item.salon_staff ? ((item.salon_staff as Record<string,unknown>).custom_name as string || ((item.salon_staff as Record<string,unknown>).profiles as Record<string,unknown>)?.full_name as string) : t('barber.any_barber')}
             </Text>
             <Text style={styles.bookingTime}>
               ⏱️ {formatTime(item.start_time as string)} – {formatTime(item.end_time as string)}
@@ -815,7 +816,7 @@ export function DashboardScreen() {
                   activeOpacity={0.7}
                 >
                   <Ionicons name="checkmark-done" size={12} color="#8B5CF6" />
-                  <Text style={{ fontFamily: 'DMSans_600SemiBold', fontSize: 10, color: '#8B5CF6' }}>Terminé</Text>
+                  <Text style={{ fontFamily: 'DMSans_600SemiBold', fontSize: 10, color: '#8B5CF6' }}>{t('barber.mark_done')}</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -847,7 +848,7 @@ export function DashboardScreen() {
             return (
               <View style={styles.blockedSectionHeader}>
                 <Ionicons name="lock-closed" size={14} color={colors.amber} />
-                <Text style={styles.blockedSectionTitle}>Créneaux bloqués</Text>
+                <Text style={styles.blockedSectionTitle}>{t('barber.slots_blocked_header')}</Text>
               </View>
             );
           }
@@ -895,10 +896,10 @@ export function DashboardScreen() {
         onSuccess={() => {
           refetch();
           Toast.show({
-        type: 'success',
-        text1: t('common.success'),
-        text2: t('barber.slot_unblocked')
-      });
+            type: 'success',
+            text1: t('common.success'),
+            text2: t('barber.slot_blocked'),
+          });
         }}
       />
     </SafeAreaView>
