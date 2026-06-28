@@ -25,7 +25,7 @@ import { AddStaffModal } from '../../components/barber/AddStaffModal';
 import { EditSalonModal } from '../../components/barber/EditSalonModal';
 import { EditSalonLocationModal } from '../../components/barber/EditSalonLocationModal';
 import { formatDZD } from '@barberdz/shared/utils/formatters';
-import { decode } from 'base64-arraybuffer';
+
 import { apiClient } from '../../lib/apiClient';
 import { supabase } from '../../lib/supabase';
 import { useTranslations } from '../../hooks/useTranslations';
@@ -120,37 +120,46 @@ export function MySalonScreen() {
         allowsEditing: true,
         aspect: [4, 5],
         quality: 0.8,
-        base64: true,
+        // No base64 — we use the local URI directly (more memory-efficient
+        // and avoids ArrayBuffer serialization issues in built RN apps)
       });
 
-      if (!result.canceled && result.assets[0].base64) {
-        await uploadPortfolioPhoto(result.assets[0].base64);
+      if (!result.canceled && result.assets[0].uri) {
+        await uploadPortfolioPhoto(result.assets[0].uri);
       }
     } catch (error) {
-      
+      Toast.show({
+        type: 'error',
+        text1: t('common.error'),
+        text2: t('barber.portfolio_upload_error'),
+      });
     }
   };
 
-  const uploadPortfolioPhoto = async (base64Str: string) => {
+  const uploadPortfolioPhoto = async (uri: string) => {
     if (!salon) return;
     setUploading(true);
 
     try {
       const fileName = `photo_${Date.now()}.jpg`;
 
-      // Step 1: Get a signed upload URL from our backend (quota-checked)
-      const { storagePath, token } = await apiClient.post<{
+      // Step 1: Get a signed upload token from our backend (quota-checked)
+      const { signedUrl, storagePath, token } = await apiClient.post<{
         signedUrl: string;
         storagePath: string;
         token: string;
       }>(`/salons/${salon.id}/portfolio/upload-url`, { fileName });
 
-      // Step 2: Upload directly to Supabase using the SDK (handles correct verb + headers)
-      // NOTE: createSignedUploadUrl returns a POST endpoint, not PUT — must use uploadToSignedUrl
-      const byteArray = decode(base64Str);
+      // Step 2: Read local file as a Blob then POST to Supabase signed URL.
+      // This is the ONLY reliable pattern in built React Native apps —
+      // ArrayBuffer from base64-arraybuffer is not properly serialized
+      // by React Native's fetch implementation over the network.
+      const fileResponse = await fetch(uri);
+      const blob = await fileResponse.blob();
+
       const { error: uploadError } = await supabase.storage
         .from('portfolio')
-        .uploadToSignedUrl(storagePath, token, byteArray, {
+        .uploadToSignedUrl(storagePath, token, blob, {
           contentType: 'image/jpeg',
         });
 
@@ -164,7 +173,7 @@ export function MySalonScreen() {
       Toast.show({
         type: 'success',
         text1: t('common.success'),
-        text2: t('barber.portfolio_added')
+        text2: t('barber.portfolio_added'),
       });
       refetchPortfolio();
     } catch (err: unknown) {
@@ -172,19 +181,20 @@ export function MySalonScreen() {
       if (msg.toLowerCase().includes('limit') || msg.toLowerCase().includes('plan')) {
         Alert.alert(t('barber.portfolio_limit_title'), msg, [
           { text: t('common.cancel'), style: 'cancel' },
-          { text: t('barber.portfolio_limit_action'), onPress: () => navigation.navigate('Subscription' as never) }
+          { text: t('barber.portfolio_limit_action'), onPress: () => navigation.navigate('Subscription' as never) },
         ]);
       } else {
         Toast.show({
           type: 'error',
           text1: t('common.error'),
-          text2: msg
+          text2: msg,
         });
       }
     } finally {
       setUploading(false);
     }
   };
+
 
 
   const deletePhoto = async (photoId: string, storagePath: string) => {
@@ -216,28 +226,32 @@ export function MySalonScreen() {
         allowsEditing: true,
         aspect: [1, 1], // Square for avatars
         quality: 0.5,
-        base64: true,
+        // No base64 — use URI directly
       });
 
-      if (!result.canceled && result.assets[0].base64) {
-        await uploadStaffAvatar(staffId, result.assets[0].base64);
+      if (!result.canceled && result.assets[0].uri) {
+        await uploadStaffAvatar(staffId, result.assets[0].uri);
       }
     } catch (error) {
       
     }
   };
 
-  const uploadStaffAvatar = async (staffId: string, base64Str: string) => {
+  const uploadStaffAvatar = async (staffId: string, uri: string) => {
     if (!salon) return;
     setUploading(true);
 
     try {
       const fileName = `staff/${salon.id}/${staffId}-${Date.now()}.jpg`;
-      
+
+      // Read local file as a Blob — reliable in built RN apps
+      const fileResponse = await fetch(uri);
+      const blob = await fileResponse.blob();
+
       // Upload to storage portfolio bucket
       const { error: uploadError } = await supabase.storage
         .from('portfolio')
-        .upload(fileName, decode(base64Str), {
+        .upload(fileName, blob, {
           contentType: 'image/jpeg',
         });
 
@@ -265,6 +279,7 @@ export function MySalonScreen() {
       setUploading(false);
     }
   };
+
 
   const deleteService = async (id: string) => {
     Alert.alert(t('barber.delete_service'), t('barber.delete_service_confirm'), [
