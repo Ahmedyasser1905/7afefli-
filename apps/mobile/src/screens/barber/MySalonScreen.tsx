@@ -139,22 +139,23 @@ export function MySalonScreen() {
       const fileName = `photo_${Date.now()}.jpg`;
 
       // Step 1: Get a signed upload URL from our backend (quota-checked)
-      const { signedUrl, storagePath } = await apiClient.post<{
+      const { storagePath, token } = await apiClient.post<{
         signedUrl: string;
         storagePath: string;
         token: string;
       }>(`/salons/${salon.id}/portfolio/upload-url`, { fileName });
 
-      // Step 2: Upload directly to Supabase using the signed URL
+      // Step 2: Upload directly to Supabase using the SDK (handles correct verb + headers)
+      // NOTE: createSignedUploadUrl returns a POST endpoint, not PUT — must use uploadToSignedUrl
       const byteArray = decode(base64Str);
-      const uploadRes = await fetch(signedUrl, {
-        method: 'PUT',
-        body: byteArray,
-        headers: { 'Content-Type': 'image/jpeg' },
-      });
+      const { error: uploadError } = await supabase.storage
+        .from('portfolio')
+        .uploadToSignedUrl(storagePath, token, byteArray, {
+          contentType: 'image/jpeg',
+        });
 
-      if (!uploadRes.ok) {
-        throw new Error(t('barber.upload_failed'));
+      if (uploadError) {
+        throw new Error(uploadError.message || t('barber.upload_failed'));
       }
 
       // Step 3: Register the photo in the backend (creates the DB record)
@@ -184,6 +185,7 @@ export function MySalonScreen() {
       setUploading(false);
     }
   };
+
 
   const deletePhoto = async (photoId: string, storagePath: string) => {
     Alert.alert(t('barber.delete_photo'), t('barber.delete_photo_confirm'), [
