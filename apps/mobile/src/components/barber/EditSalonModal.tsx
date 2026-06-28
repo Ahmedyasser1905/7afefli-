@@ -19,7 +19,7 @@ import {
   FlatList,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { decode } from 'base64-arraybuffer';
+
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
@@ -154,32 +154,37 @@ export function EditSalonModal({ visible, onClose, salon, onSaved }: EditSalonMo
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: true,
-        aspect: [16, 9], // Salon covers are usually wide
+        aspect: [16, 9],
         quality: 0.7,
-        base64: true,
+        // No base64 — use URI directly (works reliably in built RN apps)
       });
 
-      if (!result.canceled && result.assets && result.assets.length > 0 && result.assets[0].base64) {
-        await uploadImage(result.assets[0].base64);
+      if (!result.canceled && result.assets && result.assets.length > 0 && result.assets[0].uri) {
+        await uploadImage(result.assets[0].uri);
       }
     } catch (error) {
       Toast.show({
         type: 'error',
         text1: 'Erreur',
-        text2: 'Impossible de sélectionner la photo'
+        text2: 'Impossible de sélectionner la photo',
       });
     }
   };
 
-  const uploadImage = async (base64String: string) => {
+  const uploadImage = async (uri: string) => {
     if (!salon || !user) return;
     setUploadingImage(true);
     try {
       const filePath = `${user.id}/salons/${salon.id}_cover_${Date.now()}.jpg`;
 
+      // Read local URI as a Blob — the only reliable upload pattern in built RN apps
+      const fileResponse = await fetch(uri);
+      const blob = await fileResponse.blob();
+
+      // Use 'salon-covers' bucket (the correctly configured bucket with size/MIME limits)
       const { data, error } = await supabase.storage
-        .from('salons') // Salon covers go into the 'salons' bucket
-        .upload(filePath, decode(base64String), {
+        .from('salon-covers')
+        .upload(filePath, blob, {
           contentType: 'image/jpeg',
           upsert: true,
         });
@@ -187,7 +192,7 @@ export function EditSalonModal({ visible, onClose, salon, onSaved }: EditSalonMo
       if (error) throw error;
 
       const { data: publicUrlData } = supabase.storage
-        .from('salons')
+        .from('salon-covers')
         .getPublicUrl(data.path);
 
       setImageUrl(publicUrlData.publicUrl);
@@ -195,7 +200,7 @@ export function EditSalonModal({ visible, onClose, salon, onSaved }: EditSalonMo
       Toast.show({
         type: 'error',
         text1: 'Erreur',
-        text2: "L'upload de l'image a échoué."
+        text2: "L'upload de l'image a échoué.",
       });
     } finally {
       setUploadingImage(false);
