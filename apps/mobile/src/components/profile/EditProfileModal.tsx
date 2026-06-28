@@ -18,11 +18,11 @@ import {
   ScrollView,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { colors, spacing, radius } from '../../theme';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import { decode } from 'base64-arraybuffer';
 import { apiClient } from '../../lib/apiClient';
 
 interface EditProfileModalProps {
@@ -56,16 +56,30 @@ export function EditProfileModal({ visible, onClose, profileData, onSaved }: Edi
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.6,
-        base64: true,
+        // No base64 — use URI directly (reliable in production RN / Hermes builds)
       });
 
-      if (!result.canceled && result.assets[0].base64) {
+      if (!result.canceled && result.assets[0].uri) {
         setUploading(true);
+
+        // M2: Compress to 400px wide, JPEG 70% — reduces avatar payload significantly
+        const compressed = await ImageManipulator.manipulateAsync(
+          result.assets[0].uri,
+          [{ resize: { width: 400 } }],
+          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+        );
+
+        // fetch(uri) → Blob is the only reliable upload pattern in built RN apps.
+        // ArrayBuffer from base64-arraybuffer is not properly serialized by the
+        // React Native networking layer over the wire (Hermes-specific bug).
+        const fileResponse = await fetch(compressed.uri);
+        const blob = await fileResponse.blob();
+
         const fileName = `${user?.id}/${Date.now()}.jpg`;
 
         const { error: uploadError } = await supabase.storage
           .from('avatars')
-          .upload(fileName, decode(result.assets[0].base64), {
+          .upload(fileName, blob, {
             contentType: 'image/jpeg',
             upsert: true,
           });
