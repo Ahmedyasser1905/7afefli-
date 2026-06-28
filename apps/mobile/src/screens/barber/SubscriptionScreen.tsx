@@ -199,11 +199,25 @@ export function SubscriptionScreen() {
   const handleSubscribe = async (plan: PlanItem) => {
     setProcessingPlan(plan.slug);
     try {
-      const result = await apiClient.post<{ checkout_url: string; id: string }>(
+      const result = await apiClient.post<{ checkout_url: string | null; id?: string; activated?: boolean }>(
         '/payments/checkout',
-        { plan: plan.slug, amount: plan.price }
+        { plan: plan.slug }
       );
 
+      // Free/zero-price plan: backend activates it directly (Chargily rejects amount=0)
+      if (result.activated === true) {
+        Toast.show({
+          type: 'success',
+          text1: t('common.success'),
+          text2: t('barber.sub_activated_free'),
+        });
+        // Refresh subscription status to reflect the change immediately
+        refetchSub();
+        refetchPlans();
+        return;
+      }
+
+      // Paid plan: open Chargily checkout URL in the browser
       if (result.checkout_url) {
         // Mark that we expect a payment return so AppState handler starts polling
         awaitingPaymentReturn.current = true;

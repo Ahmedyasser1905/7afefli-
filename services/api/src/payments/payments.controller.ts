@@ -34,7 +34,8 @@ export class PaymentsController {
   /**
    * POST /payments/checkout
    * Create a Chargily checkout session for a subscription plan.
-   * Now reads price from subscription_plans table (dynamic).
+   * - Free plans (price = 0) are activated directly — Chargily rejects amount=0.
+   * - Paid plans go through Chargily and return a checkout_url.
    */
   @Post('checkout')
   @UseGuards(SupabaseAuthGuard, RolesGuard)
@@ -57,17 +58,58 @@ export class PaymentsController {
     }
 
     // Fetch plan details from DB (dynamic pricing)
-    const { data: planData } = await this.supabase.adminClient
+    const { data: planData, error: planError } = await this.supabase.adminClient
       .from('plans')
-      .select('slug, price, name')
+      .select('id, slug, price, name, duration_days')
       .eq('slug', body.plan.toLowerCase())
       .eq('is_active', true)
       .maybeSingle();
+
+    if (planError) {
+      this.logger.error(`Failed to fetch plan "${body.plan}": ${planError.message}`);
+      return { error: 'Erreur lors de la récupération du plan' };
+    }
 
     if (!planData) {
       return { error: 'Plan introuvable ou inactif' };
     }
 
+    // ── Free / zero-price plan: activate directly, no Chargily needed ──────
+    // Chargily requires amount >= 100 DZD — sending 0 causes a 422 which
+    // the service re-throws as a 502 Bad Gateway. Handle it gracefully here.
+    if (!planData.price || planData.price <= 0) {
+      this.logger.log(
+        `Free plan activation for salon ${salon.id}: plan=${planData.name}`,
+      );
+
+      const endsAt = planData.duration_days > 0
+        ? new Date(Date.now() + planData.duration_days * 24 * 60 * 60 * 1000).toISOString()
+        : null;
+
+      const { error: subError } = await this.supabase.adminClient
+        .from('user_subscriptions')
+        .upsert(
+          {
+            salon_id: salon.id,
+            plan: planData.id,
+            status: 'Active',
+            starts_at: new Date().toISOString(),
+            ends_at: endsAt,
+            trial_ends_at: null,
+          },
+          { onConflict: 'salon_id' },
+        );
+
+      if (subError) {
+        this.logger.error(`Free plan upsert failed for salon ${salon.id}: ${subError.message}`);
+        return { error: 'Erreur lors de l\'activation du plan gratuit' };
+      }
+
+      // Return a special flag so the mobile app knows to refresh without a redirect
+      return { activated: true, checkout_url: null };
+    }
+
+    // ── Paid plan: go through Chargily ──────────────────────────────────────
     const result = await this.chargily.createCheckoutUrl(
       planData.price,
       salon.id,
