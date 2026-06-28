@@ -225,6 +225,23 @@ export class SalonsController {
     return this.salonsService.getPortfolioUploadUrl(id, fileName, user.id);
   }
 
+  /**
+   * POST /salons/:id/cover/upload-url
+   * Generate a Supabase signed upload URL for the salon cover photo.
+   * Uses service role key → bypasses RLS completely.
+   * Coiffeur only — must own the salon.
+   */
+  @Post(':id/cover/upload-url')
+  @UseGuards(SupabaseAuthGuard, RolesGuard)
+  @Roles('Coiffeur')
+  getCoverUploadUrl(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.salonsService.getCoverUploadUrl(id, user.id);
+  }
+
+
   @Delete(':id/portfolio/:photoId')
   @UseGuards(SupabaseAuthGuard, RolesGuard)
   @Roles('Coiffeur')

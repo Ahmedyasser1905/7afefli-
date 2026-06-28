@@ -156,7 +156,6 @@ export function EditSalonModal({ visible, onClose, salon, onSaved }: EditSalonMo
         allowsEditing: true,
         aspect: [16, 9],
         quality: 0.7,
-        // No base64 — use URI directly (works reliably in built RN apps)
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0 && result.assets[0].uri) {
@@ -175,25 +174,29 @@ export function EditSalonModal({ visible, onClose, salon, onSaved }: EditSalonMo
     if (!salon || !user) return;
     setUploadingImage(true);
     try {
-      const filePath = `${user.id}/salons/${salon.id}_cover_${Date.now()}.jpg`;
+      // Step 1: Get a signed upload URL from the backend (uses service role → bypasses RLS)
+      const { storagePath, token } = await apiClient.post<{
+        signedUrl: string;
+        storagePath: string;
+        token: string;
+      }>(`/salons/${(salon as any).id}/cover/upload-url`, {});
 
-      // Read local URI as a Blob — the only reliable upload pattern in built RN apps
+      // Step 2: Read local URI as Blob and upload via signed URL
       const fileResponse = await fetch(uri);
       const blob = await fileResponse.blob();
 
-      // Use 'salon-covers' bucket (the correctly configured bucket with size/MIME limits)
-      const { data, error } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('salon-covers')
-        .upload(filePath, blob, {
+        .uploadToSignedUrl(storagePath, token, blob, {
           contentType: 'image/jpeg',
-          upsert: true,
         });
 
-      if (error) throw error;
+      if (uploadError) throw uploadError;
 
+      // Step 3: Get the public URL and store in state (saved on handleSave)
       const { data: publicUrlData } = supabase.storage
         .from('salon-covers')
-        .getPublicUrl(data.path);
+        .getPublicUrl(storagePath);
 
       setImageUrl(publicUrlData.publicUrl);
     } catch (err: unknown) {

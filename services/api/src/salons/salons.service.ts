@@ -606,6 +606,42 @@ export class SalonsService {
   }
 
   /**
+   * Generate a Supabase signed upload URL for the salon cover photo.
+   * Uses adminClient (service role) to bypass RLS entirely.
+   */
+  async getCoverUploadUrl(salonId: string, userId: string) {
+    // Verify ownership
+    const { data: salon } = await this.supabase.adminClient
+      .from('salons')
+      .select('owner_id')
+      .eq('id', salonId)
+      .single();
+
+    if (!salon || salon.owner_id !== userId) {
+      throw new ForbiddenException('Accès refusé');
+    }
+
+    // Path: {salonId}/cover_{timestamp}.jpg — first segment is salonId (matches RLS policy)
+    const storagePath = `${salonId}/cover_${Date.now()}.jpg`;
+
+    const { data, error } = await this.supabase.adminClient.storage
+      .from('salon-covers')
+      .createSignedUploadUrl(storagePath);
+
+    if (error) {
+      throw new InternalServerErrorException(
+        `Impossible de générer l'URL d'upload: ${error.message}`,
+      );
+    }
+
+    return {
+      signedUrl: data.signedUrl,
+      storagePath,
+      token: data.token,
+    };
+  }
+
+  /**
    * Get reviews for a salon (with client profile data).
    */
   async getReviews(salonId: string) {
