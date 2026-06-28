@@ -37,6 +37,7 @@ interface MySubscription {
   starts_at: string | null;
   ends_at: string | null;
   created_at: string | null;
+  is_trial_active: boolean | null;
 }
 
 interface PlanItem {
