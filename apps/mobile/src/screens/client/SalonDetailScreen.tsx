@@ -331,7 +331,7 @@ export function SalonDetailScreen() {
                       {service.service_name}
                     </Text>
                     <Text style={styles.serviceDuration}>
-                      {service.duration_minutes} min • Soin traditionnel
+                      {service.duration_minutes} min{service.description ? ` • ${service.description}` : ''}
                     </Text>
                   </View>
                   <View style={styles.servicePriceRow}>

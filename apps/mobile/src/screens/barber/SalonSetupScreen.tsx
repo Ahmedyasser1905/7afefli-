@@ -119,7 +119,7 @@ export function SalonSetupScreen({ onComplete, existingSalon }: { onComplete: ()
         queryClient.invalidateQueries({ queryKey: ['home-salons-nearby'] });
         queryClient.invalidateQueries({ queryKey: ['explore-explore-salons'] });
         queryClient.invalidateQueries({ queryKey: ['nearby-salons'] });
-        queryClient.invalidateQueries({ queryKey: ['my-salon'] });
+        queryClient.invalidateQueries({ queryKey: ['my-salon', user?.id] });
         Alert.alert(t('common.success'), t('setup.updated_success'), [
           { text: t('setup.continue'), onPress: onComplete }
         ]);
@@ -141,7 +141,7 @@ export function SalonSetupScreen({ onComplete, existingSalon }: { onComplete: ()
         queryClient.invalidateQueries({ queryKey: ['home-salons-nearby'] });
         queryClient.invalidateQueries({ queryKey: ['explore-explore-salons'] });
         queryClient.invalidateQueries({ queryKey: ['nearby-salons'] });
-        queryClient.invalidateQueries({ queryKey: ['my-salon'] });
+        queryClient.invalidateQueries({ queryKey: ['my-salon', user?.id] });
         Alert.alert(t('common.success'), t('setup.created_success'), [
           { text: t('setup.continue'), onPress: onComplete }
         ]);
