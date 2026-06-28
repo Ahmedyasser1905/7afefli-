@@ -28,6 +28,7 @@ import { formatDZD } from '@barberdz/shared/utils/formatters';
 
 import { apiClient } from '../../lib/apiClient';
 import { supabase } from '../../lib/supabase';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { useTranslations } from '../../hooks/useTranslations';
 
 export function MySalonScreen() {
@@ -141,6 +142,13 @@ export function MySalonScreen() {
     setUploading(true);
 
     try {
+      // M2: Compress to 1200px wide, JPEG 75% before uploading portfolio photos
+      const compressed = await ImageManipulator.manipulateAsync(
+        uri,
+        [{ resize: { width: 1200 } }],
+        { compress: 0.75, format: ImageManipulator.SaveFormat.JPEG }
+      );
+
       const fileName = `photo_${Date.now()}.jpg`;
 
       // Step 1: Get a signed upload token from our backend (quota-checked)
@@ -154,7 +162,7 @@ export function MySalonScreen() {
       // This is the ONLY reliable pattern in built React Native apps —
       // ArrayBuffer from base64-arraybuffer is not properly serialized
       // by React Native's fetch implementation over the network.
-      const fileResponse = await fetch(uri);
+      const fileResponse = await fetch(compressed.uri);
       const blob = await fileResponse.blob();
 
       const { error: uploadError } = await supabase.storage
@@ -233,7 +241,12 @@ export function MySalonScreen() {
         await uploadStaffAvatar(staffId, result.assets[0].uri);
       }
     } catch (error) {
-      
+      // H2: Show error toast — previously empty catch silently swallowed upload failures
+      Toast.show({
+        type: 'error',
+        text1: t('common.error'),
+        text2: t('barber.avatar_upload_error'),
+      });
     }
   };
 
@@ -242,10 +255,20 @@ export function MySalonScreen() {
     setUploading(true);
 
     try {
-      const fileName = `staff/${salon.id}/${staffId}-${Date.now()}.jpg`;
+      // H1: Path must start with salonId so the portfolio_owner_insert RLS policy
+      // accepts the write. Old path was staff/{salonId}/... where first segment
+      // was the literal string "staff" — RLS always rejected it.
+      const fileName = `${salon.id}/staff_avatar_${staffId}_${Date.now()}.jpg`;
+
+      // M2: Compress staff avatar to 400px wide, JPEG 70%
+      const compressed = await ImageManipulator.manipulateAsync(
+        uri,
+        [{ resize: { width: 400 } }],
+        { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+      );
 
       // Read local file as a Blob — reliable in built RN apps
-      const fileResponse = await fetch(uri);
+      const fileResponse = await fetch(compressed.uri);
       const blob = await fileResponse.blob();
 
       // Upload to storage portfolio bucket
@@ -401,9 +424,16 @@ export function MySalonScreen() {
               <Text style={styles.emptyText}>{t('barber.no_photos')}</Text>
             ) : (
               <View style={styles.grid}>
-                {photos.map((photo: Record<string, unknown>) => (
+                {photos
+                  .filter((photo: Record<string, unknown>) => !!photo.url) // M3: skip photos with no URL
+                  .map((photo: Record<string, unknown>) => (
                   <View key={photo.id as string} style={styles.gridImageContainer}>
-                    <Image source={{ uri: photo.url as string }} style={styles.gridImage} resizeMode="cover" />
+                    <Image
+                      source={{ uri: photo.url as string }}
+                      style={styles.gridImage}
+                      resizeMode="cover"
+                      onError={() => { /* M3: image will show nothing on load failure — acceptable UX */ }}
+                    />
                     <TouchableOpacity
                       style={styles.photoDeleteBtn}
                       onPress={() => deletePhoto(photo.id as string, photo.storage_path as string)}

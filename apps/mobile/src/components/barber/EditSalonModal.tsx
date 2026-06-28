@@ -19,6 +19,7 @@ import {
   FlatList,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { supabase } from '../../lib/supabase';
@@ -174,6 +175,13 @@ export function EditSalonModal({ visible, onClose, salon, onSaved }: EditSalonMo
     if (!salon || !user) return;
     setUploadingImage(true);
     try {
+      // M2: Compress to 1600px wide, JPEG 75% before uploading salon covers
+      const compressed = await ImageManipulator.manipulateAsync(
+        uri,
+        [{ resize: { width: 1600 } }],
+        { compress: 0.75, format: ImageManipulator.SaveFormat.JPEG }
+      );
+
       // Step 1: Get a signed upload URL from the backend (uses service role → bypasses RLS)
       const { storagePath, token } = await apiClient.post<{
         signedUrl: string;
@@ -182,7 +190,7 @@ export function EditSalonModal({ visible, onClose, salon, onSaved }: EditSalonMo
       }>(`/salons/${(salon as any).id}/cover/upload-url`, {});
 
       // Step 2: Read local URI as Blob and upload via signed URL
-      const fileResponse = await fetch(uri);
+      const fileResponse = await fetch(compressed.uri);
       const blob = await fileResponse.blob();
 
       const { error: uploadError } = await supabase.storage
@@ -193,12 +201,21 @@ export function EditSalonModal({ visible, onClose, salon, onSaved }: EditSalonMo
 
       if (uploadError) throw uploadError;
 
-      // Step 3: Get the public URL and store in state (saved on handleSave)
+      // Step 3: Get the public URL
       const { data: publicUrlData } = supabase.storage
         .from('salon-covers')
         .getPublicUrl(storagePath);
 
+      // H3: Immediately persist image_url to the database so it is not lost
+      // if the user closes the modal without tapping "Enregistrer".
+      await apiClient.patch(`/salons/${(salon as any).id}`, {
+        image_url: publicUrlData.publicUrl,
+      });
+
       setImageUrl(publicUrlData.publicUrl);
+
+      // Notify the parent so the salon query is refreshed immediately
+      onSaved();
     } catch (err: unknown) {
       Toast.show({
         type: 'error',
