@@ -161,9 +161,9 @@ export function AppNavigator() {
             console.warn('[Auth] Token refresh failed — clearing session');
             await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
             clearAuth();
+            return;
           }
-          // If session is valid, fall through to update the store below
-          return;
+          // Session is valid — fall through below to update the store with the new token.
         }
 
         if (session?.user) {
