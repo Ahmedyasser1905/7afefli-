@@ -31,7 +31,7 @@ import { useTranslations } from '../../hooks/useTranslations';
 import { WILAYAS } from '@barberdz/shared/constants/wilayas';
 import { LegalModal, type LegalType } from '../../components/shared/LegalModal';
 
-const DEFAULT_AVATAR = 'https://phfwutugsyiutqgippqg.supabase.co/storage/v1/object/public/portfolio/defaults/default-avatar.png';
+import { DEFAULT_AVATAR } from '../../lib/constants';
 
 const LANGUAGE_OPTIONS: { locale: AppLocale; label: string; nativeLabel: string; flag: string }[] = [
   { locale: 'fr', label: 'Français', nativeLabel: 'Français', flag: '🇫🇷' },

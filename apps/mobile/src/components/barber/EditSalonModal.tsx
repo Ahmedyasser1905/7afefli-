@@ -189,20 +189,21 @@ export function EditSalonModal({ visible, onClose, salon, onSaved }: EditSalonMo
         token: string;
       }>(`/salons/${(salon as any).id}/cover/upload-url`, {});
 
-      // Step 2: Read local URI as Blob, then PUT directly to the signed URL.
-      // uploadToSignedUrl() also uses ArrayBuffer internally and fails in Hermes —
-      // a raw fetch PUT to the signed URL is the only reliable approach.
-      const fileResponse = await fetch(compressed.uri);
-      const blob = await fileResponse.blob();
+      // Step 2: Upload via FormData — React Native reads the file URI natively on the
+      // native bridge, avoiding the Hermes ArrayBuffer / Blob serialization bugs that
+      // break raw blob PUT requests in production builds. This matches the approach
+      // used internally by the Supabase JS SDK's uploadToSignedUrl().
+      const formData = new FormData();
+      formData.append('', { uri: compressed.uri, type: 'image/jpeg', name: 'cover.jpg' } as any);
 
       const uploadResponse = await fetch(signedUrl, {
         method: 'PUT',
-        headers: { 'Content-Type': 'image/jpeg' },
-        body: blob,
+        body: formData,
       });
 
       if (!uploadResponse.ok) {
-        throw new Error(`Upload failed: ${uploadResponse.status} ${uploadResponse.statusText}`);
+        const errText = await uploadResponse.text().catch(() => '');
+        throw new Error(`Upload failed (${uploadResponse.status}): ${errText}`);
       }
 
       // Step 3: Get the public URL
@@ -221,10 +222,11 @@ export function EditSalonModal({ visible, onClose, salon, onSaved }: EditSalonMo
       // Notify the parent so the salon query is refreshed immediately
       onSaved();
     } catch (err: unknown) {
+      const msg = (err as Error).message || "L'upload de l'image a échoué.";
       Toast.show({
         type: 'error',
-        text1: 'Erreur',
-        text2: "L'upload de l'image a échoué.",
+        text1: 'Erreur upload',
+        text2: msg.length > 80 ? msg.substring(0, 80) + '…' : msg,
       });
     } finally {
       setUploadingImage(false);

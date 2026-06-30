@@ -27,7 +27,7 @@ import { ReservationDetailModal } from '../../components/barber/ReservationDetai
 import { BlockTimeModal } from '../../components/barber/BlockTimeModal';
 import { NotificationBell } from '../../components/shared/NotificationBell';
 import { useTranslations } from '../../hooks/useTranslations';
-const DEFAULT_AVATAR = 'https://phfwutugsyiutqgippqg.supabase.co/storage/v1/object/public/portfolio/defaults/default-avatar.png';
+import { DEFAULT_AVATAR } from '../../lib/constants';
 
 export function DashboardScreen() {
   const user = useAuthStore((s) => s.user);
@@ -760,7 +760,7 @@ export function DashboardScreen() {
       >
         <View style={styles.cardLeftBlock}>
           <Image
-            source={{ uri: (client?.avatar_url as string) || 'https://phfwutugsyiutqgippqg.supabase.co/storage/v1/object/public/portfolio/defaults/default-avatar.png' }}
+            source={{ uri: (client?.avatar_url as string) || DEFAULT_AVATAR }}
             style={styles.clientAvatar}
           />
           <View style={styles.bookingDetails}>
