@@ -27,7 +27,8 @@ import { ReservationDetailModal } from '../../components/barber/ReservationDetai
 import { BlockTimeModal } from '../../components/barber/BlockTimeModal';
 import { NotificationBell } from '../../components/shared/NotificationBell';
 import { useTranslations } from '../../hooks/useTranslations';
-import { DEFAULT_AVATAR } from '../../lib/constants';
+
+const DEFAULT_AVATAR = 'https://ui-avatars.com/api/?name=U&size=128&background=2B2B2B&color=E8A020&bold=true&rounded=true&length=1';
 
 export function DashboardScreen() {
   const user = useAuthStore((s) => s.user);

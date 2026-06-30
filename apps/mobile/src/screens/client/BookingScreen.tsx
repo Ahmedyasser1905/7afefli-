@@ -17,7 +17,8 @@ import { scheduleAppointmentReminder } from '../../lib/notifications';
 import Ionicons from "@react-native-vector-icons/ionicons";
 import type { Service } from '@barberdz/shared/types';
 import { useTranslations } from '../../hooks/useTranslations';
-import { DEFAULT_AVATAR } from '../../lib/constants';
+
+const DEFAULT_AVATAR = 'https://ui-avatars.com/api/?name=U&size=128&background=2B2B2B&color=E8A020&bold=true&rounded=true&length=1';
 
 export function BookingScreen() {
   const route = useRoute<any>();

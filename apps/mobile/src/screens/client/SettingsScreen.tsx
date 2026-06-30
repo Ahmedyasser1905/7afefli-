@@ -31,7 +31,7 @@ import { useTranslations } from '../../hooks/useTranslations';
 import { WILAYAS } from '@barberdz/shared/constants/wilayas';
 import { LegalModal, type LegalType } from '../../components/shared/LegalModal';
 
-import { DEFAULT_AVATAR } from '../../lib/constants';
+const DEFAULT_AVATAR = 'https://ui-avatars.com/api/?name=U&size=128&background=2B2B2B&color=E8A020&bold=true&rounded=true&length=1';
 
 const LANGUAGE_OPTIONS: { locale: AppLocale; label: string; nativeLabel: string; flag: string }[] = [
   { locale: 'fr', label: 'Français', nativeLabel: 'Français', flag: '🇫🇷' },

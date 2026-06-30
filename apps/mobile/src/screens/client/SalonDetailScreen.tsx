@@ -27,9 +27,9 @@ import { colors, spacing, radius, shadows } from '../../theme';
 import Ionicons from "@react-native-vector-icons/ionicons";
 import type { Salon, Service, Review, PortfolioPhoto } from '@barberdz/shared/types';
 import { SalonMapView } from '../../components/map/SalonMapView';
-import { DEFAULT_AVATAR } from '../../lib/constants';
 
 const DEFAULT_COVER = 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=600&q=80';
+const DEFAULT_AVATAR = 'https://ui-avatars.com/api/?name=U&size=128&background=2B2B2B&color=E8A020&bold=true&rounded=true&length=1';
 
 export function SalonDetailScreen() {
   const route = useRoute<any>();
