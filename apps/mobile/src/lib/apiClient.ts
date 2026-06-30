@@ -23,11 +23,25 @@ class ApiError extends Error {
 
 
 async function getHeaders() {
-  const { data: { session } } = await supabase.auth.getSession();
-  return {
-    'Content-Type': 'application/json',
-    ...(session ? { Authorization: `Bearer ${session.access_token}` } : {})
-  };
+  try {
+    const { data: { session }, error } = await supabase.auth.getSession();
+    // If the SDK returns an auth error (e.g. invalid refresh token), clear the
+    // local session so the app routes back to the login screen on next render.
+    if (error) {
+      console.warn('[ApiClient] Auth error getting session:', error.message);
+      const { clearAuth } = await import('../store/authStore').then(m => ({ clearAuth: m.useAuthStore.getState().clearAuth }));
+      await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+      clearAuth();
+      return { 'Content-Type': 'application/json' };
+    }
+    return {
+      'Content-Type': 'application/json',
+      ...(session ? { Authorization: `Bearer ${session.access_token}` } : {})
+    };
+  } catch {
+    // Swallow unexpected errors — return unauthenticated headers
+    return { 'Content-Type': 'application/json' };
+  }
 }
 
 export const apiClient = {
