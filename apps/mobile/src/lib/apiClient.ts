@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { useAuthStore } from '../store/authStore';
 
 // Strips trailing slash from env var, then appends the versioned base path.
 // This means EXPO_PUBLIC_API_URL only needs the host — no need to include /api/v1.
@@ -29,9 +30,8 @@ async function getHeaders() {
     // local session so the app routes back to the login screen on next render.
     if (error) {
       console.warn('[ApiClient] Auth error getting session:', error.message);
-      const { clearAuth } = await import('../store/authStore').then(m => ({ clearAuth: m.useAuthStore.getState().clearAuth }));
       await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
-      clearAuth();
+      useAuthStore.getState().clearAuth();
       return { 'Content-Type': 'application/json' };
     }
     return {
