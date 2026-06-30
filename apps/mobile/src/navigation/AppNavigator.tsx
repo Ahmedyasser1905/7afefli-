@@ -114,16 +114,15 @@ export function AppNavigator() {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) {
+          // AuthApiError: Invalid Refresh Token — the stored token is stale/revoked.
+          // Clear everything from AsyncStorage and force re-login.
           console.warn('[Auth] Session restore failed:', error.message);
-          await supabase.auth.signOut().catch(() => {});
+          await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
           clearAuth();
           return;
         }
         if (session) {
-          
           const { role, hasPhone } = await fetchProfileInfo(session.user);
-          
-          // Set everything atomically
           useAuthStore.setState({
             session: session,
             user: session.user,
@@ -132,11 +131,12 @@ export function AppNavigator() {
             isLoading: false,
           });
         } else {
-          
           clearAuth();
         }
-      } catch (err) {
-        console.warn('[Auth] Session restore error:', err);
+      } catch (err: any) {
+        // Catch any AuthApiError thrown during token refresh on startup
+        console.warn('[Auth] Session restore error:', err?.message ?? err);
+        await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
         clearAuth();
       }
     };
@@ -146,16 +146,23 @@ export function AppNavigator() {
     // Listen for Supabase auth state changes
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        
+
         if (event === 'SIGNED_OUT') {
           clearAuth();
           return;
         }
 
-        if (event === 'TOKEN_REFRESHED' && !session) {
-          console.warn('[Auth] Token refresh failed, signing out');
-          await supabase.auth.signOut().catch(() => {});
-          clearAuth();
+        // TOKEN_REFRESHED fires after a background refresh attempt.
+        // If session is null here it means the refresh token was rejected
+        // (expired, revoked, or "Refresh Token Not Found") — force sign-out
+        // so the user lands cleanly on the login screen instead of being stuck.
+        if (event === 'TOKEN_REFRESHED') {
+          if (!session) {
+            console.warn('[Auth] Token refresh failed — clearing session');
+            await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+            clearAuth();
+          }
+          // If session is valid, fall through to update the store below
           return;
         }
 
@@ -163,15 +170,11 @@ export function AppNavigator() {
           // If the store already has this session + a role, skip re-fetching
           const currentState = useAuthStore.getState();
           if (currentState.session?.access_token === session.access_token && currentState.role) {
-            
             return;
           }
 
-          
           const { role, hasPhone } = await fetchProfileInfo(session.user);
-          
 
-          // Set session + role + needsPhone atomically
           useAuthStore.setState({
             session: session,
             user: session.user,
