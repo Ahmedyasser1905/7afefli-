@@ -112,6 +112,14 @@ async function bootstrap() {
       }),
     );
 
+    // ── Root redirect: GET / → /api/v1/health ──────────────────────────────
+    // Browsers and uptime monitors hitting the bare domain get a valid 302
+    // response instead of a 404. Must be registered on the raw Express server
+    // (not on `app`) to bypass the global api/v1 prefix.
+    server.get('/', (_req: Request, res: Response) => {
+      (res as any).redirect(302, '/api/v1/health');
+    });
+
     // Initialize NestJS app context without listening on a port
     await app.init();
   }
