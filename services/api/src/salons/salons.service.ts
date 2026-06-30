@@ -462,6 +462,40 @@ export class SalonsService {
     return { success: true };
   }
 
+  /**
+   * Generate a signed upload URL for a staff member avatar.
+   * Stored in the 'portfolio' bucket under {salonId}/staff_avatar_{staffId}_{timestamp}.jpg.
+   * The mobile client uploads directly via a PUT to the signed URL — avoids ArrayBuffer/Hermes bug.
+   */
+  async getStaffAvatarUploadUrl(salonId: string, staffId: string, userId: string) {
+    const { data: salon } = await this.supabase.adminClient
+      .from('salons')
+      .select('owner_id')
+      .eq('id', salonId)
+      .single();
+    if (!salon || salon.owner_id !== userId) throw new ForbiddenException('Accès refusé');
+
+    const storagePath = `${salonId}/staff_avatar_${staffId}_${Date.now()}.jpg`;
+    const { data, error } = await this.supabase.adminClient.storage
+      .from('portfolio')
+      .createSignedUploadUrl(storagePath);
+
+    if (error) {
+      throw new InternalServerErrorException(`Impossible de générer l'URL d'upload: ${error.message}`);
+    }
+
+    const { data: publicUrlData } = this.supabase.adminClient.storage
+      .from('portfolio')
+      .getPublicUrl(storagePath);
+
+    return {
+      signedUrl: data.signedUrl,
+      storagePath,
+      token: data.token,
+      publicUrl: publicUrlData.publicUrl,
+    };
+  }
+
   async getPortfolio(salonId: string) {
     const { data, error } = await this.supabase.adminClient
       .from('portfolio_photos')

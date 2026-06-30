@@ -218,6 +218,43 @@ export class AuthController {
     return data;
   }
 
+  /**
+   * POST /auth/profiles/me/avatar/upload-url
+   * Generate a Supabase signed upload URL for the user avatar.
+   * The mobile client uploads directly to Supabase Storage via a PUT to the signed URL
+   * (avoids the ArrayBuffer/Hermes serialization bug in built React Native apps).
+   */
+  @Post('profiles/me/avatar/upload-url')
+  @UseGuards(SupabaseAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Generate a signed upload URL for the user avatar' })
+  async getAvatarUploadUrl(@CurrentUser() user: AuthenticatedUser) {
+    // Always generate a .jpg path — the frontend always compresses to JPEG via ImageManipulator
+    const storagePath = `${user.id}/${Date.now()}.jpg`;
+
+    const { data, error } = await this.supabase.adminClient.storage
+      .from('avatars')
+      .createSignedUploadUrl(storagePath);
+
+    if (error) {
+      this.logger.error(`Avatar upload URL generation failed for user ${user.id}: ${error.message}`);
+      throw new InternalServerErrorException(`Impossible de générer l'URL d'upload: ${error.message}`);
+    }
+
+    // Compute the final public URL that will be valid once the upload completes
+    const { data: publicUrlData } = this.supabase.adminClient.storage
+      .from('avatars')
+      .getPublicUrl(storagePath);
+
+    return {
+      signedUrl: data.signedUrl,
+      storagePath,
+      token: data.token,
+      publicUrl: publicUrlData.publicUrl,
+    };
+  }
+
   @Delete('me')
   @UseGuards(SupabaseAuthGuard)
   @ApiBearerAuth()

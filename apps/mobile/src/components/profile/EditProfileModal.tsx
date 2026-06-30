@@ -19,11 +19,11 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
-import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { colors, spacing, radius } from '../../theme';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { apiClient } from '../../lib/apiClient';
+
 
 interface EditProfileModalProps {
   visible: boolean;
@@ -69,28 +69,33 @@ export function EditProfileModal({ visible, onClose, profileData, onSaved }: Edi
           { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
         );
 
-        // fetch(uri) → Blob is the only reliable upload pattern in built RN apps.
-        // ArrayBuffer from base64-arraybuffer is not properly serialized by the
-        // React Native networking layer over the wire (Hermes-specific bug).
-        const fileResponse = await fetch(compressed.uri);
-        const blob = await fileResponse.blob();
+        // Step 1: Ask the backend for a signed upload URL (uses service role → bypasses RLS)
+        // This is the only reliable upload pattern in built React Native / Hermes apps —
+        // supabase.storage.upload(blob) internally converts to ArrayBuffer which Hermes rejects.
+        const { signedUrl, publicUrl } = await apiClient.post<{
+          signedUrl: string;
+          storagePath: string;
+          token: string;
+          publicUrl: string;
+        }>('/auth/profiles/me/avatar/upload-url', {});
 
-        const fileName = `${user?.id}/${Date.now()}.jpg`;
+        // Step 2: Upload directly to Supabase Storage via a raw PUT (no SDK, no ArrayBuffer)
+        const uploadResponse = await fetch(signedUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'image/jpeg' },
+          body: compressed.uri
+            ? await (await fetch(compressed.uri)).blob()
+            : undefined,
+        });
 
-        const { error: uploadError } = await supabase.storage
-          .from('avatars')
-          .upload(fileName, blob, {
-            contentType: 'image/jpeg',
-            upsert: true,
-          });
+        if (!uploadResponse.ok) {
+          throw new Error(`Upload failed: ${uploadResponse.status} ${uploadResponse.statusText}`);
+        }
 
-        if (uploadError) throw uploadError;
+        // Step 3: Persist the public URL to the profile immediately
+        await apiClient.patch('/auth/profiles/me', { avatar_url: publicUrl });
 
-        const { data: publicUrlData } = supabase.storage
-          .from('avatars')
-          .getPublicUrl(fileName);
-
-        setAvatarUrl(publicUrlData.publicUrl);
+        setAvatarUrl(publicUrl);
         setUploading(false);
       }
     } catch (err: unknown) {
@@ -102,6 +107,7 @@ export function EditProfileModal({ visible, onClose, profileData, onSaved }: Edi
       });
     }
   };
+
 
   const handleSave = async () => {
     if (!user) return;

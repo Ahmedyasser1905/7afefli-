@@ -192,6 +192,22 @@ export class SalonsController {
     return this.salonsService.updateStaffAvatar(id, staffId, avatarUrl, user.id);
   }
 
+  /**
+   * POST /salons/:id/staff/:staffId/avatar/upload-url
+   * Generate a Supabase signed upload URL for a staff member avatar.
+   * The mobile client uploads directly via PUT to bypass ArrayBuffer/Hermes bug.
+   */
+  @Post(':id/staff/:staffId/avatar/upload-url')
+  @UseGuards(SupabaseAuthGuard, RolesGuard)
+  @Roles('Coiffeur')
+  getStaffAvatarUploadUrl(
+    @Param('id') id: string,
+    @Param('staffId') staffId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.salonsService.getStaffAvatarUploadUrl(id, staffId, user.id);
+  }
+
   @Get(':id/portfolio')
   getPortfolio(@Param('id') id: string) {
     return this.salonsService.getPortfolio(id);

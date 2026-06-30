@@ -27,7 +27,6 @@ import { EditSalonLocationModal } from '../../components/barber/EditSalonLocatio
 import { formatDZD } from '@barberdz/shared/utils/formatters';
 
 import { apiClient } from '../../lib/apiClient';
-import { supabase } from '../../lib/supabase';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useTranslations } from '../../hooks/useTranslations';
 
@@ -151,29 +150,29 @@ export function MySalonScreen() {
 
       const fileName = `photo_${Date.now()}.jpg`;
 
-      // Step 1: Get a signed upload token from our backend (quota-checked)
-      const { signedUrl, storagePath, token } = await apiClient.post<{
+      // Step 1: Get a signed upload URL from the backend (quota-checked)
+      const { signedUrl, storagePath } = await apiClient.post<{
         signedUrl: string;
         storagePath: string;
         token: string;
       }>(`/salons/${salon.id}/portfolio/upload-url`, { fileName });
 
-      // Step 2: Read local file as a Blob then POST to Supabase signed URL.
-      // This is the ONLY reliable pattern in built React Native apps —
-      // ArrayBuffer from base64-arraybuffer is not properly serialized
-      // by React Native's fetch implementation over the network.
+      // Step 2: Read local file as a Blob, then PUT directly to the signed URL.
+      // uploadToSignedUrl() also uses ArrayBuffer internally and fails in Hermes —
+      // a raw fetch PUT is the only reliable binary upload in built RN apps.
       const fileResponse = await fetch(compressed.uri);
       const blob = await fileResponse.blob();
 
-      const { error: uploadError } = await supabase.storage
-        .from('portfolio')
-        .uploadToSignedUrl(storagePath, token, blob, {
-          contentType: 'image/jpeg',
-        });
+      const uploadResponse = await fetch(signedUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'image/jpeg' },
+        body: blob,
+      });
 
-      if (uploadError) {
-        throw new Error(uploadError.message || t('barber.upload_failed'));
+      if (!uploadResponse.ok) {
+        throw new Error(t('barber.upload_failed'));
       }
+
 
       // Step 3: Register the photo in the backend (creates the DB record)
       await apiClient.post(`/salons/${salon.id}/portfolio`, { storagePath });
@@ -255,11 +254,6 @@ export function MySalonScreen() {
     setUploading(true);
 
     try {
-      // H1: Path must start with salonId so the portfolio_owner_insert RLS policy
-      // accepts the write. Old path was staff/{salonId}/... where first segment
-      // was the literal string "staff" — RLS always rejected it.
-      const fileName = `${salon.id}/staff_avatar_${staffId}_${Date.now()}.jpg`;
-
       // M2: Compress staff avatar to 400px wide, JPEG 70%
       const compressed = await ImageManipulator.manipulateAsync(
         uri,
@@ -267,28 +261,32 @@ export function MySalonScreen() {
         { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
       );
 
-      // Read local file as a Blob — reliable in built RN apps
+      // Step 1: Get a signed upload URL from the backend (service role → bypasses RLS)
+      // supabase.storage.upload(blob) hits the ArrayBuffer/Hermes bug in built RN apps.
+      const { signedUrl, publicUrl } = await apiClient.post<{
+        signedUrl: string;
+        storagePath: string;
+        token: string;
+        publicUrl: string;
+      }>(`/salons/${salon.id}/staff/${staffId}/avatar/upload-url`, {});
+
+      // Step 2: Read the compressed file as a Blob, then PUT directly to the signed URL
       const fileResponse = await fetch(compressed.uri);
       const blob = await fileResponse.blob();
 
-      // Upload to storage portfolio bucket
-      const { error: uploadError } = await supabase.storage
-        .from('portfolio')
-        .upload(fileName, blob, {
-          contentType: 'image/jpeg',
-        });
+      const uploadResponse = await fetch(signedUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'image/jpeg' },
+        body: blob,
+      });
 
-      if (uploadError) throw uploadError;
+      if (!uploadResponse.ok) {
+        throw new Error(`Upload failed: ${uploadResponse.status} ${uploadResponse.statusText}`);
+      }
 
-      const { data: publicUrlData } = supabase.storage
-        .from('portfolio')
-        .getPublicUrl(fileName);
-
-      const avatarUrl = publicUrlData.publicUrl;
-
-      // Update staff record
+      // Step 3: Update the staff record with the new avatar URL
       await apiClient.patch(`/salons/${salon.id}/staff/${staffId}/avatar`, {
-        avatarUrl,
+        avatarUrl: publicUrl,
       });
 
       refetchStaff();
@@ -302,6 +300,7 @@ export function MySalonScreen() {
       setUploading(false);
     }
   };
+
 
 
   const deleteService = async (id: string) => {
