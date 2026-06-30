@@ -79,17 +79,20 @@ export function EditProfileModal({ visible, onClose, profileData, onSaved }: Edi
           publicUrl: string;
         }>('/auth/profiles/me/avatar/upload-url', {});
 
-        // Step 2: Upload directly to Supabase Storage via a raw PUT (no SDK, no ArrayBuffer)
+        // Step 2: Upload via FormData — React Native reads the file URI natively on the
+        // native bridge, avoiding the Hermes ArrayBuffer / Blob serialization bugs that
+        // break raw blob PUT requests in production builds. Matches Supabase SDK internals.
+        const formData = new FormData();
+        formData.append('', { uri: compressed.uri, type: 'image/jpeg', name: 'avatar.jpg' } as any);
+
         const uploadResponse = await fetch(signedUrl, {
           method: 'PUT',
-          headers: { 'Content-Type': 'image/jpeg' },
-          body: compressed.uri
-            ? await (await fetch(compressed.uri)).blob()
-            : undefined,
+          body: formData,
         });
 
         if (!uploadResponse.ok) {
-          throw new Error(`Upload failed: ${uploadResponse.status} ${uploadResponse.statusText}`);
+          const errText = await uploadResponse.text().catch(() => '');
+          throw new Error(`Upload failed (${uploadResponse.status}): ${errText}`);
         }
 
         // Step 3: Persist the public URL to the profile immediately
@@ -100,10 +103,11 @@ export function EditProfileModal({ visible, onClose, profileData, onSaved }: Edi
       }
     } catch (err: unknown) {
       setUploading(false);
+      const msg = (err as Error).message || 'Impossible de télécharger la photo';
       Toast.show({
         type: 'error',
-        text1: 'Erreur',
-        text2: (err as Error).message || 'Impossible de télécharger la photo'
+        text1: 'Erreur upload',
+        text2: msg.length > 80 ? msg.substring(0, 80) + '…' : msg,
       });
     }
   };

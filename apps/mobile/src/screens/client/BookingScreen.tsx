@@ -17,6 +17,7 @@ import { scheduleAppointmentReminder } from '../../lib/notifications';
 import Ionicons from "@react-native-vector-icons/ionicons";
 import type { Service } from '@barberdz/shared/types';
 import { useTranslations } from '../../hooks/useTranslations';
+import { DEFAULT_AVATAR } from '../../lib/constants';
 
 export function BookingScreen() {
   const route = useRoute<any>();
@@ -384,7 +385,7 @@ export function BookingScreen() {
                 activeOpacity={0.8}
               >
                 <Image
-                  source={{ uri: (s.avatar_url as string) || (s.profiles as Record<string,unknown>)?.avatar_url as string || 'https://phfwutugsyiutqgippqg.supabase.co/storage/v1/object/public/portfolio/defaults/default-avatar.png' }}
+                  source={{ uri: (s.avatar_url as string) || (s.profiles as Record<string,unknown>)?.avatar_url as string || DEFAULT_AVATAR }}
                   style={styles.barberAvatar}
                 />
                 <View style={styles.barberInfo}>

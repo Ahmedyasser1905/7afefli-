@@ -19,6 +19,7 @@ import type { Reservation } from '@barberdz/shared/types';
 import { AddWalkInModal } from '../../components/barber/AddWalkInModal';
 import { ReservationDetailModal } from '../../components/barber/ReservationDetailModal';
 import { useTranslations } from '../../hooks/useTranslations';
+import { DEFAULT_AVATAR } from '../../lib/constants';
 
 const HOUR_HEIGHT = 88;
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -107,7 +108,6 @@ function resolveOverlaps(reservations: Reservation[]): Array<Reservation & { col
   return result;
 }
 
-const DEFAULT_AVATAR = 'https://phfwutugsyiutqgippqg.supabase.co/storage/v1/object/public/portfolio/defaults/default-avatar.png';
 
 export function CalendarScreen() {
   const user = useAuthStore((s) => s.user);

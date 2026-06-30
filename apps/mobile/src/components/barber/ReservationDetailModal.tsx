@@ -12,6 +12,7 @@ import {
 import { colors, radius, spacing } from '../../theme';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { formatTime, formatDZD } from '@barberdz/shared/utils/formatters';
+import { DEFAULT_AVATAR } from '../../lib/constants';
 
 interface ReservationDetailModalProps {
   visible: boolean;
@@ -22,8 +23,6 @@ interface ReservationDetailModalProps {
   onComplete?: (id: string) => void;
 }
 
-const DEFAULT_AVATAR =
-  'https://phfwutugsyiutqgippqg.supabase.co/storage/v1/object/public/portfolio/defaults/default-avatar.png';
 
 function getStatusColor(status: string): string {
   switch (status) {
