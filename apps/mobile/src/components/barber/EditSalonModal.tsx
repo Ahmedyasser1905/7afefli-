@@ -183,23 +183,27 @@ export function EditSalonModal({ visible, onClose, salon, onSaved }: EditSalonMo
       );
 
       // Step 1: Get a signed upload URL from the backend (uses service role → bypasses RLS)
-      const { storagePath, token } = await apiClient.post<{
+      const { signedUrl, storagePath } = await apiClient.post<{
         signedUrl: string;
         storagePath: string;
         token: string;
       }>(`/salons/${(salon as any).id}/cover/upload-url`, {});
 
-      // Step 2: Read local URI as Blob and upload via signed URL
+      // Step 2: Read local URI as Blob, then PUT directly to the signed URL.
+      // uploadToSignedUrl() also uses ArrayBuffer internally and fails in Hermes —
+      // a raw fetch PUT to the signed URL is the only reliable approach.
       const fileResponse = await fetch(compressed.uri);
       const blob = await fileResponse.blob();
 
-      const { error: uploadError } = await supabase.storage
-        .from('salon-covers')
-        .uploadToSignedUrl(storagePath, token, blob, {
-          contentType: 'image/jpeg',
-        });
+      const uploadResponse = await fetch(signedUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'image/jpeg' },
+        body: blob,
+      });
 
-      if (uploadError) throw uploadError;
+      if (!uploadResponse.ok) {
+        throw new Error(`Upload failed: ${uploadResponse.status} ${uploadResponse.statusText}`);
+      }
 
       // Step 3: Get the public URL
       const { data: publicUrlData } = supabase.storage
@@ -226,6 +230,8 @@ export function EditSalonModal({ visible, onClose, salon, onSaved }: EditSalonMo
       setUploadingImage(false);
     }
   };
+
+
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
